@@ -1,5 +1,5 @@
 <?php
-namespace PhalconRest;
+namespace PhalconRest\Util;
 
 class Repeat
 {
