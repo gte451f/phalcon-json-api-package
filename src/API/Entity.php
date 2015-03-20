@@ -63,9 +63,9 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * process injected model
      *
-     * @param \PhalconRest\Libraries\REST\BaseModel $model            
+     * @param \PhalconRest\API\BaseModel $model            
      */
-    function __construct(\PhalconRest\Libraries\REST\BaseModel $model, \PhalconRest\Libraries\REST\SearchHelper $searchHelper)
+    function __construct(\PhalconRest\API\BaseModel $model, \PhalconRest\API\SearchHelper $searchHelper)
     {
         $di = \Phalcon\DI::getDefault();
         $this->setDI($di);

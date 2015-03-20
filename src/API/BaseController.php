@@ -56,7 +56,7 @@ class BaseController extends \Phalcon\DI\Injectable
         $modelName = $config['namespaces']['models'] . $this->getControllerName();
         $model = new $modelName($this->di);
         
-        $searchHelper = new \PhalconRest\Libraries\REST\SearchHelper();
+        $searchHelper = new \PhalconRest\API\SearchHelper();
         
         // auto load entity if it isn't already in place
         if (! $this->entity) {

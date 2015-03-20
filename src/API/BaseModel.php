@@ -163,7 +163,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             $relationships = $mm->getRelations(get_class($this));
             foreach ($relationships as $relation) {
                 // todo load custom relationship
-                $this->relationships[] = new \PhalconRest\Libraries\REST\Relation($relation);
+                $this->relationships[] = new \PhalconRest\API\Relation($relation);
             }
         }
         return $this->relationships;
