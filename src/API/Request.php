@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\UtilInflector;
+use \PhalconRest\Util\Inflector;
 
 /**
  * extend to provide easy case conversion on incoming data
