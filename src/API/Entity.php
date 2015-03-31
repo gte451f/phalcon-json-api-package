@@ -539,7 +539,7 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function delete($id)
     {
-        // $inflector = new \PhalconRest\Libraries\Formatters\Inflector();
+        // $inflector = new \PhalconRest\API\Util\Inflector();
         $config = $this->getDI()->get('config');
         $primaryModelName = $config['namespaces']['models'] . $this->model->getModelName();
         // $primaryModelName = $inflector->camelize($primaryModelName);
@@ -653,7 +653,7 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function save($object, $id = NULL)
     {
-        $inflector = new \PhalconRest\Libraries\Formatters\Inflector();
+        $inflector = new \PhalconRest\API\Util\Inflector();
         $config = $this->getDI()->get('config');
         $primaryModelName = get_class($this->model);
         
@@ -731,7 +731,7 @@ class Entity extends \Phalcon\DI\Injectable
                     $relatedRecords = $primaryModel->$relatedModelName;
                     
                     $suppliedIDs = $inflector->underscore($relatedModelName);
-                    $inflector = new \PhalconRest\Libraries\Formatters\Inflector();
+                    $inflector = new \PhalconRest\API\Util\Inflector();
                     $suppliedIDName = $inflector->singularize($inflector->underscore($relatedModelName)) . '_ids';
                     if (isset($object->$suppliedIDName)) {
                         $suppliedRecordIDs = $object->$suppliedIDName;
@@ -834,7 +834,7 @@ class Entity extends \Phalcon\DI\Injectable
         // prep some data
         $primaryKeyName = $this->primaryKeyName;
         $result = false;
-        $inflector = new \PhalconRest\Libraries\Formatters\Inflector();
+        $inflector = new \PhalconRest\API\Util\Inflector();
         
         // attempt to load the current User
         if ($id == NULL and isset($object->$primaryKeyName)) {
