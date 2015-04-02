@@ -257,7 +257,7 @@ class Entity extends \Phalcon\DI\Injectable
             $colMap = $metaData->getColumnMap($this->model);
             if (is_null($colMap)) {
                 // but if it isn't present, fall back to attributes
-                $colMap = $metaData->getAttributes($modelNameSpace);
+                $colMap = $metaData->getAttributes($this->model);
             }
             
             foreach ($searchFields as $key => $value) {
