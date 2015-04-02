@@ -276,9 +276,25 @@ class Entity extends \Phalcon\DI\Injectable
                     }
                 }
                 
-                // TODO support wildcard * here
-                // jim* *mith...but not: I have a special sentence.***
-                $query->andWhere("$searchName = \"$value\"");
+                // check for whether we need to deal with wild cards
+                $firstChar = substr($value, 0, 1);
+                $lastChar = substr($value, -1, 1);
+                $wildcard = "%";
+                
+                if(($firstChar == "*") || ($lastChar == "*")){
+                    if($firstChar == "*"){
+                        $value = substr_replace($value, "%", 0, 1);
+                        $value = $wildcard . $value;
+                    }
+                    if($lastChar == "*"){
+                        $value = substr_replace($value, "%", -1,1);
+                        $value = $value . $wildcard;
+                    }
+                
+                    $query->andWhere("$searchName LIKE \"$value\"");
+                } else {
+                    $query->andWhere("$searchName = \"$value\"");
+                }
             }
         }
         
