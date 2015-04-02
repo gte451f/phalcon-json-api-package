@@ -301,21 +301,14 @@ class BaseController extends \Phalcon\DI\Injectable
                 break;
             // return single record within an array
             case 1:
-                $realResult = $recordsResult[0];
-            // return $recordsResult;
-            
-            // //i think we can skip this for now
-            // return array(
-            // $this->getControllerName('singular') => $recordsResult[0]
-            // );
-            // break;
+                if (isset($recordsResult['meta'])) {
+                    return $recordsResult;
+                } else {
+                    $recordsResult[0];
+                }
             
             default:
                 return $recordsResult;
-                // //i think we can skip this for now...
-                // return array(
-                // $this->getControllerName('plural') => $recordsResult
-                // );
                 break;
         }
     }
