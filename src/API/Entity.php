@@ -157,6 +157,12 @@ class Entity extends \Phalcon\DI\Injectable
             $foundSet ++;
         }
         
+        // no records found on a findFirst?
+        // json api calls for a 404
+        if ($foundSet == 0) {
+            return false;
+        }
+        
         $this->appendMeta($foundSet);
         
         return $this->restResponse;
@@ -257,6 +263,7 @@ class Entity extends \Phalcon\DI\Injectable
             $colMap = $metaData->getColumnMap($this->model);
             if (is_null($colMap)) {
                 // but if it isn't present, fall back to attributes
+                // $model
                 $colMap = $metaData->getAttributes($this->model);
             }
             

@@ -117,7 +117,16 @@ class BaseController extends \Phalcon\DI\Injectable
     public function getOne($id)
     {
         $search_result = $this->entity->findFirst($id);
-        return $this->respond($search_result);
+        
+        if ($search_result == false) {
+            // This is bad. Throw a 500. Responses should always be objects.
+            throw new HTTPException("Resource not available.", 404, array(
+                'dev' => 'The resource you requested is not available.',
+                'internalCode' => '43758093745021'
+            ));
+        } else {
+            return $this->respond($search_result);
+        }
     }
 
     /**
