@@ -16,7 +16,7 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
      *
      * @var \stdClass
      */
-    private $profile;
+    private $profile = false;
 
     private $adapter;
 
@@ -53,18 +53,6 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
     /**
      * (non-PHPdoc)
      *
-     * @see AuthenticatorInterface::getLoggedInUser()
-     *
-     */
-    public function getLoggedInUser()
-    {
-        $user = $this->adapter->getUser('test');
-        return $user;
-    }
-
-    /**
-     * (non-PHPdoc)
-     *
      * @see AuthenticatorInterface::logUserIn()
      *
      */
@@ -76,6 +64,32 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
     public function authenticate($userName, $password)
     {
         $result = $this->adapter->authenticate($userName, $password);
-        return $result;
+        
+        if ($result != false) {
+            $this->setProfile($this->adapter->getProfile($userName, $password));
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * (non-PHPdoc)
+     *
+     * @see \PhalconRest\Authentication\AuthenticatorInterface::getProfile()
+     */
+    function getProfile()
+    {
+        return $this->profile;
+    }
+
+    /**
+     * (non-PHPdoc)
+     *
+     * @see \PhalconRest\Authentication\AuthenticatorInterface::setProfile()
+     */
+    function setProfile(\PhalconRest\Authentication\UserProfile $profile)
+    {
+        $this->profile = $profile;
     }
 }
