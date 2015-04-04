@@ -48,18 +48,14 @@ class Entity extends \Phalcon\DI\Injectable
     private $recordCount = null;
 
     /**
-     * the name of the parentModel if any
-     *
-     * @var string
-     */
-    public $parentModel = null;
-
-    /**
      * relevant only for save function
      *
      * @var string insert | update
      */
     protected $saveMode = null;
+    
+    // testing
+    private $relatedQueries = array();
 
     /**
      * process injected model
@@ -110,6 +106,8 @@ class Entity extends \Phalcon\DI\Injectable
         
         $foundSet = 0;
         foreach ($baseRecords as $baseRecord) {
+            // set primaryKeyValue
+            
             $this->restResponse[$this->model->getTableName()][] = $this->processRelationships($baseRecord);
             $foundSet ++;
         }
@@ -278,19 +276,19 @@ class Entity extends \Phalcon\DI\Injectable
                 
                 // check for whether we need to deal with wild cards
                 $firstChar = substr($value, 0, 1);
-                $lastChar = substr($value, -1, 1);
+                $lastChar = substr($value, - 1, 1);
                 $wildcard = "%";
                 
-                if(($firstChar == "*") || ($lastChar == "*")){
-                    if($firstChar == "*"){
+                if (($firstChar == "*") || ($lastChar == "*")) {
+                    if ($firstChar == "*") {
                         $value = substr_replace($value, "%", 0, 1);
                         $value = $wildcard . $value;
                     }
-                    if($lastChar == "*"){
-                        $value = substr_replace($value, "%", -1,1);
+                    if ($lastChar == "*") {
+                        $value = substr_replace($value, "%", - 1, 1);
                         $value = $value . $wildcard;
                     }
-                
+                    
                     $query->andWhere("$searchName LIKE \"$value\"");
                 } else {
                     $query->andWhere("$searchName = \"$value\"");
@@ -331,14 +329,16 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function processRelationships($baseRecord)
     {
+        // prep some basic values
         $class = get_class($baseRecord);
-        
         $config = $this->getDI()->get('config');
-        // determine if we have a parent or other hasOne
-        // then move into an array
         $modelNameSpace = $config['namespaces']['models'] . $this->model->getModelName();
         
-        // sniff for a base w/ joined tables
+        // determine if we have a parent or other hasOne
+        // then move into an array
+        
+        // indirect way to sniff for a record that depends on a parent table
+        // $baseRecord would be an object w/ 2 properties
         if (strstr($class, '\\Row')) {
             $count = count($baseRecord);
             $baseArray = array();
@@ -357,6 +357,8 @@ class Entity extends \Phalcon\DI\Injectable
             // load a base array to return
             $baseArray = $baseRecord->toArray();
         }
+        // load primaryKeyValue
+        $this->primaryKeyValue = $baseArray[$this->model->getPrimaryKeyName()];
         
         // process all loaded relationships by fetching related data
         foreach ($this->activeRelations as $relation) {
@@ -367,11 +369,11 @@ class Entity extends \Phalcon\DI\Injectable
             // this must be attached w/ the parent records for joining purposes
             $relatedRecordIds = null;
             
-            $refModelName = $relation->getReferencedModel();
+            $refModelNameSpace = $relation->getReferencedModel();
             // $attributes = $this->metaData->getPrimaryKeyAttributes(new $refModelName());
             // $primaryKeyName = $attributes[0];
             
-            $refModel = new $refModelName();
+            $refModel = new $refModelNameSpace();
             $primaryKeyName = $refModel->getPrimaryKeyName();
             
             // figure out if we have a preferred alias
@@ -381,7 +383,7 @@ class Entity extends \Phalcon\DI\Injectable
             }
             
             // don't process parent relationship since that is handled in PHQL query Builder
-            if ($refModelName == $this->parentModel) {
+            if ($refModelName == $this->model->getParentModel()) {
                 continue;
             }
             
@@ -395,17 +397,23 @@ class Entity extends \Phalcon\DI\Injectable
             $property = preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $refModelName);
             $property = strtolower($property);
             
+            // Check for a bad reference
             if (! isset($baseRecord->$refModelName)) {
-                // echo "Bad reference encountered!";
+                
                 // TODO throw error here
                 throw new HTTPException("A bad model->relatedModel reference was encountered.", 500, array(
                     'dev' => "Bad reference was: {$this->model->getModelName()} -> $refModelName",
                     'internalCode' => '654981091519894'
                 ));
             } else {
-                $relatedRecords = $baseRecord->$refModelName->toArray();
-                // save the PKID for each record
+                // auto load related records or pull manually if a parent is present
+                if ($relation->getParent() == false) {
+                    $relatedRecords = $baseRecord->$refModelName->toArray();
+                } else {
+                    $relatedRecords = $this->getHasManyRecords($relation);
+                }
                 
+                // save the PKID for each record returned
                 if (count($relatedRecords) > 0) {
                     // special handling for hasOne relationship types
                     // 1 = hasOne 0 = belongsTo 2 = hasMany
@@ -457,6 +465,46 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
+     * build the query manually and takes parents into account
+     *
+     * @return array related records
+     */
+    private function getHasManyRecords($relation)
+    {
+        $refModelNameSpace = $relation->getReferencedModel();
+        
+        if (isset($this->relatedQueries[$refModelNameSpace])) {
+            $query = $this->relatedQueries[$refModelNameSpace];
+        } else {
+            $config = $this->getDI()->get('config');
+            $mm = $this->getDI()->get('modelsManager');
+            
+            $query = $mm->createBuilder()->from($refModelNameSpace);
+            $query->columns(array(
+                $refModelNameSpace . ".*",
+                $config['namespaces']['models'] . $relation->getParent() . '.*'
+            ));
+            $query->join($config['namespaces']['models'] . $relation->getParent());
+            $this->relatedQueries[$refModelNameSpace] = $query;
+        }
+        $query->where("{$relation->getReferencedFields()} = \"$this->primaryKeyValue\"");
+        $result = $query->getQuery()->execute();
+        
+        $relatedRecords = array();
+        foreach ($result as $relatedRecord) {
+            // kept to demonstrate how to reference result row
+            // $name = 'phalconRest\\Models\\Owners';
+            // $rel = $relatedRecord->$name;
+            $relatedRecArray = array(); // reset for each run
+            foreach ($relatedRecord as $rec) {
+                $relatedRecArray = array_merge($relatedRecArray, $rec->toArray());
+            }
+            $relatedRecords[] = $relatedRecArray;
+        }
+        return $relatedRecords;
+    }
+
+    /**
      * before we return a records, strip out blocked fields
      *
      * @param unknown $baseArray            
@@ -496,6 +544,7 @@ class Entity extends \Phalcon\DI\Injectable
      * auto = do nothing
      * all = load all possible relationships
      * csv,list = load only these relationships
+     *
      *
      * @param string $relationships            
      * @return void
@@ -539,14 +588,14 @@ class Entity extends \Phalcon\DI\Injectable
                 // well, maybe load parent since it's "active" but make sure we don't process it
                 // no longer load parent relationship in active since we auto join in queryBuilder
                 // also load if it is the parent relationship
-                if ($relation->getModelName() == $this->parentModel) {
+                if ($relation->getModelName() == $this->model->getParentModel()) {
                     $this->activeRelations[$relation->getTableName()] = $relation;
                 } else {
                     
                     // well, maybe load parent since it's "active" but make sure we don't process it
                     // no longer load parent relationship in active since we auto join in queryBuilder
                     // also load if it is the parent relationship
-                    if ($relation->getModelName() == $this->parentModel) {
+                    if ($relation->getModelName() == $this->model->getParentModel()) {
                         $this->activeRelations[$relation->getTableName()] = $relation;
                     }
                 }
@@ -689,15 +738,15 @@ class Entity extends \Phalcon\DI\Injectable
             $object = $this->beforeSave($object, $id);
             
             // if there is a parent table, save to that record first
-            if ($this->parentModel) {
-                $parentModelName = $config['namespaces']['models'] . $this->parentModel;
+            if ($this->model->getParentModel()) {
+                $parentModelName = $config['namespaces']['models'] . $this->model->getParentModel();
                 $parentModel = new $parentModelName();
                 $this->primaryKeyValue = $result = $id = $this->simpleSave($parentModel, $object);
                 
                 $primaryModel = new $primaryModelName();
                 
                 // now pull the parent relationship
-                $parentTableName = $inflector->underscore($this->parentModel);
+                $parentTableName = $inflector->underscore($this->model->getParentModel());
                 $parentRelationship = $this->activeRelations[$parentTableName];
                 $foreignKeyField = $parentRelationship->getFields();
                 $primaryModel->$foreignKeyField = $id;
