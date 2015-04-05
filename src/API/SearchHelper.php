@@ -303,13 +303,13 @@ class SearchHelper
         
         // load possible sort values in the following order
         // be sure to mark this as a paginated result set
-        if ($request->get('sort', "int", null) != NULL) {
+        if ($request->get('sort', "string", null) != NULL) {
             $this->suppliedSort = $request->get('sort', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sort_field', "int", null) != NULL) {
+        } elseif ($request->get('sort_field', "string", null) != NULL) {
             $this->suppliedSort = $request->get('sort_field', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sortField', "int", null) != NULL) {
+        } elseif ($request->get('sortField', "string", null) != NULL) {
             $this->suppliedSort = $request->get('sortField', "string", null);
             $this->isPager = true;
         }
