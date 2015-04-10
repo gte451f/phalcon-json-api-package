@@ -314,7 +314,6 @@ class Entity extends \Phalcon\DI\Injectable
         }
         
         // process sort
-        // todo make it aware when sorting joined fields
         $sortString = $this->searchHelper->getSort('sql');
         if ($sortString != false) {            
             $query->orderBy($modelNameSpace.".".$sortString);
