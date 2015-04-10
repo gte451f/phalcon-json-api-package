@@ -314,9 +314,10 @@ class Entity extends \Phalcon\DI\Injectable
         }
         
         // process sort
+        // todo make it aware when sorting joined fields
         $sortString = $this->searchHelper->getSort('sql');
-        if ($sortString != false) {
-            $query->orderBy($sortString);
+        if ($sortString != false) {            
+            $query->orderBy($modelNameSpace.".".$sortString);
         }
         
         // todo build fields feature into PHQL instead of doing in PHP
