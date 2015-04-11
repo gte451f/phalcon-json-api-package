@@ -316,7 +316,7 @@ class Entity extends \Phalcon\DI\Injectable
         // process sort
         $sortString = $this->searchHelper->getSort('sql');
         if ($sortString != false) {            
-            $query->orderBy($modelNameSpace.".".$sortString);
+            $query->orderBy($sortString);
         }
         
         // todo build fields feature into PHQL instead of doing in PHP
