@@ -507,7 +507,13 @@ class Entity extends \Phalcon\DI\Injectable
             }
             $relatedRecords[] = $relatedRecArray;
         }
-        return $relatedRecords;
+        
+        // it a belongsTo, then only return a single record
+        if ($relation->getType() == 0) {
+            return $relatedRecords[0];
+        } else {
+            return $relatedRecords;
+        }
     }
 
     /**
