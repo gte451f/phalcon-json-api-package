@@ -2,6 +2,7 @@
 namespace PhalconRest\API;
 
 use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Util\ValidationException;
 use \PhalconRest\Util\Inflector;
 
 /**
@@ -315,7 +316,8 @@ class Entity extends \Phalcon\DI\Injectable
         
         // process sort
         $sortString = $this->searchHelper->getSort('sql');
-        if ($sortString != false) {            
+        if ($sortString != false) {
+            // $query->orderBy($modelNameSpace.".".$sortString);
             $query->orderBy($sortString);
         }
         
@@ -507,13 +509,7 @@ class Entity extends \Phalcon\DI\Injectable
             }
             $relatedRecords[] = $relatedRecArray;
         }
-        
-        // it a belongsTo, then only return a single record
-        if ($relation->getType() == 0) {
-            return $relatedRecords[0];
-        } else {
-            return $relatedRecords;
-        }
+        return $relatedRecords;
     }
 
     /**
@@ -896,102 +892,17 @@ class Entity extends \Phalcon\DI\Injectable
         }
         $result = $model->save();
         
+        // if the save failed, gather errors and return a validation failure
         if ($result == false) {
-            $messageBag = $this->getDI()->get('messageBag');
+            $list = array();
             foreach ($model->getMessages() as $message) {
-                $messageBag->set($message->getMessage());
+                $list[] = $message->getMessage();
             }
             
-            throw new HTTPException("There was an error saving the record.", 500, array(
-                'internalCode' => '23422345347',
-                'more' => 'here is more'
-            ));
+            throw new ValidationException("Validation Errors Encountered", array(
+                'internalCode' => '7894181864684'
+            ), $model->getMessages());
         }
         return $model->getPrimaryKeyValue();
-    }
-
-    /**
-     * this is probably going to be replaced by $this->save
-     * depends on loadActiveRelationships
-     */
-    public function updateFull($object, $id = NULL)
-    {
-        // prep some data
-        $primaryKeyName = $this->primaryKeyName;
-        $result = false;
-        $inflector = new Inflector();
-        
-        // attempt to load the current User
-        if ($id == NULL and isset($object->$primaryKeyName)) {
-            // try to load from provided object data
-            $id = $object->$primaryKeyName;
-        }
-        $record = $this->findFirst($id);
-        
-        if ($record) {
-            
-            // loop through each property in the object
-            foreach ($object as $prop => $data) {
-                if (isset($this->activeRelations[$prop])) {
-                    // i am a relationship that should be processed
-                    // value now holds a list of related records
-                    // can i load an existing relationship?
-                    $class = ucfirst($inflector->camelize($prop));
-                    $model = "PhalconRest\\Models\\" . $class;
-                    
-                    // store all the related records that are to be saved in the system
-                    $relatedRecords = array();
-                    if (is_array($data)) {
-                        foreach ($data as $subRecord) {
-                            // store the original related records, we'll compare against them later to remove orphans
-                            $getCall = "get" . $class;
-                            $oldRelatedRecords = $record->$getCall()->toArray();
-                            
-                            $relation = new $model();
-                            
-                            $attributes = $this->metaData->getPrimaryKeyAttributes($relation);
-                            $relatedPrimaryKey = $attributes[0];
-                            
-                            foreach ($subRecord as $key => $value) {
-                                $relation->$key = $value;
-                            }
-                            $relatedRecords[] = $relation;
-                            
-                            $i = 0;
-                            foreach ($oldRelatedRecords as $oldRelatedRecord) {
-                                if ($relation->$relatedPrimaryKey == $oldRelatedRecord[$relatedPrimaryKey]) {
-                                    // match found, remove this record
-                                    unset($oldRelatedRecords[$i]);
-                                    break;
-                                }
-                                $i ++;
-                            }
-                        }
-                        if (count($relatedRecords) > 0) {
-                            $record->$class = $relatedRecords;
-                        }
-                    } else {
-                        // invalid data detected, expecting an array but got NOT array
-                    }
-                } else {
-                    // i am a modified value for the existing record
-                    $record->$prop = $data;
-                }
-                $foo = 1;
-            }
-            
-            // attemp to save instead of the update call?
-            $result = $record->save();
-            
-            // clear out deleted related records
-        } else {
-            // no record found to update
-            throw new HTTPException("Could not find record #$id to update.", 404, array(
-                'dev' => "No record was found to update",
-                'internalCode' => '12',
-                'more' => ''
-            )); // Could have link to documentation here.
-        }
-        return $result;
-    }
+    }   
 }

@@ -103,7 +103,7 @@ class BaseController extends \Phalcon\DI\Injectable
      * @return array Results formated by respond()
      */
     public function get()
-    {
+    {        
         $search_result = $this->entity->find();
         return $this->respond($search_result);
     }
@@ -191,9 +191,6 @@ class BaseController extends \Phalcon\DI\Injectable
                 'more' => ''
             )); // Could have link to documentation here.
         }
-        // lazy way to convert stdClass to Array
-        // $put = json_decode(json_encode($put), true);
-        // $result = $this->entity->updateFull($put, $id);
         $result = $this->entity->save($put, $id);
         
         if ($result == false) {
