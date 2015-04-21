@@ -430,13 +430,13 @@ class Entity extends \Phalcon\DI\Injectable
                             // this doesn't seem right, why are they occaisionally showing up inside an array?
                             if (isset($relatedRecords[$primaryKeyName])) {
                                 $relatedRecordIds = $relatedRecords[$primaryKeyName];
+                                // wrap in array so we can store multiple hasOnes from many different main records
+                                $relatedRecords = array(
+                                    $relatedRecords
+                                );
                             } else {
                                 $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
                             }
-                            // wrap in array so we can store multiple hasOnes from many different main records
-                            $relatedRecords = array(
-                                $relatedRecords
-                            );
                             break;
                         
                         default:
