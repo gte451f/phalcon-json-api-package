@@ -427,7 +427,12 @@ class Entity extends \Phalcon\DI\Injectable
                     // 1 = hasOne 0 = belongsTo 2 = hasMany
                     switch ($refType) {
                         case 0:
-                            $relatedRecordIds = $relatedRecords[$primaryKeyName];
+                            // this doesn't seem right, why are they occaisionally showing up inside an array?
+                            if (isset($relatedRecords[$primaryKeyName])) {
+                                $relatedRecordIds = $relatedRecords[$primaryKeyName];
+                            } else {
+                                $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
+                            }
                             // wrap in array so we can store multiple hasOnes from many different main records
                             $relatedRecords = array(
                                 $relatedRecords
@@ -904,5 +909,5 @@ class Entity extends \Phalcon\DI\Injectable
             ), $model->getMessages());
         }
         return $model->getPrimaryKeyValue();
-    }   
+    }
 }
