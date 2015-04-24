@@ -124,7 +124,7 @@ class ValidationException extends \Exception
             }
         
         // also route log to PHP server?
-        error_log('HTTPException: ' . $this->getFile() . ' at ' . $this->getLine());
+        error_log('ValidationException: ' . $this->getFile() . ' at ' . $this->getLine());
         
         return true;
     }
