@@ -415,10 +415,15 @@ class Entity extends \Phalcon\DI\Injectable
                 ));
             } else {
                 // auto load related records or pull manually if a parent is present
+                // or if processing a belongsTo
                 if ($relation->getParent() == false) {
                     $relatedRecords = $baseRecord->$refModelName->toArray();
                 } else {
-                    $relatedRecords = $this->getHasManyRecords($relation);
+                    if ($refType == 0) {
+                        $relatedRecords = $this->getBelongsToRecord($relation, $baseArray);
+                    } else {
+                        $relatedRecords = $this->getHasManyRecords($relation);
+                    }
                 }
                 
                 // save the PKID for each record returned
@@ -478,11 +483,47 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
-     * build the query manually and takes parents into account
+     * built for hasMany relationships
+     * in cases where the related record itself refers to a parent record,
+     * write a custom query to load the related record including it's parent
      *
-     * @return array related records
+     * depends on the existance of a primaryKeyValue
+     *
+     * @return \PhalconRest\API\Relation $relation
      */
-    private function getHasManyRecords($relation)
+    private function getHasManyRecords(\PhalconRest\API\Relation $relation)
+    {
+        $query = $this->buildRelationQuery($relation);
+        $query->where("{$relation->getReferencedFields()} = \"$this->primaryKeyValue\"");
+        $result = $query->getQuery()->execute();
+        return $this->loadRelationRecords($result);
+    }
+
+    /**
+     * built for belongsTo relationships
+     * in cases where the related record itself refers to a parent record,
+     * write a custom query to load the related record including it's parent
+     *
+     * @param \PhalconRest\API\Relation $relation            
+     * @param array $baseArray            
+     * @return multitype:array
+     */
+    private function getBelongsToRecord(\PhalconRest\API\Relation $relation, $baseArray)
+    {
+        $query = $this->buildRelationQuery($relation);
+        $foreignKey = $relation->getFields();
+        $query->where("{$relation->getReferencedFields()} = \"{$baseArray[$foreignKey]}\"");
+        $result = $query->getQuery()->execute();
+        return $this->loadRelationRecords($result);
+    }
+
+    /**
+     * utility shared between getBelongsToRecord and getHasManyRecords
+     *
+     * @param \PhalconRest\API\Relation $relation            
+     * @return object
+     */
+    private function buildRelationQuery(\PhalconRest\API\Relation $relation)
     {
         $refModelNameSpace = $relation->getReferencedModel();
         
@@ -500,9 +541,17 @@ class Entity extends \Phalcon\DI\Injectable
             $query->join($config['namespaces']['models'] . $relation->getParent());
             $this->relatedQueries[$refModelNameSpace] = $query;
         }
-        $query->where("{$relation->getReferencedFields()} = \"$this->primaryKeyValue\"");
-        $result = $query->getQuery()->execute();
-        
+        return $query;
+    }
+
+    /**
+     * utility shared between getBelongsToRecord and getHasManyRecords
+     *
+     * @param array $result            
+     * @return multitype:array
+     */
+    private function loadRelationRecords($result)
+    {
         $relatedRecords = array();
         foreach ($result as $relatedRecord) {
             // kept to demonstrate how to reference result row
