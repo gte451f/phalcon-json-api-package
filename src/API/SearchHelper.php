@@ -16,20 +16,20 @@ class SearchHelper
     //
     // user supplied params that are picked up and populated by the URL parser
     //
-    private $suppliedDisplayFields = null;
+    public $suppliedDisplayFields = null;
 
-    private $suppliedLimit = null;
+    public $suppliedLimit = null;
 
-    private $suppliedOffset = null;
+    public $suppliedOffset = null;
     
     // relationship1, relationship2 | all | none
-    private $suppliedWith = 'all';
+    public $suppliedWith = 'all';
     
     // field1,-field2
-    private $suppliedSort = null;
+    public $suppliedSort = null;
     
     // do i need this?
-    private $suppliedSearchFields = null;
+    public $suppliedSearchFields = null;
     
     //
     // entity supplied list of params that override or merge with URL params
@@ -353,9 +353,7 @@ class SearchHelper
         
         // If there's a 'fields' parameter
         if ($request->get('fields', null, null)) {
-            //decode values first
-            $fields = $request->get('fields', null, null);            
-            $this->parsePartialFields(html_entity_decode($fields));
+            $this->parsePartialFields($request->get('fields', null, null));
         }
     }
 
