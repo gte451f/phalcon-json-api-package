@@ -73,7 +73,7 @@ class Request extends \Phalcon\Http\Request
      * @param string $defaultValue            
      * @return multiple
      */
-    public function getPut($name = null, $filters = null, $defaultValue = null)
+    public function getPut($name = NULL, $filters = NULL, $defaultValue = NULL, $notAllowEmpty = NULL, $noRecursive = NULL)
     {
         // perform parent function
         $request = parent::getPut($name, $filters, $defaultValue);

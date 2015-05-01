@@ -1,5 +1,33 @@
 # phalcon-json-api-package
-A composer package design to help you create a JSON:API in Phalcon
+A composer package designed to help you create a JSON:API in Phalcon
 
 
-What happens when a PHP developer wants to create an api to drive their client-side SPA?  Well you start with [Phalcon](http://phalconphp.com/en/) (A modern super fast framework) loosely follow the [JSON:API](http://jsonapi.org/) and package it up for [Composer](https://getcomposer.org/).  The result is this project so enjoy.
+What happens when a PHP developer wants to create an api to drive their client-side SPA?  Well you start with [Phalcon](http://phalconphp.com/en/) (A modern super fast framework) loosely follow the [JSON:API](http://jsonapi.org/) and package it up for [Composer](https://getcomposer.org/).  The result is the phalcon-json-api package (herafter referred to as the API) so enjoy.
+
+# System requirements
+- Phalcon 1.X (The latest release in the 1.x series)  The 2.x series has not been tested yet.
+- SQL persistance layer (ie. MYSQL, MariaDB)
+- PHP Version 5.5 or greater?
+
+# How is Phalcon used?
+Phalcon is the underlying framework this project depends on.  Any user of the API package will need to have a working installation of Phalcon already installed on their system.  The API makes extensive use of Phalcon sub systems including the ORM, Router and Service Locator.
+
+# How is JSONAPI used?
+The Phalcon JSON API package attempts to follow the JSON API as closely as possible.  There are several additions the API package incorporates beyond the JSON API specification.
+
+# How can I get started?
+New folks are enocouraged to download and install the sister package [NAME HERE](http://LinkHere) that acts as a simple example application to demonstrate how one could use the API.  This simple application include all the building blocks that make up the api including demonstrations of traditional Phalcon objects like Controllers and Models along with objects designed for use in the API such as Entities, Route and SearchHelpers.
+
+# Within the context of the API, please describe
+
+# What is a Model and how is it used?
+A model is a normal Phalcon object that you are probably already familiar with.  The API contains an extended version of a Phalcon Model that you should base all models off of from within your application.  A model represents a table from your persistance layer.  Each model expects a primary key which it often detects via Phalcon::ORM.  The upstream Entity object depends on a model to perform crud operations.
+
+# What is an Entity and how is it used?
+An entity is a custom contstruct of the API.  It acts as a layer of abstraction that sits on top of and coordinates among models and their relationsionships.  It also takes into account an associated searchHelper object that further describes how the entity should gather and data before turning to the requesting client.
+
+# What is a Controller and how is it used?
+A controller is also a normal Phalcon object with some specific enhancements for performaing it's responsabilities.  It catches requests from a calling client (ie a web browser) and gathers any specific data beforing delegating work to an underlying entity.  The controller also formats data returned from an Entity into the correct format configured in the API.  JSON repsonses are the most tested, but an abstraction layer provides an option to use a different response format.
+
+# What is a searchHelper and how is it used?
+A SearchHelper works in conjunction with an entity to further guide the API in gathering and formating data.  Specifically, a SearhcHelper drives entity behavior around building relationships, filtering data and showing or hiding columns.

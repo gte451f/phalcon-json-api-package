@@ -353,7 +353,9 @@ class SearchHelper
         
         // If there's a 'fields' parameter
         if ($request->get('fields', null, null)) {
-            $this->parsePartialFields($request->get('fields', null, null));
+            //decode values first
+            $fields = $request->get('fields', null, null);            
+            $this->parsePartialFields(html_entity_decode($fields));
         }
     }
 
