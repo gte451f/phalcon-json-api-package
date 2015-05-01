@@ -202,8 +202,15 @@ class SearchHelper
             return 'none'; // allow entity override
         }
         
-        if (! is_null($this->entityWith) and $this->suppliedWith = 'all') {
+        if (! is_null($this->entityWith) and $this->suppliedWith == 'all') {
             return $this->entityWith; // process entity default if supplied is all
+        }
+        
+        if (! is_null($this->entityWith) and ! is_null($this->suppliedWith)){
+            $entityWithArray = explode(",", $this->entityWith);
+            $suppliedWithArray = explode(",", $this->suppliedWith);
+            $newWith = array_unique(array_merge($entityWithArray, $suppliedWithArray));
+            return implode(",", $newWith);
         }
         
         if (! is_null($this->suppliedWith) and is_null($this->entityWith)) {
