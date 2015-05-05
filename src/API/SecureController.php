@@ -14,6 +14,13 @@ class SecureController extends BaseController
     {
         $config = $this->getDI()->get('config');
         
+        if(!isset($config['security'])){
+            throw new HTTPException("Configuration lacks a security value.  Please specify this value in your config array.", 500, array(
+                'dev' => "Set security value in config array",
+                'internalCode' => '342534565408971'
+            ));
+        }
+        
         switch ($config['security']) {
             case true:
                 $token = $this->request->getHeader("X_AUTHORIZATION");
