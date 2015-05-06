@@ -36,7 +36,6 @@ class SecureController extends BaseController
                 if ($this->auth->isLoggedIn($token)) {
                     parent::__construct($parseQueryString);
                 } else {
-                    // TODO throw error here
                     throw new HTTPException("Unauthorized, please authenticate first.", 401, array(
                         'dev' => "Must be authenticated to access.",
                         'internalCode' => '30945680384502037'
@@ -45,7 +44,14 @@ class SecureController extends BaseController
                 break;
             
             case false:
-                parent::__construct($parseQueryString);
+                if ($this->auth->isLoggedIn('HACKYHACKERSON')) {
+                    parent::__construct($parseQueryString);
+                } else {
+                    throw new HTTPException("Security False is not loading a valid user.", 401, array(
+                        'dev' => "The authenticator isn't loading a valid user.",
+                        'internalCode' => '23749873490704'
+                    ));
+                }
                 break;
             
             default:
