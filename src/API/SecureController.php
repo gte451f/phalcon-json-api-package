@@ -14,16 +14,23 @@ class SecureController extends BaseController
     {
         $config = $this->getDI()->get('config');
         
-        if(!isset($config['security'])){
-            throw new HTTPException("Configuration lacks a security value.  Please specify this value in your config array.", 500, array(
-                'dev' => "Set security value in config array",
-                'internalCode' => '342534565408971'
-            ));
-        }
-        
         switch ($config['security']) {
             case true:
-                $token = $this->request->getHeader("X_AUTHORIZATION");
+                
+                $headerToken = $this->request->getHeader("X_AUTHORIZATION");
+                $queryParamToken = $this->getDI()
+                    ->get('request')
+                    ->getQuery("token");
+                
+                // try to read in from header first, otherwise attempt to read in from query param
+                if ($headerToken !== "") {
+                    $token = $headerToken;
+                } elseif (! is_null($queryParamToken)) {
+                    $token = $queryParamToken;
+                } else {
+                    $token = "";
+                }
+                
                 $token = trim(str_ireplace("Token: ", '', $token));
                 if (strlen($token) < 30) {
                     throw new HTTPException("Bad token supplied", 401, array(
@@ -31,8 +38,7 @@ class SecureController extends BaseController
                     ));
                 }
                 
-                // TODO Check for a valid session
-                // Check if the variable is defined
+                // check for a valid session
                 if ($this->auth->isLoggedIn($token)) {
                     parent::__construct($parseQueryString);
                 } else {
@@ -44,6 +50,9 @@ class SecureController extends BaseController
                 break;
             
             case false:
+                // if security if off, then create a fake user profile
+                // todo figure out a way to do this w/o this assumption
+                // notice the specific requirement to a client application
                 if ($this->auth->isLoggedIn('HACKYHACKERSON')) {
                     parent::__construct($parseQueryString);
                 } else {
