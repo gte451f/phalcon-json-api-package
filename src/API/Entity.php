@@ -346,18 +346,25 @@ class Entity extends \Phalcon\DI\Injectable
         // then move into an array
         
         // indirect way to sniff for a record that depends on a parent table
-        // $baseRecord would be an object w/ 2 properties
+        // $baseRecord would be an object w/ mulitple properties
         if (strstr($class, '\\Row')) {
             $count = count($baseRecord);
             $baseArray = array();
-            foreach ($baseRecord as $rec) {
-                $baseArray = array_merge($baseArray, $rec->toArray());
-                $class = get_class($rec);
-                
-                // primary class found
-                // then rebuild baseRecord as just the real baseRecord
-                if ($modelNameSpace == $class) {
-                    $realBaseRecord = $rec;
+            
+            // additional logic process scalar and object types differently
+            foreach ($baseRecord as $key => $value) {
+                if (gettype($value) == 'object') {
+                    $baseArray = array_merge($baseArray, $value->toArray());
+                    
+                    $class = get_class($value);
+                    
+                    // primary class found
+                    // then rebuild baseRecord as just the real baseRecord
+                    if ($modelNameSpace == $class) {
+                        $realBaseRecord = $value;
+                    }
+                } else {
+                    $baseArray[$key] = $value;
                 }
             }
             $baseRecord = $realBaseRecord;
@@ -365,6 +372,7 @@ class Entity extends \Phalcon\DI\Injectable
             // load a base array to return
             $baseArray = $baseRecord->toArray();
         }
+        
         // load primaryKeyValue
         $this->primaryKeyValue = $baseArray[$this->model->getPrimaryKeyName()];
         
