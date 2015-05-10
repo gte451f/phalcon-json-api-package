@@ -201,9 +201,7 @@ class Entity extends \Phalcon\DI\Injectable
             $query = $this->queryBuilder('count');
             $totalSet = $query->getQuery()->execute();
             
-            foreach ($totalSet as $row) {
-                $this->recordCount = intval($row->count);
-            }
+            $this->recordCount = $totalSet->count();
             
             // construct using PHQL
             $query = $this->queryBuilder();
