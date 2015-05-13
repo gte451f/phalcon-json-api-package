@@ -197,15 +197,12 @@ class Entity extends \Phalcon\DI\Injectable
         // this would only happen if another part of the app was calling this entity directly
         // not sure we need this, it might be better to work directly on the searchHelper?
         if (is_null($suppliedParameters)) {
-            // run this once for the count
-            $query = $this->queryBuilder('count');
-            $totalSet = $query->getQuery()->execute();
-            
-            $this->recordCount = $totalSet->count();
-            
             // construct using PHQL
-            $query = $this->queryBuilder();
-            return $query->getQuery()->execute();
+            $query = $this->queryBuilder();            
+            $result = $query->getQuery()->execute();    
+            // record count        
+            $this->recordCount = $result->count();
+            return $result;
         } else {
             // strip out colum filter since phalcon doesn't return a full object then
             if (isset($suppliedParameters['columns'])) {
