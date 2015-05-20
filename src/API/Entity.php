@@ -198,9 +198,9 @@ class Entity extends \Phalcon\DI\Injectable
         // not sure we need this, it might be better to work directly on the searchHelper?
         if (is_null($suppliedParameters)) {
             // construct using PHQL
-            $query = $this->queryBuilder();            
-            $result = $query->getQuery()->execute();    
-            // record count        
+            $query = $this->queryBuilder();
+            $result = $query->getQuery()->execute();
+            // record count
             $this->recordCount = $result->count();
             return $result;
         } else {
@@ -420,7 +420,12 @@ class Entity extends \Phalcon\DI\Injectable
                 // auto load related records or pull manually if a parent is present
                 // or if processing a belongsTo
                 if ($relation->getParent() == false) {
-                    $relatedRecords = $baseRecord->$refModelName->toArray();
+                    // optional foreign keys will turn up false here so skip
+                    if ($baseRecord->$refModelName) {
+                        $relatedRecords = $baseRecord->$refModelName->toArray();
+                    } else {
+                        $relatedRecords = array();
+                    }
                 } else {
                     if ($refType == 0) {
                         $relatedRecords = $this->getBelongsToRecord($relation, $baseArray);
@@ -728,10 +733,10 @@ class Entity extends \Phalcon\DI\Injectable
      * hook to be run after an entity is deleted
      * make it easy to extend default delete logic
      *
-     * @param $id the
-     *            PKID of the record that was just removed
+     * @param $model the
+     *            record that was just removed
      */
-    public function afterDelete($id)
+    public function afterDelete($model)
     {
         // extend me in child class
     }
