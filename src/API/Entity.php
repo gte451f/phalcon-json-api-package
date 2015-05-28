@@ -236,19 +236,21 @@ class Entity extends \Phalcon\DI\Injectable
         
         // process hasOne Joins
         $this->queryJoinHelper($query, $nameSpace);
-        
         $this->querySearcheHelper($query, $modelNameSpace);
+        $this->querySortHelper($query);
         
         if ($count) {
             $query->columns('count(*) as count');
         } else {
-            $query->columns($columns);
+            // preseve any columns added through joins
+            $existingColumns = $query->getColumns();
+            $allColumns = array_merge($columns, $existingColumns);
+            $query->columns($allColumns);
         }
         // skip limit if returning a count
         if (! $count) {
             $this->queryLimitHelper($query);
         }
-        $this->querySortHelper($query);
         
         // todo build fields feature into PHQL instead of doing in PHP
         return $query;
@@ -265,7 +267,7 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $nameSpace)
     {
-        
+        $columns = [];
         // join all active hasOne's instead of just the parent
         foreach ($this->activeRelations as $relation) {
             if ($relation->getType() == 1) {
@@ -274,6 +276,7 @@ class Entity extends \Phalcon\DI\Injectable
                 $columns[] = "$refModelNameSpace.*";
             }
         }
+        $query->columns($columns);
         
         return $query;
     }
