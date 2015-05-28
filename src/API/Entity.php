@@ -576,11 +576,12 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * before we return a records, strip out blocked fields
+     * this is also a good place to perform other last minute adjustments to a records results
      *
-     * @param unknown $baseArray            
-     * @return unknown
+     * @param array $baseArray            
+     * @return array
      */
-    private function filterFields($baseArray)
+    protected function filterFields($baseArray)
     {
         // remove any fields that aren't in partial fields...what about merged tables?
         $allowedFields = $this->searchHelper->getAllowedFields();
@@ -807,22 +808,28 @@ class Entity extends \Phalcon\DI\Injectable
             // pre-save hook placed after saveMode
             $object = $this->beforeSave($object, $id);
             
+            /**
+             * Disable parent save, not sure this is even needed for rest api's
+             * Ember data for sure dislikes this
+             */
+            $primaryModel = new $primaryModelName();
+            
             // if there is a parent table, save to that record first
-            if ($this->model->getParentModel()) {
-                $parentModelName = $config['namespaces']['models'] . $this->model->getParentModel();
-                $parentModel = new $parentModelName();
-                $this->primaryKeyValue = $result = $id = $this->simpleSave($parentModel, $object);
-                
-                $primaryModel = new $primaryModelName();
-                
-                // now pull the parent relationship
-                $parentTableName = $inflector->underscore($this->model->getParentModel());
-                $parentRelationship = $this->activeRelations[$parentTableName];
-                $foreignKeyField = $parentRelationship->getFields();
-                $primaryModel->$foreignKeyField = $id;
-            } else {
-                $primaryModel = new $primaryModelName();
-            }
+            // if ($this->model->getParentModel()) {
+            // $parentModelName = $config['namespaces']['models'] . $this->model->getParentModel();
+            // $parentModel = new $parentModelName();
+            // $this->primaryKeyValue = $result = $id = $this->simpleSave($parentModel, $object);
+            
+            // $primaryModel = new $primaryModelName();
+            
+            // // now pull the parent relationship
+            // $parentTableName = $inflector->underscore($this->model->getParentModel());
+            // $parentRelationship = $this->activeRelations[$parentTableName];
+            // $foreignKeyField = $parentRelationship->getFields();
+            // $primaryModel->$foreignKeyField = $id;
+            // } else {
+            // $primaryModel = new $primaryModelName();
+            // }
         } else {
             // update existing record
             $this->saveMode = 'update';
