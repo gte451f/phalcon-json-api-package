@@ -217,6 +217,7 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * build a PHQL based query to be executed by the runSearch method
+     * broken up into helpers so extending this function duplicates less code
      *
      * @param boolean $count
      *            should we only gather a count of the query?
@@ -233,6 +234,38 @@ class Entity extends \Phalcon\DI\Injectable
             "$modelNameSpace.*"
         );
         
+        // process hasOne Joins
+        $this->queryJoinHelper($query, $nameSpace);
+        
+        $this->querySearcheHelper($query, $modelNameSpace);
+        
+        if ($count) {
+            $query->columns('count(*) as count');
+        } else {
+            $query->columns($columns);
+        }
+        // skip limit if returning a count
+        if (! $count) {
+            $this->queryLimitHelper($query);
+        }
+        $this->querySortHelper($query);
+        
+        // todo build fields feature into PHQL instead of doing in PHP
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply join conditions and return query object
+     *
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @param string $nameSpace            
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface
+     */
+    public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $nameSpace)
+    {
+        
         // join all active hasOne's instead of just the parent
         foreach ($this->activeRelations as $relation) {
             if ($relation->getType() == 1) {
@@ -242,12 +275,19 @@ class Entity extends \Phalcon\DI\Injectable
             }
         }
         
-        if ($count) {
-            $query->columns('count(*) as count');
-        } else {
-            $query->columns($columns);
-        }
-        
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply search rules based on the searchHelper conditions and return query
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @param string $modelNameSpace            
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     */
+    public function querySearcheHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $modelNameSpace)
+    {
         // assume all searches as AND
         $searchFields = $this->searchHelper->getSearchFields();
         if ($searchFields) {
@@ -291,33 +331,51 @@ class Entity extends \Phalcon\DI\Injectable
                 }
             }
         }
-        
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply specified limit condition and return query object
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @throws HTTPException
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     */
+    public function queryLimitHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    {
         // only apply limit if we are NOT checking the count
-        if (! $count) {
-            $limit = $this->searchHelper->getLimit();
-            $offset = $this->searchHelper->getOffset();
-            if ($offset and $limit) {
-                $query->limit($limit, $offset);
-            } elseif ($limit) {
-                $query->limit($limit);
-            } else {
-                // can't have an offset w/o an limit
-                throw new HTTPException("A bad query was attempted.", 500, array(
-                    'dev' => "Encountered an offset clause w/o a limit which is a no-no.",
-                    'internalCode' => '894791981'
-                ));
-            }
+        $limit = $this->searchHelper->getLimit();
+        $offset = $this->searchHelper->getOffset();
+        if ($offset and $limit) {
+            $query->limit($limit, $offset);
+        } elseif ($limit) {
+            $query->limit($limit);
+        } else {
+            // can't have an offset w/o an limit
+            throw new HTTPException("A bad query was attempted.", 500, array(
+                'dev' => "Encountered an offset clause w/o a limit which is a no-no.",
+                'internalCode' => '894791981'
+            ));
         }
         
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply sort params and return query object
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     */
+    public function querySortHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    {
         // process sort
         $sortString = $this->searchHelper->getSort('sql');
         if ($sortString != false) {
-            // $query->orderBy($modelNameSpace.".".$sortString);
             $query->orderBy($sortString);
         }
-        
-        // todo build fields feature into PHQL instead of doing in PHP
-        
         return $query;
     }
 
