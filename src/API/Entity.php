@@ -852,6 +852,32 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
+     * if an model has a parent model specified,
+     * create that record before creating the current child entity
+     *
+     * @param unknown $object            
+     * @return mixed either boolean or the ID of a newly created record
+     */
+    public function saveParent($object)
+    {
+        $inflector = new Inflector();
+        $config = $this->getDI()->get('config');
+        $primaryModelName = get_class($this->model);
+        $result = true;
+        
+        // if there is a parent table, save to that record first
+        if ($this->model->getParentModel()) {
+            $parentModelName = $config['namespaces']['models'] . $this->model->getParentModel();
+            $parentModel = new $parentModelName();
+            $result = $this->simpleSave($parentModel, $object);
+            if ($result > 0) {
+                $result = (int) $result;
+            }
+        }
+        return $result;
+    }
+
+    /**
      * attempt to add/update a new entity
      * watch $id to determine if update or insert
      *
@@ -873,29 +899,7 @@ class Entity extends \Phalcon\DI\Injectable
             
             // pre-save hook placed after saveMode
             $object = $this->beforeSave($object, $id);
-            
-            /**
-             * Disable parent save, not sure this is even needed for rest api's
-             * Ember data for sure dislikes this
-             */
             $primaryModel = new $primaryModelName();
-            
-            // if there is a parent table, save to that record first
-            // if ($this->model->getParentModel()) {
-            // $parentModelName = $config['namespaces']['models'] . $this->model->getParentModel();
-            // $parentModel = new $parentModelName();
-            // $this->primaryKeyValue = $result = $id = $this->simpleSave($parentModel, $object);
-            
-            // $primaryModel = new $primaryModelName();
-            
-            // // now pull the parent relationship
-            // $parentTableName = $inflector->underscore($this->model->getParentModel());
-            // $parentRelationship = $this->activeRelations[$parentTableName];
-            // $foreignKeyField = $parentRelationship->getFields();
-            // $primaryModel->$foreignKeyField = $id;
-            // } else {
-            // $primaryModel = new $primaryModelName();
-            // }
         } else {
             // update existing record
             $this->saveMode = 'update';
