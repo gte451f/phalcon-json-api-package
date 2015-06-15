@@ -4,6 +4,14 @@ namespace PhalconRest\Authentication;
 use Phalcon\DI\Injectable;
 
 /**
+ * Use one interface to perform work split between a userProfile object and a adapter to authenticate
+ *
+ *
+ * This class makes a few assumptions:
+ * adapters rely on a a pair of fields to identify a user
+ * - userName
+ * - token
+ *
  *
  * @author jjenkins
  *        
@@ -20,23 +28,37 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
 
     private $adapter;
 
+    public $tokenFieldName = 'token';
+
+    public $userNameFieldName = 'user_name';
+
+    /**
+     * is the user authenticated?
+     *
+     * @var unknown
+     */
+    public $authenticated = false;
+
     /**
      * inject adapter here
      */
-    function __construct(AdapterInterface $adapter)
+    function __construct(AdapterInterface $adapter, \PhalconRest\Authentication\UserProfile $profile)
     {
         $this->adapter = $adapter;
+        $this->profile = $profile;
     }
 
     /**
+     *
      * (non-PHPdoc)
      *
      * @see AuthenticatorInterface::isLoggedIn()
      *
      */
-    public function isLoggedIn()
+    public function isLoggedIn($token)
     {
-        return true;
+        $this->authenticated = $this->profile->loadProfile("$this->tokenFieldName = '$token'");
+        return $this->authenticated;
     }
 
     /**
@@ -45,37 +67,41 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
      * @see AuthenticatorInterface::logUserOut()
      *
      */
-    public function logUserOut()
+    public function logUserOut($token)
     {
-        return true;
+        $result = $this->isLoggedIn($token);
+        if ($result) {
+            $result = $this->profile->resetToken(true);
+        }
+        return $result;
     }
 
     /**
-     * (non-PHPdoc)
+     * run a set of credentials against the adapters internal authenticate function
+     * will retain a copy of the adapter provided profile
      *
-     * @see AuthenticatorInterface::getLoggedInUser()
-     *
+     * @param string $userName            
+     * @param string $password            
+     * @return boolean
      */
-    public function getLoggedInUser()
-    {
-        $user = $this->adapter->getUser('test');
-        return $user;
-    }
-
-    /**
-     * (non-PHPdoc)
-     *
-     * @see AuthenticatorInterface::logUserIn()
-     *
-     */
-    public function logUserIn($user)
-    {
-        return true;
-    }
-
     public function authenticate($userName, $password)
     {
         $result = $this->adapter->authenticate($userName, $password);
+        if ($result) {
+            $this->profile->loadProfile("$this->userNameFieldName = '$userName'");
+            $this->profile->resetToken();
+        }
         return $result;
+    }
+
+    /**
+     * will return a valid userProfile object for a pre-loaded profile or for a supplied userName
+     * (non-PHPdoc)
+     *
+     * @see \PhalconRest\Authentication\AuthenticatorInterface::getProfile()
+     */
+    function getProfile($userName = false)
+    {
+        return $this->profile;
     }
 }

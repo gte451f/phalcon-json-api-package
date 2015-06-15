@@ -16,11 +16,18 @@ class BaseController extends \Phalcon\DI\Injectable
 {
 
     /**
-     * Load the default entity here
+     * Store the default entity here
      *
      * @var \PhalconRest\Entities
      */
     protected $entity = FALSE;
+
+    /**
+     * Store the default model here
+     *
+     * @var \PhalconRest\Models
+     */
+    protected $model = FALSE;
 
     /**
      * the name of the controller
@@ -50,19 +57,50 @@ class BaseController extends \Phalcon\DI\Injectable
     {
         $di = \Phalcon\DI::getDefault();
         $this->setDI($di);
-        $config = $this->getDI()->get('config');
-        
-        // auto load model so we can inject it into the entity
-        $modelName = $config['namespaces']['models'] . $this->getControllerName();
-        $model = new $modelName($this->di);
-        
-        $searchHelper = new \PhalconRest\API\SearchHelper();
-        
-        // auto load entity if it isn't already in place
-        if (! $this->entity) {
+        // initialize entity and set to class property
+        $this->getEntity();
+    }
+
+    
+    /**
+     * Load a default model until one is already in place
+     * return the currently loaded model
+     *  
+     * @return \PhalconRest\Models
+     */
+    public function getModel($modelNameString = false)
+    {
+        if ($this->model == false) {
+            $config = $this->getDI()->get('config');
+            // auto load model so we can inject it into the entity
+            if(!$modelNameString){
+                $modelNameString = $this->getControllerName();
+            }
+            
+            $modelName = $config['namespaces']['models'] . $modelNameString;
+            
+            $this->model = new $modelName($this->di);
+        }
+        return $this->model;
+    }
+
+    
+    /**
+     * Load a default entity unless one is already in place
+     * return the currentlyloaded entity
+     * 
+     * @return \PhalconRest\Entities
+     */
+    public function getEntity()
+    {
+        if ($this->entity == false) {
+            $config = $this->getDI()->get('config');
+            $model = $this->getModel();
+            $searchHelper = new \PhalconRest\API\SearchHelper();
             $entity = $config['namespaces']['entities'] . $this->getControllerName('singular') . 'Entity';
             $this->entity = new $entity($model, $searchHelper);
         }
+        return $this->entity;
     }
 
     /**
@@ -191,9 +229,6 @@ class BaseController extends \Phalcon\DI\Injectable
                 'more' => ''
             )); // Could have link to documentation here.
         }
-        // lazy way to convert stdClass to Array
-        // $put = json_decode(json_encode($put), true);
-        // $result = $this->entity->updateFull($put, $id);
         $result = $this->entity->save($put, $id);
         
         if ($result == false) {

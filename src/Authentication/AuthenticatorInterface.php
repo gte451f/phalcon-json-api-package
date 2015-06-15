@@ -18,20 +18,20 @@ interface AuthenticatorInterface
      *
      * @return boolean
      */
-    function isLoggedIn();
-
-    /**
-     * retun a logged in user object
-     */
-    function getLoggedInUser();
+    function isLoggedIn($token);
 
     /**
      * log a user out
      */
-    function logUserOut();
+    function logUserOut($token);
 
     /**
      * log a user into the system
      */
-    function logUserIn($profile);
+    function authenticate($userName, $password);
+
+    /*
+     * pull the current user profile from memory
+     */
+    function getProfile();
 }

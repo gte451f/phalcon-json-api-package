@@ -16,34 +16,81 @@ class SearchHelper
     //
     // user supplied params that are picked up and populated by the URL parser
     //
-    private $suppliedDisplayFields = null;
+    public $suppliedDisplayFields = null;
 
-    private $suppliedLimit = null;
+    public $suppliedLimit = null;
 
-    private $suppliedOffset = null;
-    
-    // relationship1, relationship2 | all | none
-    private $suppliedWith = 'all';
+    public $suppliedOffset = null;
+
+    /**
+     * can be any of the following:
+     * comma, seperated, list
+     * requested relationships that may only be overridden by the entity if relationships are blocked
+     *
+     * default
+     * the default that simply takes what the entity would provide
+     *
+     * all
+     * asks for all available relationships
+     *
+     * none
+     * side load no relationships
+     */
+    public $suppliedWith = 'default';
     
     // field1,-field2
-    private $suppliedSort = null;
+    public $suppliedSort = null;
     
     // do i need this?
-    private $suppliedSearchFields = null;
+    public $suppliedSearchFields = null;
     
     //
     // entity supplied list of params that override or merge with URL params
     //
     public $entityAllowedFields = null;
 
+    /**
+     * a list of fields that are specifically blocked from display in the api
+     * 
+     * @var array
+     */
     public $entityBlockFields = array();
 
-    public $entityLimit = 1000;
+    /**
+     * the maximum number of primary records to be returned by the api in any given call
+     * 
+     * @var int
+     */
+    public $entityLimit = 500;
 
+    /**
+     * used for paginating results
+     * 
+     * @var int
+     */
     public $entityOffset = null;
-    
-    // relationship1, relationship2 | all | none
-    public $entityWith = null;
+
+    /**
+     * can be any of the following
+     *
+     * block
+     * prevent any relationships from being sideloaded regardless
+     * of what the client asked for
+     *
+     * comma, seperated, list
+     * a list of supplied relationships
+     *
+     * all
+     * provide all available relationships
+     *
+     * none
+     * entity makes provides no relationships but can be overridden by client
+     *
+     * entity suggested relationships are only provided if nothing specific is requested by the client
+     *
+     * @var string
+     */
+    public $entityWith = 'none';
     
     // field1,-field2
     public $entitySort = null;
@@ -190,34 +237,59 @@ class SearchHelper
     /**
      * return the correct set of related tables to include
      *
+     * client: default, all, none, csv
+     * entity: block, all, none, csv
+     *
+     * client: all, none, csv
+     *
      * @return string
      */
     public function getWith()
     {
-        if (is_null($this->suppliedWith) and is_null($this->entityWith)) {
-            return 'none'; // process nothing!
+        // protect entity if it demands that nothing be sideloaded
+        if ($this->entityWith == 'block') {
+            return 'none';
         }
         
-        if ($this->entityWith == 'none') {
-            return 'none'; // allow entity override
+        // put entity in charge if client defers
+        if ($this->suppliedWith == 'default') {
+            return $this->entityWith;
         }
         
-        if (! is_null($this->entityWith) and $this->suppliedWith = 'all') {
-            return $this->entityWith; // process entity default if supplied is all
-        }
+        // nothing left to do but return what the client asked for
+        return $this->suppliedWith;
         
-        if (! is_null($this->suppliedWith) and is_null($this->entityWith)) {
-            return $this->suppliedWith; // process supplied default if entity is null
-        }
+        // if (is_null($this->suppliedWith) and is_null($this->entityWith)) {
+        // return 'none'; // process nothing!
+        // }
         
-        // could just throw a non-fatal error here
-        throw new HTTPException("Could not proccess search.", 401, array(
-            'dev' => 'Error calculating the correct set of related tables to supply with resource.',
-            'internalCode' => '87918906816'
-        ));
+        // if ($this->entityWith == 'none') {
+        // return 'none'; // allow entity override
+        // }
         
-        // set to none for safety, easily reverse by setting entityWith to 'all'
-        return 'none';
+        // if (! is_null($this->entityWith) and $this->suppliedWith == 'all') {
+        // return $this->entityWith; // process entity default if supplied is all
+        // }
+        
+        // if (! is_null($this->entityWith) and ! is_null($this->suppliedWith)){
+        // $entityWithArray = explode(",", $this->entityWith);
+        // $suppliedWithArray = explode(",", $this->suppliedWith);
+        // $newWith = array_unique(array_merge($entityWithArray, $suppliedWithArray));
+        // return implode(",", $newWith);
+        // }
+        
+        // if (! is_null($this->suppliedWith) and is_null($this->entityWith)) {
+        // return $this->suppliedWith; // process supplied default if entity is null
+        // }
+        
+        // // could just throw a non-fatal error here
+        // throw new HTTPException("Could not proccess search.", 401, array(
+        // 'dev' => 'Error calculating the correct set of related tables to supply with resource.',
+        // 'internalCode' => '87918906816'
+        // ));
+        
+        // // set to none for safety, easily reverse by setting entityWith to 'all'
+        // return 'none';
     }
     
     // placeholder
@@ -296,13 +368,13 @@ class SearchHelper
         
         // load possible sort values in the following order
         // be sure to mark this as a paginated result set
-        if ($request->get('sort', "int", null) != NULL) {
+        if ($request->get('sort', "string", null) != NULL) {
             $this->suppliedSort = $request->get('sort', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sort_field', "int", null) != NULL) {
+        } elseif ($request->get('sort_field', "string", null) != NULL) {
             $this->suppliedSort = $request->get('sort_field', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sortField', "int", null) != NULL) {
+        } elseif ($request->get('sortField', "string", null) != NULL) {
             $this->suppliedSort = $request->get('sortField', "string", null);
             $this->isPager = true;
         }

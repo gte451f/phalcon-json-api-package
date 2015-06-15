@@ -46,23 +46,26 @@ class BaseModel extends \Phalcon\Mvc\Model
     public $tableName;
 
     /**
-     * the child model if any
+     * list of relationships?
      *
-     * @var unknown
+     * @var array
      */
-    public $childModel;
-
     private $relationships = null;
 
     /**
      * auto populate a few key values
      */
     public function initialize()
+    {}
+
+    public function getParentModel()
     {
-        // $this->pluralName = $this->getSource();
-        // remove the s for a singular name
-        // this is a shortcut that could be improved on
-        // $this->singularName = substr($this->pluralName, 0, strlen($this->pluralName) - 1);
+        return false;
+    }
+
+    public function getChildModel()
+    {
+        return false;
     }
 
     /**

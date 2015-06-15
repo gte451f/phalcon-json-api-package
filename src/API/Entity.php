@@ -2,6 +2,7 @@
 namespace PhalconRest\API;
 
 use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Util\ValidationException;
 use \PhalconRest\Util\Inflector;
 
 /**
@@ -48,18 +49,14 @@ class Entity extends \Phalcon\DI\Injectable
     private $recordCount = null;
 
     /**
-     * the name of the parentModel if any
-     *
-     * @var string
-     */
-    public $parentModel = null;
-
-    /**
      * relevant only for save function
      *
      * @var string insert | update
      */
     protected $saveMode = null;
+    
+    // testing
+    private $relatedQueries = array();
 
     /**
      * process injected model
@@ -110,6 +107,8 @@ class Entity extends \Phalcon\DI\Injectable
         
         $foundSet = 0;
         foreach ($baseRecords as $baseRecord) {
+            // set primaryKeyValue
+            
             $this->restResponse[$this->model->getTableName()][] = $this->processRelationships($baseRecord);
             $foundSet ++;
         }
@@ -198,17 +197,17 @@ class Entity extends \Phalcon\DI\Injectable
         // this would only happen if another part of the app was calling this entity directly
         // not sure we need this, it might be better to work directly on the searchHelper?
         if (is_null($suppliedParameters)) {
+            // construct using PHQL
+            
             // run this once for the count
             $query = $this->queryBuilder('count');
-            $totalSet = $query->getQuery()->execute();
+            $result = $query->getQuery()->getSingleResult();
+            $this->recordCount = intval($result->count);
             
-            foreach ($totalSet as $row) {
-                $this->recordCount = intval($row->count);
-            }
-            
-            // construct using PHQL
+            // now run the real query
             $query = $this->queryBuilder();
-            return $query->getQuery()->execute();
+            $result = $query->getQuery()->execute();
+            return $result;
         } else {
             // strip out colum filter since phalcon doesn't return a full object then
             if (isset($suppliedParameters['columns'])) {
@@ -223,6 +222,7 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * build a PHQL based query to be executed by the runSearch method
+     * broken up into helpers so extending this function duplicates less code
      *
      * @param boolean $count
      *            should we only gather a count of the query?
@@ -239,6 +239,40 @@ class Entity extends \Phalcon\DI\Injectable
             "$modelNameSpace.*"
         );
         
+        // process hasOne Joins
+        $this->queryJoinHelper($query, $nameSpace);
+        $this->querySearcheHelper($query, $modelNameSpace);
+        $this->querySortHelper($query);
+        
+        if ($count) {
+            $query->columns('count(*) as count');
+        } else {
+            // preseve any columns added through joins
+            $existingColumns = $query->getColumns();
+            $allColumns = array_merge($columns, $existingColumns);
+            $query->columns($allColumns);
+        }
+        // skip limit if returning a count
+        if (! $count) {
+            $this->queryLimitHelper($query);
+        }
+        
+        // todo build fields feature into PHQL instead of doing in PHP
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply join conditions and return query object
+     *
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @param string $nameSpace            
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface
+     */
+    public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $nameSpace)
+    {
+        $columns = [];
         // join all active hasOne's instead of just the parent
         foreach ($this->activeRelations as $relation) {
             if ($relation->getType() == 1) {
@@ -247,13 +281,21 @@ class Entity extends \Phalcon\DI\Injectable
                 $columns[] = "$refModelNameSpace.*";
             }
         }
+        $query->columns($columns);
         
-        if ($count) {
-            $query->columns('count(*) as count');
-        } else {
-            $query->columns($columns);
-        }
-        
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply search rules based on the searchHelper conditions and return query
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @param string $modelNameSpace            
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     */
+    public function querySearcheHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $modelNameSpace)
+    {
         // assume all searches as AND
         $searchFields = $this->searchHelper->getSearchFields();
         if ($searchFields) {
@@ -278,45 +320,70 @@ class Entity extends \Phalcon\DI\Injectable
                 
                 // check for whether we need to deal with wild cards
                 $firstChar = substr($value, 0, 1);
-                $lastChar = substr($value, -1, 1);
+                $lastChar = substr($value, - 1, 1);
                 $wildcard = "%";
                 
-                if(($firstChar == "*") || ($lastChar == "*")){
-                    if($firstChar == "*"){
+                if (($firstChar == "*") || ($lastChar == "*")) {
+                    if ($firstChar == "*") {
                         $value = substr_replace($value, "%", 0, 1);
                         $value = $wildcard . $value;
                     }
-                    if($lastChar == "*"){
-                        $value = substr_replace($value, "%", -1,1);
+                    if ($lastChar == "*") {
+                        $value = substr_replace($value, "%", - 1, 1);
                         $value = $value . $wildcard;
                     }
-                
+                    
                     $query->andWhere("$searchName LIKE \"$value\"");
                 } else {
                     $query->andWhere("$searchName = \"$value\"");
                 }
             }
         }
-        
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply specified limit condition and return query object
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @throws HTTPException
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     */
+    public function queryLimitHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    {
         // only apply limit if we are NOT checking the count
-        if (! $count) {
-            $limit = $this->searchHelper->getLimit();
-            $offset = $this->searchHelper->getOffset();
-            if ($offset and $limit) {
-                $query->limit($limit, $offset);
-            } elseif ($limit) {
-                $query->limit($limit);
-            } else {
-                // can't have an offset w/o an limit
-                throw new HTTPException("A bad query was attempted.", 500, array(
-                    'dev' => "Encountered an offset clause w/o a limit which is a no-no.",
-                    'internalCode' => '894791981'
-                ));
-            }
+        $limit = $this->searchHelper->getLimit();
+        $offset = $this->searchHelper->getOffset();
+        if ($offset and $limit) {
+            $query->limit($limit, $offset);
+        } elseif ($limit) {
+            $query->limit($limit);
+        } else {
+            // can't have an offset w/o an limit
+            throw new HTTPException("A bad query was attempted.", 500, array(
+                'dev' => "Encountered an offset clause w/o a limit which is a no-no.",
+                'internalCode' => '894791981'
+            ));
         }
         
-        // todo build fields feature into PHQL instead of doing in PHP
-        
+        return $query;
+    }
+
+    /**
+     * help $this->queryBuilder to construct a PHQL object
+     * apply sort params and return query object
+     *
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query            
+     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     */
+    public function querySortHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    {
+        // process sort
+        $sortString = $this->searchHelper->getSort('sql');
+        if ($sortString != false) {
+            $query->orderBy($sortString);
+        }
         return $query;
     }
 
@@ -331,25 +398,34 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function processRelationships($baseRecord)
     {
+        // prep some basic values
         $class = get_class($baseRecord);
-        
         $config = $this->getDI()->get('config');
-        // determine if we have a parent or other hasOne
-        // then move into an array
         $modelNameSpace = $config['namespaces']['models'] . $this->model->getModelName();
         
-        // sniff for a base w/ joined tables
+        // determine if we have a parent or other hasOne
+        // then move into an array
+        
+        // indirect way to sniff for a record that depends on a parent table
+        // $baseRecord would be an object w/ mulitple properties
         if (strstr($class, '\\Row')) {
             $count = count($baseRecord);
             $baseArray = array();
-            foreach ($baseRecord as $rec) {
-                $baseArray = array_merge($baseArray, $rec->toArray());
-                $class = get_class($rec);
-                
-                // primary class found
-                // then rebuild baseRecord as just the real baseRecord
-                if ($modelNameSpace == $class) {
-                    $realBaseRecord = $rec;
+            
+            // additional logic process scalar and object types differently
+            foreach ($baseRecord as $key => $value) {
+                if (gettype($value) == 'object') {
+                    $baseArray = array_merge($baseArray, $value->toArray());
+                    
+                    $class = get_class($value);
+                    
+                    // primary class found
+                    // then rebuild baseRecord as just the real baseRecord
+                    if ($modelNameSpace == $class) {
+                        $realBaseRecord = $value;
+                    }
+                } else {
+                    $baseArray[$key] = $value;
                 }
             }
             $baseRecord = $realBaseRecord;
@@ -357,6 +433,9 @@ class Entity extends \Phalcon\DI\Injectable
             // load a base array to return
             $baseArray = $baseRecord->toArray();
         }
+        
+        // load primaryKeyValue
+        $this->primaryKeyValue = $baseArray[$this->model->getPrimaryKeyName()];
         
         // process all loaded relationships by fetching related data
         foreach ($this->activeRelations as $relation) {
@@ -367,11 +446,11 @@ class Entity extends \Phalcon\DI\Injectable
             // this must be attached w/ the parent records for joining purposes
             $relatedRecordIds = null;
             
-            $refModelName = $relation->getReferencedModel();
+            $refModelNameSpace = $relation->getReferencedModel();
             // $attributes = $this->metaData->getPrimaryKeyAttributes(new $refModelName());
             // $primaryKeyName = $attributes[0];
             
-            $refModel = new $refModelName();
+            $refModel = new $refModelNameSpace();
             $primaryKeyName = $refModel->getPrimaryKeyName();
             
             // figure out if we have a preferred alias
@@ -381,7 +460,7 @@ class Entity extends \Phalcon\DI\Injectable
             }
             
             // don't process parent relationship since that is handled in PHQL query Builder
-            if ($refModelName == $this->parentModel) {
+            if ($refModelName == $this->model->getParentModel()) {
                 continue;
             }
             
@@ -395,27 +474,48 @@ class Entity extends \Phalcon\DI\Injectable
             $property = preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $refModelName);
             $property = strtolower($property);
             
+            // Check for a bad reference
             if (! isset($baseRecord->$refModelName)) {
-                // echo "Bad reference encountered!";
+                
                 // TODO throw error here
                 throw new HTTPException("A bad model->relatedModel reference was encountered.", 500, array(
                     'dev' => "Bad reference was: {$this->model->getModelName()} -> $refModelName",
                     'internalCode' => '654981091519894'
                 ));
             } else {
-                $relatedRecords = $baseRecord->$refModelName->toArray();
-                // save the PKID for each record
+                // auto load related records or pull manually if a parent is present
+                // or if processing a belongsTo
+                if ($relation->getParent() == false) {
+                    // optional foreign keys will turn up false here so skip
+                    if ($baseRecord->$refModelName) {
+                        $relatedRecords = $baseRecord->$refModelName->toArray();
+                    } else {
+                        $relatedRecords = array();
+                    }
+                } else {
+                    if ($refType == 0) {
+                        $relatedRecords = $this->getBelongsToRecord($relation, $baseArray);
+                    } else {
+                        $relatedRecords = $this->getHasManyRecords($relation);
+                    }
+                }
                 
+                // save the PKID for each record returned
                 if (count($relatedRecords) > 0) {
                     // special handling for hasOne relationship types
                     // 1 = hasOne 0 = belongsTo 2 = hasMany
                     switch ($refType) {
                         case 0:
-                            $relatedRecordIds = $relatedRecords[$primaryKeyName];
-                            // wrap in array so we can store multiple hasOnes from many different main records
-                            $relatedRecords = array(
-                                $relatedRecords
-                            );
+                            // this doesn't seem right, why are they occaisionally showing up inside an array?
+                            if (isset($relatedRecords[$primaryKeyName])) {
+                                $relatedRecordIds = $relatedRecords[$primaryKeyName];
+                                // wrap in array so we can store multiple hasOnes from many different main records
+                                $relatedRecords = array(
+                                    $relatedRecords
+                                );
+                            } else {
+                                $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
+                            }
                             break;
                         
                         default:
@@ -457,12 +557,97 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
-     * before we return a records, strip out blocked fields
+     * built for hasMany relationships
+     * in cases where the related record itself refers to a parent record,
+     * write a custom query to load the related record including it's parent
      *
-     * @param unknown $baseArray            
-     * @return unknown
+     * depends on the existance of a primaryKeyValue
+     *
+     * @return \PhalconRest\API\Relation $relation
      */
-    private function filterFields($baseArray)
+    private function getHasManyRecords(\PhalconRest\API\Relation $relation)
+    {
+        $query = $this->buildRelationQuery($relation);
+        $query->where("{$relation->getReferencedFields()} = \"$this->primaryKeyValue\"");
+        $result = $query->getQuery()->execute();
+        return $this->loadRelationRecords($result);
+    }
+
+    /**
+     * built for belongsTo relationships
+     * in cases where the related record itself refers to a parent record,
+     * write a custom query to load the related record including it's parent
+     *
+     * @param \PhalconRest\API\Relation $relation            
+     * @param array $baseArray            
+     * @return multitype:array
+     */
+    private function getBelongsToRecord(\PhalconRest\API\Relation $relation, $baseArray)
+    {
+        $query = $this->buildRelationQuery($relation);
+        $foreignKey = $relation->getFields();
+        $query->where("{$relation->getReferencedFields()} = \"{$baseArray[$foreignKey]}\"");
+        $result = $query->getQuery()->execute();
+        return $this->loadRelationRecords($result);
+    }
+
+    /**
+     * utility shared between getBelongsToRecord and getHasManyRecords
+     *
+     * @param \PhalconRest\API\Relation $relation            
+     * @return object
+     */
+    private function buildRelationQuery(\PhalconRest\API\Relation $relation)
+    {
+        $refModelNameSpace = $relation->getReferencedModel();
+        
+        if (isset($this->relatedQueries[$refModelNameSpace])) {
+            $query = $this->relatedQueries[$refModelNameSpace];
+        } else {
+            $config = $this->getDI()->get('config');
+            $mm = $this->getDI()->get('modelsManager');
+            
+            $query = $mm->createBuilder()->from($refModelNameSpace);
+            $query->columns(array(
+                $refModelNameSpace . ".*",
+                $config['namespaces']['models'] . $relation->getParent() . '.*'
+            ));
+            $query->join($config['namespaces']['models'] . $relation->getParent());
+            $this->relatedQueries[$refModelNameSpace] = $query;
+        }
+        return $query;
+    }
+
+    /**
+     * utility shared between getBelongsToRecord and getHasManyRecords
+     *
+     * @param array $result            
+     * @return multitype:array
+     */
+    private function loadRelationRecords($result)
+    {
+        $relatedRecords = array();
+        foreach ($result as $relatedRecord) {
+            // kept to demonstrate how to reference result row
+            // $name = 'phalconRest\\Models\\Owners';
+            // $rel = $relatedRecord->$name;
+            $relatedRecArray = array(); // reset for each run
+            foreach ($relatedRecord as $rec) {
+                $relatedRecArray = array_merge($relatedRecArray, $rec->toArray());
+            }
+            $relatedRecords[] = $relatedRecArray;
+        }
+        return $relatedRecords;
+    }
+
+    /**
+     * before we return a records, strip out blocked fields
+     * this is also a good place to perform other last minute adjustments to a records results
+     *
+     * @param array $baseArray            
+     * @return array
+     */
+    protected function filterFields($baseArray)
     {
         // remove any fields that aren't in partial fields...what about merged tables?
         $allowedFields = $this->searchHelper->getAllowedFields();
@@ -496,6 +681,7 @@ class Entity extends \Phalcon\DI\Injectable
      * auto = do nothing
      * all = load all possible relationships
      * csv,list = load only these relationships
+     *
      *
      * @param string $relationships            
      * @return void
@@ -539,14 +725,14 @@ class Entity extends \Phalcon\DI\Injectable
                 // well, maybe load parent since it's "active" but make sure we don't process it
                 // no longer load parent relationship in active since we auto join in queryBuilder
                 // also load if it is the parent relationship
-                if ($relation->getModelName() == $this->parentModel) {
+                if ($relation->getModelName() == $this->model->getParentModel()) {
                     $this->activeRelations[$relation->getTableName()] = $relation;
                 } else {
                     
                     // well, maybe load parent since it's "active" but make sure we don't process it
                     // no longer load parent relationship in active since we auto join in queryBuilder
                     // also load if it is the parent relationship
-                    if ($relation->getModelName() == $this->parentModel) {
+                    if ($relation->getModelName() == $this->model->getParentModel()) {
                         $this->activeRelations[$relation->getTableName()] = $relation;
                     }
                 }
@@ -614,10 +800,10 @@ class Entity extends \Phalcon\DI\Injectable
      * hook to be run after an entity is deleted
      * make it easy to extend default delete logic
      *
-     * @param $id the
-     *            PKID of the record that was just removed
+     * @param $model the
+     *            record that was just removed
      */
-    public function afterDelete($id)
+    public function afterDelete($model)
     {
         // extend me in child class
     }
@@ -666,6 +852,32 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
+     * if an model has a parent model specified,
+     * create that record before creating the current child entity
+     *
+     * @param unknown $object            
+     * @return mixed either boolean or the ID of a newly created record
+     */
+    public function saveParent($object)
+    {
+        $inflector = new Inflector();
+        $config = $this->getDI()->get('config');
+        $primaryModelName = get_class($this->model);
+        $result = true;
+        
+        // if there is a parent table, save to that record first
+        if ($this->model->getParentModel()) {
+            $parentModelName = $config['namespaces']['models'] . $this->model->getParentModel();
+            $parentModel = new $parentModelName();
+            $result = $this->simpleSave($parentModel, $object);
+            if ($result > 0) {
+                $result = (int) $result;
+            }
+        }
+        return $result;
+    }
+
+    /**
      * attempt to add/update a new entity
      * watch $id to determine if update or insert
      *
@@ -687,23 +899,7 @@ class Entity extends \Phalcon\DI\Injectable
             
             // pre-save hook placed after saveMode
             $object = $this->beforeSave($object, $id);
-            
-            // if there is a parent table, save to that record first
-            if ($this->parentModel) {
-                $parentModelName = $config['namespaces']['models'] . $this->parentModel;
-                $parentModel = new $parentModelName();
-                $this->primaryKeyValue = $result = $id = $this->simpleSave($parentModel, $object);
-                
-                $primaryModel = new $primaryModelName();
-                
-                // now pull the parent relationship
-                $parentTableName = $inflector->underscore($this->parentModel);
-                $parentRelationship = $this->activeRelations[$parentTableName];
-                $foreignKeyField = $parentRelationship->getFields();
-                $primaryModel->$foreignKeyField = $id;
-            } else {
-                $primaryModel = new $primaryModelName();
-            }
+            $primaryModel = new $primaryModelName();
         } else {
             // update existing record
             $this->saveMode = 'update';
@@ -835,102 +1031,17 @@ class Entity extends \Phalcon\DI\Injectable
         }
         $result = $model->save();
         
+        // if the save failed, gather errors and return a validation failure
         if ($result == false) {
-            $messageBag = $this->getDI()->get('messageBag');
+            $list = array();
             foreach ($model->getMessages() as $message) {
-                $messageBag->set($message->getMessage());
+                $list[] = $message->getMessage();
             }
             
-            throw new HTTPException("There was an error saving the record.", 500, array(
-                'internalCode' => '23422345347',
-                'more' => 'here is more'
-            ));
+            throw new ValidationException("Validation Errors Encountered", array(
+                'internalCode' => '7894181864684'
+            ), $model->getMessages());
         }
         return $model->getPrimaryKeyValue();
-    }
-
-    /**
-     * this is probably going to be replaced by $this->save
-     * depends on loadActiveRelationships
-     */
-    public function updateFull($object, $id = NULL)
-    {
-        // prep some data
-        $primaryKeyName = $this->primaryKeyName;
-        $result = false;
-        $inflector = new Inflector();
-        
-        // attempt to load the current User
-        if ($id == NULL and isset($object->$primaryKeyName)) {
-            // try to load from provided object data
-            $id = $object->$primaryKeyName;
-        }
-        $record = $this->findFirst($id);
-        
-        if ($record) {
-            
-            // loop through each property in the object
-            foreach ($object as $prop => $data) {
-                if (isset($this->activeRelations[$prop])) {
-                    // i am a relationship that should be processed
-                    // value now holds a list of related records
-                    // can i load an existing relationship?
-                    $class = ucfirst($inflector->camelize($prop));
-                    $model = "PhalconRest\\Models\\" . $class;
-                    
-                    // store all the related records that are to be saved in the system
-                    $relatedRecords = array();
-                    if (is_array($data)) {
-                        foreach ($data as $subRecord) {
-                            // store the original related records, we'll compare against them later to remove orphans
-                            $getCall = "get" . $class;
-                            $oldRelatedRecords = $record->$getCall()->toArray();
-                            
-                            $relation = new $model();
-                            
-                            $attributes = $this->metaData->getPrimaryKeyAttributes($relation);
-                            $relatedPrimaryKey = $attributes[0];
-                            
-                            foreach ($subRecord as $key => $value) {
-                                $relation->$key = $value;
-                            }
-                            $relatedRecords[] = $relation;
-                            
-                            $i = 0;
-                            foreach ($oldRelatedRecords as $oldRelatedRecord) {
-                                if ($relation->$relatedPrimaryKey == $oldRelatedRecord[$relatedPrimaryKey]) {
-                                    // match found, remove this record
-                                    unset($oldRelatedRecords[$i]);
-                                    break;
-                                }
-                                $i ++;
-                            }
-                        }
-                        if (count($relatedRecords) > 0) {
-                            $record->$class = $relatedRecords;
-                        }
-                    } else {
-                        // invalid data detected, expecting an array but got NOT array
-                    }
-                } else {
-                    // i am a modified value for the existing record
-                    $record->$prop = $data;
-                }
-                $foo = 1;
-            }
-            
-            // attemp to save instead of the update call?
-            $result = $record->save();
-            
-            // clear out deleted related records
-        } else {
-            // no record found to update
-            throw new HTTPException("Could not find record #$id to update.", 404, array(
-                'dev' => "No record was found to update",
-                'internalCode' => '12',
-                'more' => ''
-            )); // Could have link to documentation here.
-        }
-        return $result;
     }
 }
