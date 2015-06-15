@@ -239,7 +239,7 @@ class Entity extends \Phalcon\DI\Injectable
             "$modelNameSpace.*"
         );
         
-        //
+        // hook to allow for custom work to be done on the $query object before it is process by the queryBuilder method
         $this->beforeQueryBuilderHook($query);
         
         // process hasOne Joins
@@ -268,7 +268,7 @@ class Entity extends \Phalcon\DI\Injectable
     }
     
     /**
-     * 
+     * hook to do custom work on the $query object before it is processed by the queryBuilder method
      */
     public function beforeQueryBuilderHook($query)
     {
@@ -276,7 +276,7 @@ class Entity extends \Phalcon\DI\Injectable
     }
     
     /**
-     * 
+     * hook to allow for custom work to be done on the $query object before returning it
      */
     public function afterQueryBuilderHook($query)
     {

@@ -40,8 +40,9 @@ class SecureController extends BaseController
                 
                 // check for a valid session
                 if ($this->auth->isLoggedIn($token)) {
+                    // get the security service object
                     $securityService = $this->getDI()->get('securityService');
-                    
+                    // run security check
                     $this->securityCheck($securityService);                    
                     parent::__construct($parseQueryString);
                 } else {
@@ -57,8 +58,9 @@ class SecureController extends BaseController
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
                 if ($this->auth->isLoggedIn('HACKYHACKERSON')) {
+                    // get the security service object
                     $securityService = $this->getDI()->get('securityService');
-                    
+                    // run security check
                     $this->securityCheck($securityService);
                     parent::__construct($parseQueryString);
                 } else {
@@ -77,6 +79,12 @@ class SecureController extends BaseController
         }
     }
     
+    /**
+     * This is a method that is to be defined in classes that extend \PhalconRest\API\SecureController
+     * 
+     * @param object $securityService
+     * @return boolean
+     */
     protected function securityCheck($securityService)
     {
         return true;
