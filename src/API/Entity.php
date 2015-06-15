@@ -239,6 +239,9 @@ class Entity extends \Phalcon\DI\Injectable
             "$modelNameSpace.*"
         );
         
+        //
+        $this->beforeQueryBuilderHook($query);
+        
         // process hasOne Joins
         $this->queryJoinHelper($query, $nameSpace);
         $this->querySearcheHelper($query, $modelNameSpace);
@@ -257,8 +260,27 @@ class Entity extends \Phalcon\DI\Injectable
             $this->queryLimitHelper($query);
         }
         
+        // hook to allow for custom work to be done on the $query object before returning it.
+        $this->afterQueryBuilderHook($query);
+        
         // todo build fields feature into PHQL instead of doing in PHP
         return $query;
+    }
+    
+    /**
+     * 
+     */
+    public function beforeQueryBuilderHook($query)
+    {
+        return true;
+    }
+    
+    /**
+     * 
+     */
+    public function afterQueryBuilderHook($query)
+    {
+        return true;
     }
 
     /**

@@ -40,6 +40,9 @@ class SecureController extends BaseController
                 
                 // check for a valid session
                 if ($this->auth->isLoggedIn($token)) {
+                    $securityService = $this->getDI()->get('securityService');
+                    
+                    $this->securityCheck($securityService);                    
                     parent::__construct($parseQueryString);
                 } else {
                     throw new HTTPException("Unauthorized, please authenticate first.", 401, array(
@@ -54,6 +57,9 @@ class SecureController extends BaseController
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
                 if ($this->auth->isLoggedIn('HACKYHACKERSON')) {
+                    $securityService = $this->getDI()->get('securityService');
+                    
+                    $this->securityCheck($securityService);
                     parent::__construct($parseQueryString);
                 } else {
                     throw new HTTPException("Security False is not loading a valid user.", 401, array(
@@ -69,5 +75,10 @@ class SecureController extends BaseController
                 ));
                 break;
         }
+    }
+    
+    protected function securityCheck($securityService)
+    {
+        return true;
     }
 }
