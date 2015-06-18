@@ -266,7 +266,7 @@ class Entity extends \Phalcon\DI\Injectable
         // todo build fields feature into PHQL instead of doing in PHP
         return $query;
     }
-    
+
     /**
      * hook to do custom work on the $query object before it is processed by the queryBuilder method
      */
@@ -274,7 +274,7 @@ class Entity extends \Phalcon\DI\Injectable
     {
         return true;
     }
-    
+
     /**
      * hook to allow for custom work to be done on the $query object before returning it
      */
@@ -300,7 +300,8 @@ class Entity extends \Phalcon\DI\Injectable
             if ($relation->getType() == 1) {
                 $refModelNameSpace = $nameSpace . $relation->getModelName();
                 $query->join($refModelNameSpace);
-                $columns[] = "$refModelNameSpace.*";
+                // do not include hasOne columns in the result set, since we only join for searching purposes?
+                // $columns[] = "$refModelNameSpace.*";
             }
         }
         $query->columns($columns);
@@ -318,7 +319,6 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function querySearcheHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $modelNameSpace)
     {
-        // assume all searches as AND
         $searchFields = $this->searchHelper->getSearchFields();
         if ($searchFields) {
             $metaData = $this->getDI()->get('memory');
@@ -332,8 +332,9 @@ class Entity extends \Phalcon\DI\Injectable
             }
             
             // preprocess the search fields to see if any of the search names require preprocessing
-            $processedSearchFields = array();            
-            foreach($searchFields as $fieldName => $fieldValue){
+            // mostly just looking for || or type syntax otherwise process as default (and) WHERE clause
+            $processedSearchFields = array();
+            foreach ($searchFields as $fieldName => $fieldValue) {
                 $processedFieldName = $this->processSearchFields($fieldName);
                 $processedFieldValue = $this->processSearchFields($fieldValue);
                 $processedFieldQueryType = $this->processSearchFieldQueryType($processedFieldName, $processedFieldValue);
@@ -345,7 +346,7 @@ class Entity extends \Phalcon\DI\Injectable
             }
             
             foreach ($processedSearchFields as $processedSearchField) {
-                switch($processedSearchField['queryType']){
+                switch ($processedSearchField['queryType']) {
                     case 'and':
                         $fieldName = $this->prependFieldNameNamespace($processedSearchField['fieldName']);
                         $fieldValue = $processedSearchField['fieldValue'];
@@ -353,113 +354,155 @@ class Entity extends \Phalcon\DI\Injectable
                         $operator = $this->determineQueryWhereOperator($newFieldValue);
                         $query->andWhere("$fieldName $operator \"$newFieldValue\"");
                         break;
-                        
+                    
                     case 'or':
                         // make sure the field name is an array so we can use the same logic below for either circumstance
-                        if(!is_array($processedSearchField['fieldName'])){
-                            $fieldNameArray = array($processedSearchField['fieldName']);
+                        if (! is_array($processedSearchField['fieldName'])) {
+                            $fieldNameArray = array(
+                                $processedSearchField['fieldName']
+                            );
                         } else {
                             $fieldNameArray = $processedSearchField['fieldName'];
                         }
                         
                         // make sure the field value is an array so we can use the same logic below for either circumstance
-                        if(!is_array($processedSearchField['fieldValue'])){
-                            $fieldValueArray = array($processedSearchField['fieldValue']);
+                        if (! is_array($processedSearchField['fieldValue'])) {
+                            $fieldValueArray = array(
+                                $processedSearchField['fieldValue']
+                            );
                         } else {
                             $fieldValueArray = $processedSearchField['fieldValue'];
                         }
                         
-                        foreach($fieldNameArray as $fieldName){
+                        foreach ($fieldNameArray as $fieldName) {
                             $fieldName = $this->prependFieldNameNamespace($fieldName);
-                            foreach($fieldValueArray as $fieldValue){
+                            foreach ($fieldValueArray as $fieldValue) {
                                 $newFieldValue = $this->processFieldValueWildcards($fieldValue);
                                 $operator = $this->determineQueryWhereOperator($newFieldValue);
                                 $query->orWhere("$fieldName $operator \"$newFieldValue\"");
                             }
-                        }                        
+                        }
                         break;
                 }
             }
         }
         return $query;
     }
-    
+
     /**
-     * This method looks for the existence of the 'or' operator || and explodes the given parameter on that operator if
-     * it is found.  This is done for both the field_names and the field_values for each query parameter that is submitted
-     * to the server in order to determine whether there are any 'or' statements to process
-     * 
-     * @param string $fieldParam
-     * @return string or array
+     * This method looks for the existence of syntax extentions to the api and attempts to
+     * adjust search inputs before subjecting them to the queryBuilder
+     *
+     * The 'or' operator || explodes the given parameter on that operator if found
+     * This is done for both the field name and values for each query parameter encountered
+     * first_name=jim||john
+     * first_name||last_name=jim
+     *
+     * @param string $fieldParam            
+     * @return mixed return an array if || is found, otherwise a string
      */
     private function processSearchFields($fieldParam)
     {
-        if(strpos($fieldParam, '||') !== false){
-            $result = explode('||', $fieldParam);
+        if (strpos($fieldParam, '||') !== false) {
+            return explode('||', $fieldParam);
         } else {
-            $result = $fieldParam;
+            return $fieldParam;
         }
-        
-        return $result;
     }
-    
+
     /**
-     * This method determines whether the clause should be processed as an 'and' clause or an 'or' clause.  This
-     * is determined based on the results from the \PhalconRest\API\Entity::processSearchFields() method.  If that
+     * This method determines whether the clause should be processed as an 'and' clause or an 'or' clause.
+     * This
+     * is determined based on the results from the \PhalconRest\API\Entity::processSearchFields() method. If that
      * method returns a string, we are dealing with an 'and' clause, if not, we are dealing with an 'or' clause.
-     * 
-     * @param string or array $processedFieldName
-     * @param string or array $processedFieldValue
+     *
+     * @param
+     *            string or array $processedFieldName
+     * @param
+     *            string or array $processedFieldValue
      * @return string
      */
     private function processSearchFieldQueryType($processedFieldName, $processedFieldValue)
     {
         $result = 'and';
         
-        if (is_array($processedFieldName) || is_array($processedFieldValue)){
+        if (is_array($processedFieldName) || is_array($processedFieldValue)) {
             $result = 'or';
         }
         
         return $result;
     }
-    
+
     /**
      * Given a particular fieldName, look through the current model's column map and see if that
      * particular fieldName appears in it, if it does, then prepend the appropriate namespace to this
-     * fieldName.
-     * 
-     * @param string $fieldName
+     * fieldName
+     *
+     *
+     * Columns from related tables can be searched via a colon such as related_table_name:column_name
+     * A concrete example is
+     * resources:matters_id=123
+     * resources:child_table=note||subject
+     *
+     * A rather obscure feature of this implementation is that providing no table prefix often works correctly
+     *
+     *
+     * @param string $fieldName            
      * @return string
      */
     private function prependFieldNameNamespace($fieldName)
     {
         $config = $this->getDI()->get('config');
-        $nameSpace = $config['namespaces']['models'];
-        $modelNameSpace = $nameSpace . $this->model->getModelName();
-        
         $metaData = $this->getDI()->get('memory');
+        $searchBits = explode(':', $fieldName);
         
-        // use a colMap to prepare for save
-        $colMap = $metaData->getColumnMap($this->model);
-        // prepend modelNameSpace if the field is detected in the primary model
+        // if a related table is referenced, then search related model column maps instead of the primary model
+        if (count($searchBits) == 2) {
+            $matchFound = false;
+            $fieldName = $searchBits[1];
+            foreach ($this->activeRelations as $item) {
+                if ($searchBits[0] == $item->getTableName()) {
+                    $modelNameSpace = $item->getReferencedModel();
+                    $relatedModel = new $modelNameSpace();
+                    $colMap = $metaData->getColumnMap($relatedModel);
+                    $fieldName = $searchBits[1];
+                    $matchFound = true;
+                    break;
+                }
+            }
+            
+            // if we made it this far, than a prefix was supplied but it did not match any known hasOne relationship
+            if ($matchFound == false) {
+                throw new HTTPException("Unkown table prefix supplied in filter.", 500, array(
+                    'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
+                    'internalCode' => '891488651361948131461849'
+                ));
+            }
+        } else {
+            $nameSpace = $config['namespaces']['models'];
+            $modelNameSpace = $nameSpace . $this->model->getModelName();
+            $colMap = $metaData->getColumnMap($this->model);
+        }
+        
+        // prepend modelNameSpace if the field is detected in the selected model's column map
         foreach ($colMap as $fn => $label) {
             if ($fieldName == $label) {
-                $searchName = "$modelNameSpace.$fieldName";
+                return "$modelNameSpace.$fieldName";
             }
         }
         
-        return $searchName;
+        return $fieldName;
     }
-    
+
     /**
      * Given a fieldValue, search for the wildcard character and replace with an SQL specific wildcard
      * character
-     * 
-     * @param string $fieldValue
+     *
+     * @param string $fieldValue            
      * @return string
      */
     private function processFieldValueWildcards($fieldValue)
-    {        
+    {
         // check for whether we need to deal with wild cards
         $firstChar = substr($fieldValue, 0, 1);
         $lastChar = substr($fieldValue, - 1, 1);
@@ -476,17 +519,17 @@ class Entity extends \Phalcon\DI\Injectable
         
         return $fieldValue;
     }
-    
+
     /**
      * Determine whether a clause should be processed with and '=' operator or with a 'LIKE' operatoer.
      * This is determined by the presence of the SQL wildcard character in the fieldValue string
-     * 
-     * @param string $value
+     *
+     * @param string $value            
      * @return string
      */
     private function determineQueryWhereOperator($value)
     {
-        if(strpos($value, '%') !== false){
+        if (strpos($value, '%') !== false) {
             return 'LIKE';
         } else {
             return '=';
@@ -610,16 +653,18 @@ class Entity extends \Phalcon\DI\Injectable
                 $refModelName = $options['alias'];
             }
             
+            // no longer give parent special treatment
             // don't process parent relationship since that is handled in PHQL query Builder
-            if ($refModelName == $this->model->getParentModel()) {
-                continue;
-            }
+            // if ($refModelName == $this->model->getParentModel()) {
+            // continue;
+            // }
             
+            // no longer give hasOne special treatment
             // don't process hasOne since they will be handled in the PHQL query Builder
             // TODO err...it will be
-            if ($refType == 1) {
-                continue;
-            }
+            // if ($refType == 1) {
+            // continue;
+            // }
             
             // attempt to store the name similar to the table name
             $property = preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $refModelName);
@@ -653,9 +698,10 @@ class Entity extends \Phalcon\DI\Injectable
                 
                 // save the PKID for each record returned
                 if (count($relatedRecords) > 0) {
-                    // special handling for hasOne relationship types
                     // 1 = hasOne 0 = belongsTo 2 = hasMany
                     switch ($refType) {
+                        // process hasOne records as well
+                        case 1:
                         case 0:
                             // this doesn't seem right, why are they occaisionally showing up inside an array?
                             if (isset($relatedRecords[$primaryKeyName])) {
