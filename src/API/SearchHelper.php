@@ -12,11 +12,6 @@ use \PhalconRest\Util\HTTPException;
  */
 class SearchHelper
 {
-    
-    //
-    // user supplied params that are picked up and populated by the URL parser
-    //
-    public $suppliedDisplayFields = null;
 
     public $suppliedLimit = null;
 
@@ -40,32 +35,17 @@ class SearchHelper
     
     // field1,-field2
     public $suppliedSort = null;
-    
-    // do i need this?
-    public $suppliedSearchFields = null;
-    
-    //
-    // entity supplied list of params that override or merge with URL params
-    //
-    public $entityAllowedFields = null;
-
-    /**
-     * a list of fields that are specifically blocked from display in the api
-     * 
-     * @var array
-     */
-    public $entityBlockFields = array();
 
     /**
      * the maximum number of primary records to be returned by the api in any given call
-     * 
+     *
      * @var int
      */
     public $entityLimit = 500;
 
     /**
      * used for paginating results
-     * 
+     *
      * @var int
      */
     public $entityOffset = null;
@@ -94,9 +74,6 @@ class SearchHelper
     
     // field1,-field2
     public $entitySort = null;
-    
-    // do i need this?
-    public $entitySearchFields = null;
     
     // a list of fields that are reserved in order to process other search related searches
     // this only applies to GET requests
@@ -258,60 +235,7 @@ class SearchHelper
         
         // nothing left to do but return what the client asked for
         return $this->suppliedWith;
-        
-        // if (is_null($this->suppliedWith) and is_null($this->entityWith)) {
-        // return 'none'; // process nothing!
-        // }
-        
-        // if ($this->entityWith == 'none') {
-        // return 'none'; // allow entity override
-        // }
-        
-        // if (! is_null($this->entityWith) and $this->suppliedWith == 'all') {
-        // return $this->entityWith; // process entity default if supplied is all
-        // }
-        
-        // if (! is_null($this->entityWith) and ! is_null($this->suppliedWith)){
-        // $entityWithArray = explode(",", $this->entityWith);
-        // $suppliedWithArray = explode(",", $this->suppliedWith);
-        // $newWith = array_unique(array_merge($entityWithArray, $suppliedWithArray));
-        // return implode(",", $newWith);
-        // }
-        
-        // if (! is_null($this->suppliedWith) and is_null($this->entityWith)) {
-        // return $this->suppliedWith; // process supplied default if entity is null
-        // }
-        
-        // // could just throw a non-fatal error here
-        // throw new HTTPException("Could not proccess search.", 401, array(
-        // 'dev' => 'Error calculating the correct set of related tables to supply with resource.',
-        // 'internalCode' => '87918906816'
-        // ));
-        
-        // // set to none for safety, easily reverse by setting entityWith to 'all'
-        // return 'none';
     }
-    
-    // placeholder
-    public function getAllowedFields()
-    {
-        if (! isset($this->suppliedDisplayFields) and ! isset($this->entityAllowedFields)) {
-            return 'all';
-        }
-        
-        if (isset($this->suppliedDisplayFields)) {
-            return $this->suppliedDisplayFields;
-        }
-        
-        if (isset($this->entityDisplayFields)) {
-            return $this->entityDisplayFields;
-        }
-        
-        return 'all';
-    }
-
-    public function getBlockFields()
-    {}
 
     /**
      * entity search fields are always applied and should not be modified by suppliedSearchFields
@@ -470,21 +394,6 @@ class SearchHelper
         }
         
         return $search_parameters;
-    }
-
-    /**
-     * Parses out partial fields to return in the response.
-     * Unparsed: (id,name,location)
-     * Parsed: array('id', 'name', 'location')
-     *
-     * @param string $unparsed
-     *            Unparsed string of fields to return in partial response
-     * @return array Array of fields to return in partial response
-     */
-    protected function parsePartialFields($unparsed)
-    {
-        $this->isPartial = true;
-        $this->suppliedDisplayFields = explode(',', trim($unparsed, '()'));
     }
 
     /**

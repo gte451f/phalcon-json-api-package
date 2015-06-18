@@ -53,16 +53,37 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $relationships = null;
 
     /**
+     * hold a list of columns that can be published to the api
+     * modify this list to prevent sensitive fields from being displayed
+     * even when sideloading this model
+     *
+     * start as null to detect and only load once
+     *
+     * @var array
+     */
+    private $approvedColumns = NULL;
+
+    /**
+     * works in conjunction w/ approvedColumns
+     * list specific columns that should NEVER be returned to the api
+     *
+     * @var array
+     */
+    public $blockColumns = array();
+
+    /**
      * auto populate a few key values
      */
     public function initialize()
     {}
-
+    
+    // not sure if we want this anymore
     public function getParentModel()
     {
         return false;
     }
-
+    
+    // not sure if we want this anymore
     public function getChildModel()
     {
         return false;
@@ -170,5 +191,49 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
         }
         return $this->relationships;
+    }
+
+    /**
+     * - return fields to be included when building a resource
+     * - to be used from an entity
+     * - works when side loading!
+     * - will exclude any fields listed in $this->blockFields
+     *
+     * @param
+     *            should the resulting array have a nameSpace prefix?
+     * @return array
+     */
+    public function getAllowedColumns($nameSpace = true)
+    {
+        if ($this->approvedColumns == NULL) {
+            $config = $this->getDI()->get('config');
+            
+            // prefix namespace if requested
+            if ($nameSpace) {
+                $nameSpace = $config['namespaces']['models'];
+                $modelNameSpace = $nameSpace . $this->getModelName() . '.';
+            } else {
+                $modelNameSpace = null;
+            }
+            
+            $approvedColumns = array();
+            
+            // build a list of columns for this model
+            $metaData = $this->getDI()->get('memory');
+            $colMap = $metaData->getColumnMap($this);
+            if (is_null($colMap)) {
+                // but if it isn't present, fall back to attributes
+                $colMap = $metaData->getAttributes($this);
+            }
+            
+            foreach ($colMap as $key => $value) {
+                if (! array_search($value, $this->blockColumns)) {
+                    $approvedColumns[] = $modelNameSpace . $value;
+                }
+            }
+            $this->approvedColumns = $approvedColumns;
+        }
+        
+        return $this->approvedColumns;
     }
 }
