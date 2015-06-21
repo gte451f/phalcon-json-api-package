@@ -13,14 +13,14 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * singular name of the model
      *
-     * @var unknown
+     * @var string|null
      */
     protected $singularName = NULL;
 
     /**
      * essentially the name of the model
      *
-     * @var unknown
+     * @var string|null
      */
     protected $pluralName = NULL;
 
@@ -44,6 +44,13 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @var string
      */
     public $tableName;
+
+    /**
+     * store the full path to this model
+     *
+     * @var string|null
+     */
+    private $modelNameSpace = NULL;
 
     /**
      * list of relationships?
@@ -76,17 +83,27 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function initialize()
     {}
-    
-    // not sure if we want this anymore
-    public function getParentModel()
+
+    /**
+     * The table this model depends on for it's existance
+     * A give away is when the PKID for this model references the parent PKID
+     * in the parent model
+     *
+     * @var boolean|string
+     */
+    public static $parentModel = FALSE;
+
+    /**
+     * for a provided model name, return that model's parent
+     * 
+     * @param string $name            
+     */
+    public static function getParentModel($name)
     {
-        return false;
-    }
-    
-    // not sure if we want this anymore
-    public function getChildModel()
-    {
-        return false;
+        $config = $this->getDI()->get('config');
+        $modelNameSpace = $config['namespaces']['models'];
+        $path = $modelNameSpace . $name;
+        return $path::$parentModel;
     }
 
     /**
@@ -121,6 +138,22 @@ class BaseModel extends \Phalcon\Mvc\Model
         
         // todo throw and error here?
         return false;
+    }
+
+    /**
+     * simple function to return the model's full name space
+     * relies on getModelName
+     * lazy load and cache result
+     */
+    public function getModelNameSpace()
+    {
+        if (! isset($this->modelNameSpace)) {
+            $config = $this->getDI()->get('config');
+            $nameSpace = $config['namespaces']['models'];
+            $this->modelNameSpace = $nameSpace . $this->getModelName();
+        }
+        
+        return $this->modelNameSpace;
     }
 
     /**
@@ -206,12 +239,9 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function getAllowedColumns($nameSpace = true)
     {
         if ($this->approvedColumns == NULL) {
-            $config = $this->getDI()->get('config');
-            
             // prefix namespace if requested
             if ($nameSpace) {
-                $nameSpace = $config['namespaces']['models'];
-                $modelNameSpace = $nameSpace . $this->getModelName() . '.';
+                $modelNameSpace = $this->getModelNameSpace() . '.';
             } else {
                 $modelNameSpace = null;
             }

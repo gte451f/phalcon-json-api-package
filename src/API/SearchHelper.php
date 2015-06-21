@@ -88,6 +88,7 @@ class SearchHelper
         'perPage',
         'per_page',
         'page',
+        'type',
         '_url'
     );
     // added since it seems to be included with some installs
@@ -131,7 +132,7 @@ class SearchHelper
     /**
      * load the DI, is this the best way ?
      */
-    public function __construct(array $allowedFields = null)
+    public function __construct()
     {
         $di = \Phalcon\DI::getDefault();
         $this->di = $di;

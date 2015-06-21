@@ -98,7 +98,7 @@ class Relation
     public function getParent()
     {
         $name = $this->relation->getReferencedModel();
-        $model = new $name();
-        return $model->getParentModel();
+        return $name::$parentModel;
+        
     }
 }

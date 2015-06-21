@@ -28,6 +28,13 @@ class Entity extends \Phalcon\DI\Injectable
     public $restResponse;
 
     /**
+     * temporary value used to store the currently loaded database record
+     *
+     * @var array
+     */
+    protected $baseRecord = array();
+
+    /**
      * store phalon lib for use throughout the class
      *
      * @var Phalcon\Mvc\Model\MetaData\Memory
@@ -54,6 +61,62 @@ class Entity extends \Phalcon\DI\Injectable
      * @var string insert | update
      */
     protected $saveMode = null;
+
+    /**
+     * store one or more parent models that this entity
+     * should merge into the final resource
+     *
+     * stores basic model names, not name spaces
+     *
+     * @var boolean|array
+     */
+    protected $parentModels = null;
+
+    /*
+     * ask this entity for all parents from the model and up the chain
+     * lazy load and cache
+     *
+     * @param bool $nameSpace
+     * should the parent names be formatted as a full namespace?
+     *
+     * @return array $parents
+     */
+    public function getParentModels($nameSpace = false)
+    {
+        // first load parentModels
+        if (! isset($parentModels)) {
+            $config = $this->getDI()->get('config');
+            $modelNameSpace = $config['namespaces']['models'];
+            $path = $modelNameSpace . $this->model->getModelName();
+            $parents = array();
+            
+            $currentParent = $path::$parentModel;
+            
+            while ($currentParent) :
+                $parents[] = $currentParent;
+                $path = $modelNameSpace . $currentParent;
+                $currentParent = $path::$parentModel;
+            endwhile
+            ;
+            $this->parentModels = $parents;
+        }
+        
+        if (count($this->parentModels) == 0) {
+            return false;
+        }
+        
+        // reset name space if it was not asked for
+        if (! $nameSpace) {
+            $modelNameSpace = null;
+        }
+        
+        $parents = array();
+        foreach ($this->parentModels as $parent) {
+            $parents[] = $modelNameSpace . $parent;
+        }
+        
+        return $parents;
+    }
 
     /**
      * process injected model
@@ -104,14 +167,17 @@ class Entity extends \Phalcon\DI\Injectable
         
         $foundSet = 0;
         foreach ($baseRecords as $baseRecord) {
-            // set primaryKeyValue?
-            
-            $this->restResponse[$this->model->getTableName()][] = $this->processRelationships($baseRecord);
+            // normalize results, pull out join fields
+            $baseRecord = $this->extractMainRow($baseRecord);
+            // store related records in restResponse or load for optimized DB queries
+            $this->processRelationships($baseRecord);
+            $this->restResponse[$this->model->getTableName()][] = $this->baseRecord;
             $foundSet ++;
         }
         
-        $this->appendMeta($foundSet);
+        // TODO single DB query for records related to main query
         
+        $this->appendMeta($foundSet);
         return $this->restResponse;
     }
 
@@ -149,7 +215,11 @@ class Entity extends \Phalcon\DI\Injectable
         
         $foundSet = 0;
         foreach ($baseRecords as $baseRecord) {
-            $this->restResponse[$this->model->getTableName('singular')] = $this->processRelationships($baseRecord);
+            // normalize results, pull out join fields
+            $baseRecord = $this->extractMainRow($baseRecord);
+            // store related records in restResponse or load for optimized DB queries
+            $this->processRelationships($baseRecord);
+            $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
             $foundSet ++;
         }
         
@@ -178,6 +248,9 @@ class Entity extends \Phalcon\DI\Injectable
             $this->restResponse['meta']['total_pages'] = ceil($this->recordCount / $this->searchHelper->getLimit());
             $this->restResponse['meta']['total_record_count'] = $this->recordCount;
             $this->restResponse['meta']['returned_record_count'] = $foundSet;
+            
+            $registry = $this->getDI()->get('registry');
+            $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
         }
     }
 
@@ -226,11 +299,8 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function queryBuilder($count = false)
     {
-        $config = $this->getDI()->get('config');
-        $nameSpace = $config['namespaces']['models'];
-        $modelNameSpace = $nameSpace . $this->model->getModelName();
+        $modelNameSpace = $this->model->getModelNameSpace();
         $mm = $this->getDI()->get('modelsManager');
-        
         $query = $mm->createBuilder()->from($modelNameSpace);
         
         // $columns = $this->model->getAllowedColumns(true);
@@ -242,8 +312,8 @@ class Entity extends \Phalcon\DI\Injectable
         $this->beforeQueryBuilderHook($query);
         
         // process hasOne Joins
-        $this->queryJoinHelper($query, $nameSpace);
-        $this->querySearcheHelper($query, $modelNameSpace);
+        $this->queryJoinHelper($query);
+        $this->querySearcheHelper($query);
         $this->querySortHelper($query);
         
         if ($count) {
@@ -291,20 +361,26 @@ class Entity extends \Phalcon\DI\Injectable
      * @param string $nameSpace            
      * @return \Phalcon\Mvc\Model\Query\BuilderInterface
      */
-    public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $nameSpace)
+    public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
     {
+        $config = $this->getDI()->get('config');
+        $modelNameSpace = $config['namespaces']['models'];
+        
+        $parentModels = $this->getParentModels(true);
+        
         $columns = [];
         // join all active hasOne's instead of just the parent
         foreach ($this->activeRelations as $relation) {
             if ($relation->getType() == 1) {
-                $refModelNameSpace = $nameSpace . $relation->getModelName();
+                $refModelNameSpace = $modelNameSpace . $relation->getModelName();
                 $query->join($refModelNameSpace);
-                // do not include hasOne columns in the result set, since we only join for searching purposes?
-                // $columns[] = "$refModelNameSpace.*";
+                // add all parent joins to the column list
+                if (in_array($refModelNameSpace, $parentModels)) {
+                    $columns[] = "$refModelNameSpace.*";
+                }
             }
         }
         $query->columns($columns);
-        
         return $query;
     }
 
@@ -316,7 +392,7 @@ class Entity extends \Phalcon\DI\Injectable
      * @param string $modelNameSpace            
      * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
      */
-    public function querySearcheHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query, $modelNameSpace)
+    public function querySearcheHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
     {
         $searchFields = $this->searchHelper->getSearchFields();
         if ($searchFields) {
@@ -441,8 +517,7 @@ class Entity extends \Phalcon\DI\Injectable
      */
     private function prependFieldNameNamespace($fieldName)
     {
-        $config = $this->getDI()->get('config');
-        $metaData = $this->getDI()->get('memory');
+        // $metaData = $this->getDI()->get('memory');
         $searchBits = explode(':', $fieldName);
         
         // if a related table is referenced, then search related model column maps instead of the primary model
@@ -453,7 +528,6 @@ class Entity extends \Phalcon\DI\Injectable
                 if ($searchBits[0] == $item->getTableName()) {
                     $modelNameSpace = $item->getReferencedModel();
                     $relatedModel = new $modelNameSpace();
-                    // $colMap = $metaData->getColumnMap($relatedModel);
                     $colMap = $relatedModel->getAllowedColumns(false);
                     $fieldName = $searchBits[1];
                     $matchFound = true;
@@ -469,8 +543,7 @@ class Entity extends \Phalcon\DI\Injectable
                 ));
             }
         } else {
-            $nameSpace = $config['namespaces']['models'];
-            $modelNameSpace = $nameSpace . $this->model->getModelName();
+            $modelNameSpace = $this->model->getModelNameSpace();
             // $colMap = $metaData->getColumnMap($this->model);
             $colMap = $this->model->getAllowedColumns(false);
         }
@@ -565,16 +638,47 @@ class Entity extends \Phalcon\DI\Injectable
     public function querySortHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
     {
         // process sort
-        $sortString = $this->searchHelper->getSort('sql');
-        if ($sortString != false) {
-            $query->orderBy($sortString);
+        $rawSort = $this->searchHelper->getSort('sql');
+        
+        // by default, use the local namespace
+        $preparedSort = $this->prependFieldNameNamespace($rawSort);
+        if ($preparedSort != false) {
+            $query->orderBy($preparedSort);
         }
         return $query;
+    }
+
+    public function extractMainRow($baseRecord)
+    {
+        $class = get_class($baseRecord);
+        
+        // basically check for parent records and pull them out
+        if ($class == 'Phalcon\Mvc\Model\Row') {
+            $newBase = false;
+            $baseArray = array();
+            
+            foreach ($baseRecord as $record) {
+                $class = get_class($record);
+                $primaryModel = $this->model->getModelNameSpace();
+                
+                if ($primaryModel === $class) {
+                    $newBase = $record;
+                }
+                $baseArray = array_merge($this->loadAllowedColumns($record), $baseArray);
+            }
+            
+            $this->baseRecord = $baseArray;
+            return $newBase;
+        } else {
+            $this->baseRecord = $this->loadAllowedColumns($baseRecord);
+            return $baseRecord;
+        }
     }
 
     /**
      * for a given record, load any related values
      * called from both find and findFirst
+     *
      *
      * @param array $baseRecord
      *            the base record to decorate
@@ -583,25 +687,24 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function processRelationships($baseRecord)
     {
-        // prep some basic values
-        $class = get_class($baseRecord);
-        $config = $this->getDI()->get('config');
-        $modelNameSpace = $config['namespaces']['models'] . $this->model->getModelName();
-        
-        $baseArray = $this->loadAllowedColumns($baseRecord, $this->model);
-        
         // load primaryKeyValue
-        $this->primaryKeyValue = $baseArray[$this->model->getPrimaryKeyName()];
+        $this->primaryKeyValue = $this->baseRecord[$this->model->getPrimaryKeyName()];
+        // store parentModels for later use
+        $parentModels = $this->getParentModels(true);
         
         // process all loaded relationships by fetching related data
         foreach ($this->activeRelations as $relation) {
+            // skip any parent relationships
+            $refModelNameSpace = $relation->getReferencedModel();
+            if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
+                continue;
+            }
             
             $refType = $relation->getType();
             
             // store a copy of all related record (PKIDs)
             // this must be attached w/ the parent records for joining purposes
             $relatedRecordIds = null;
-            $refModelNameSpace = $relation->getReferencedModel();
             $refModel = new $refModelNameSpace();
             $primaryKeyName = $refModel->getPrimaryKeyName();
             
@@ -621,7 +724,7 @@ class Entity extends \Phalcon\DI\Injectable
             } else {
                 // harmonize relatedRecords
                 if ($refType == 0) {
-                    $relatedRecords = $this->getBelongsToRecord($relation, $baseArray);
+                    $relatedRecords = $this->getBelongsToRecord($relation);
                 } elseif ($refType == 1) {
                     // all hasOne relationships would be loaded in the initial query right?
                     $relatedRecords = $this->loadAllowedColumns($baseRecord->$refModelName);
@@ -678,11 +781,11 @@ class Entity extends \Phalcon\DI\Injectable
                     
                     // TODO shortcut here, do better
                     $name = substr($property, 0, strlen($property) - 1);
-                    $baseArray[$name . $suffix] = $relatedRecordIds;
+                    $this->baseRecord[$name . $suffix] = $relatedRecordIds;
                 }
             }
         }
-        return $baseArray;
+        return true;
     }
 
     /**
@@ -744,14 +847,13 @@ class Entity extends \Phalcon\DI\Injectable
      * write a custom query to load the related record including it's parent
      *
      * @param \PhalconRest\API\Relation $relation            
-     * @param array $baseArray            
      * @return multitype:array
      */
-    private function getBelongsToRecord(\PhalconRest\API\Relation $relation, $baseArray)
+    private function getBelongsToRecord(\PhalconRest\API\Relation $relation)
     {
         $query = $this->buildRelationQuery($relation);
         $foreignKey = $relation->getFields();
-        $query->where("{$relation->getReferencedFields()} = \"{$baseArray[$foreignKey]}\"");
+        $query->where("{$relation->getReferencedFields()} = \"{$this->baseRecord[$foreignKey]}\"");
         $result = $query->getQuery()->execute();
         return $this->loadRelationRecords($result, $relation);
     }
@@ -767,6 +869,7 @@ class Entity extends \Phalcon\DI\Injectable
         $refModelNameSpace = $relation->getReferencedModel();
         
         $config = $this->getDI()->get('config');
+        $modelNameSpace = $config['namespaces']['models'];
         $mm = $this->getDI()->get('modelsManager');
         
         $query = $mm->createBuilder()->from($refModelNameSpace);
@@ -777,8 +880,8 @@ class Entity extends \Phalcon\DI\Injectable
         
         // join in parent record if specified
         if ($relation->getParent()) {
-            $columns[] = $config['namespaces']['models'] . $relation->getParent() . '.*';
-            $query->join($config['namespaces']['models'] . $relation->getParent());
+            $columns[] = $modelNameSpace . $relation->getParent() . '.*';
+            $query->join($modelNameSpace . $relation->getParent());
         }
         $query->columns($columns);
         
@@ -833,6 +936,8 @@ class Entity extends \Phalcon\DI\Injectable
      *
      * make this a getter? It doesn't actually return the array, so keeping as load
      *
+     * always load parent model(s)
+     *
      * auto = do nothing
      * all = load all possible relationships
      * csv,list = load only these relationships
@@ -850,6 +955,7 @@ class Entity extends \Phalcon\DI\Injectable
         
         $this->activeRelations = array();
         $requestedRelationships = $this->searchHelper->getWith();
+        $parentModels = $this->getParentModels(false);
         $modelRelationships = $this->model->getRelations();
         
         $all = false; // load all relationships?
@@ -858,7 +964,12 @@ class Entity extends \Phalcon\DI\Injectable
         switch ($requestedRelationships) {
             case 'none':
                 $all = false;
-                $requestedRelationships = array();
+                // gotta load parents if there are any
+                if ($parentModels) {
+                    $requestedRelationships = $parentModels;
+                } else {
+                    $requestedRelationships = array();
+                }
                 break;
             case 'all':
                 $all = true;
@@ -868,13 +979,17 @@ class Entity extends \Phalcon\DI\Injectable
                 // expect csv list or simple string
                 // user_addrs,user_phones
                 $requestedRelationships = explode(',', strtolower($requestedRelationships));
+                // include parents if there are any
+                if ($parentModels) {
+                    $requestedRelationships = array_merge($parentModels, $requestedRelationships);
+                }
                 break;
         }
         
         // load all active relationships as defined by searchHelper
         foreach ($modelRelationships as $relation) {
-            // make sure the relationship is approved
-            if ($all or in_array($relation->getTableName(), $requestedRelationships)) {
+            // make sure the relationship is approved either as the table name, model name or ALL
+            if ($all or in_array($relation->getTableName(), $requestedRelationships) or in_array($relation->getModelName(), $requestedRelationships)) {
                 $this->activeRelations[$relation->getTableName()] = $relation;
             }
         }
@@ -890,13 +1005,8 @@ class Entity extends \Phalcon\DI\Injectable
     public function delete($id)
     {
         // $inflector = new Inflector();
-        $config = $this->getDI()->get('config');
-        $primaryModelName = $config['namespaces']['models'] . $this->model->getModelName();
-        // $primaryModelName = $inflector->camelize($primaryModelName);
-        // $primaryModelName = "\\PhalconRest\\Models\\" . $primaryModelName;
-        
+        $primaryModelName = $this->model->getModelNameSpace();
         $modelToDelete = $primaryModelName::findFirst($id);
-        
         $this->beforeDelete($modelToDelete);
         
         if ($modelToDelete != false) {
@@ -1001,14 +1111,17 @@ class Entity extends \Phalcon\DI\Injectable
     public function saveParent($object)
     {
         $inflector = new Inflector();
-        $config = $this->getDI()->get('config');
-        $primaryModelName = get_class($this->model);
         $result = true;
-        
+        $parentModels = $this->getParentModels(true);
         // if there is a parent table, save to that record first
-        if ($this->model->getParentModel()) {
-            $parentModelName = $config['namespaces']['models'] . $this->model->getParentModel();
+        if ($parentModels) {
+            // who knows if this works
+            $config = $this->getDI()->get('config');
+            $modelNameSpace = $config['namespaces']['models'];
+            $modelName = $this->model->getModelName();
+            $parentModelName = $modelName::$parentModel;
             $parentModel = new $parentModelName();
+            
             $result = $this->simpleSave($parentModel, $object);
             if ($result > 0) {
                 $result = (int) $result;

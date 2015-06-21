@@ -1,6 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
+use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\Inflector;
 
 /**
@@ -36,6 +37,7 @@ class Request extends \Phalcon\Http\Request
         $name = $inflector->underscore($name);
         // $name = strtolower($name);
         
+        $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
         
         $request = NULL;
