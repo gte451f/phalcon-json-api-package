@@ -648,6 +648,13 @@ class Entity extends \Phalcon\DI\Injectable
         return $query;
     }
 
+    /**
+     * for a given base record, build an array to represent a single row including merged tables
+     * strip out extra merge rows and return a single result record
+     *
+     * @param mixed $baseRecord            
+     * @return Phalcon Result record
+     */
     public function extractMainRow($baseRecord)
     {
         $class = get_class($baseRecord);
@@ -896,30 +903,16 @@ class Entity extends \Phalcon\DI\Injectable
      */
     private function loadRelationRecords($result, \PhalconRest\API\Relation $relation)
     {
-        $relatedRecords = array();
+        $relatedRecords = array(); // store all related records
         foreach ($result as $relatedRecord) {
-            // kept to demonstrate how to reference result row
-            // $name = 'phalconRest\\Models\\Owners';
-            // $rel = $relatedRecord->$name;
             $relatedRecArray = array(); // reset for each run
                                         
             // load parent record into restResponse in passing
             $parent = $relation->getParent();
-            $className = get_class($relatedRecord);
             if ($parent) {
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
-                    $modelName = $rec->getModelName();
-                    $tableName = $rec->getTableName();
-                    
-                    if ($modelName == $parent) {
-                        $parentArray = $this->loadAllowedColumns($rec);
-                        $this->updateRestResponse($tableName, array(
-                            $parentArray
-                        ));
-                    } else {
-                        $relatedRecArray = $this->loadAllowedColumns($rec);
-                    }
+                    $relatedRecArray = array_merge($relatedRecArray, $this->loadAllowedColumns($rec));
                 }
             } else {
                 // return just the related record, not a joined in parent record as well
@@ -999,8 +992,10 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * remove a complete entity based on a supplied primary key
      * TODO how to handle deleting from a leaf node, check this->parentModel
+     * currently this logic depends on the SQL cascade rule to do the heavy lifting
      *
      * @param int $id            
+     * @return boolean
      */
     public function delete($id)
     {
@@ -1102,68 +1097,53 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
-     * if an model has a parent model specified,
-     * create that record before creating the current child entity
-     *
-     * @param unknown $object            
-     * @return mixed either boolean or the ID of a newly created record
-     */
-    public function saveParent($object)
-    {
-        $inflector = new Inflector();
-        $result = true;
-        $parentModels = $this->getParentModels(true);
-        // if there is a parent table, save to that record first
-        if ($parentModels) {
-            // who knows if this works
-            $config = $this->getDI()->get('config');
-            $modelNameSpace = $config['namespaces']['models'];
-            $modelName = $this->model->getModelName();
-            $parentModelName = $modelName::$parentModel;
-            $parentModel = new $parentModelName();
-            
-            $result = $this->simpleSave($parentModel, $object);
-            if ($result > 0) {
-                $result = (int) $result;
-            }
-        }
-        return $result;
-    }
-
-    /**
      * attempt to add/update a new entity
      * watch $id to determine if update or insert
+     * built to accomdate saving records w/ parent tables (hasOne)
      *
-     * @param $object the
+     * @param $formData the
      *            data submitted to the server
      * @param int $id
      *            the pkid of the record to be updated, otherwise null on inserts
-     * @return boolean true on success otherwise false
+     * @return int the PKID of the record in question
      */
-    public function save($object, $id = NULL)
+    public function save($formData, $id = NULL)
     {
-        $inflector = new Inflector();
-        $config = $this->getDI()->get('config');
-        $primaryModelName = get_class($this->model);
+        // $inflector = new Inflector();
         
         // check if inserting a new record and account for any parent records
         if (is_null($id)) {
             $this->saveMode = 'insert';
-            
             // pre-save hook placed after saveMode
-            $object = $this->beforeSave($object, $id);
-            $primaryModel = new $primaryModelName();
+            $formData = $this->beforeSave($formData, $id);
+            // load a model including potential parents
+            $primaryModel = $this->loadParentModel($this->model, $formData);
         } else {
             // update existing record
             $this->saveMode = 'update';
             
             // pre-save hook placed after saveMode
-            $object = $this->beforeSave($object, $id);
+            $formData = $this->beforeSave($formData, $id);
             
             $this->primaryKeyValue = $id;
-            $primaryModel = $primaryModelName::findFirst($id);
+            
+            // need parent logic here
+            $model = $this->model;
+            $primaryModel = $model::findFirst($id);
+            $primaryModel = $this->loadModelValues($primaryModel, $formData);
+            
+            // TODO this only works with 1 parent so far....
+            $parentModelName = $model::$parentModel;
+            if ($parentModelName) {
+                $config = $this->getDI()->get('config');
+                $modelNameSpace = $config['namespaces']['models'];
+                $parentNameSpace = $modelNameSpace . $parentModelName;
+                $parentModel = $parentNameSpace::findFirst($id);
+                $primaryModel = $this->loadModelValues($parentModel, $formData);
+            }
         }
-        $result = $this->simpleSave($primaryModel, $object);
+        
+        $result = $this->simpleSave($primaryModel, $formData);
         
         // if still blank, pull from recently created $result
         if (is_null($id)) {
@@ -1171,99 +1151,54 @@ class Entity extends \Phalcon\DI\Injectable
         }
         
         // post save hook that is called before relationships have been saved
-        $this->afterSave($object, $id);
+        $this->afterSave($formData, $id);
         
-        // save related tables
-        foreach ($this->activeRelations as $relation) {
-            $refType = $relation->getType();
-            
-            // strip string down to model name
-            $relatedModelName = $relation->getReferencedModel();
-            $relatedModelName = str_ireplace('PhalconREST\\Models\\', '', $relatedModelName);
-            
-            // 1 = hasOne 0 = belongsTo 2 = hasMany
-            switch ($refType) {
-                case 0:
-                    // not sure what to do here
-                    break;
-                
-                case 1:
-                    // massage name a bit
-                    $relatedModelName = $inflector->underscore($relatedModelName);
-                    
-                    // assume it was merged
-                    $relatedModel = $primaryModel->$relatedModelName;
-                    $result = $this->simpleSave($relatedModel, $object);
-                    break;
-                
-                case 2:
-                    // re-associate and include new records
-                    // loop through existing records and compare against what the server sent us
-                    
-                    // get a list of existing relatedRecords
-                    $relatedRecords = $primaryModel->$relatedModelName;
-                    
-                    $suppliedIDs = $inflector->underscore($relatedModelName);
-                    $inflector = new Inflector();
-                    $suppliedIDName = $inflector->singularize($inflector->underscore($relatedModelName)) . '_ids';
-                    if (isset($object->$suppliedIDName)) {
-                        $suppliedRecordIDs = $object->$suppliedIDName;
-                    } else {
-                        $suppliedRecordIDs = array();
-                    }
-                    
-                    // update the ones that need it, remove the ones that need removing, leave the rest alone
-                    foreach ($relatedRecords as $relatedRecord) {
-                        $id = $relatedRecord->getPrimaryKeyName();
-                        $found = array_search($relatedRecord->$id, $suppliedRecordIDs);
-                        if ($found) {
-                            // do nothing, the record is where it needs to be
-                            // $keep_list[] = $relatedRecord;
-                            unset($suppliedRecordIDs[$found]);
-                        } else {
-                            // existing related record is not in supplied list, remove it
-                            // $result = $relatedRecord->delete();
-                        }
-                    }
-                    
-                    // whatever remains in suppliedRecordIDs needs to be updated with the current parent primary key
-                    foreach ($suppliedRecordIDs as $relatedId) {
-                        $relatedModelName = $relation->getReferencedModel();
-                        $relatedRecord = $relatedModelName::findFirst($relatedId);
-                        if ($relatedRecord) {
-                            $relatedForeignKey = $relation->getReferencedFields();
-                            // echo $relatedForeignKey
-                            $relatedRecord->$relatedForeignKey = $id;
-                            $result = $relatedRecord->save();
-                        } else {
-                            // uh oh, didn't find the related record....
-                        }
-                    }
-                    break;
-                
-                default:
-                    ;
-                    break;
-            }
-        }
         // post save hook that is called after all relations have been saved as well
-        $this->afterSaveRelations($object, $id);
+        $this->afterSaveRelations($formData, $id);
         
         $this->saveMode = null; // revert since save is finished
         return $this->primaryKeyValue;
     }
 
     /**
+     * for a given model, load the parent if it exists
+     * return the final definitive parent model
+     * along with loading client submitted data into each model
      *
-     * filter through the object looking for variables to persist via the model
+     *
+     * @param object $model            
+     * @param object $object            
+     */
+    public function loadParentModel($model, $object)
+    {
+        if ($model::$parentModel) {
+            $config = $this->getDI()->get('config');
+            $modelNameSpace = $config['namespaces']['models'];
+            $parentNameSpace = $modelNameSpace . $model::$parentModel;
+            $parentModel = new $parentNameSpace();
+            $finalModel = $this->loadParentModel($parentModel, $object);
+            
+            // don't forget to load the child model values and mount into parent model
+            $childModel = $this->loadModelValues($model, $object);
+            $childModelName = $model->getModelName();
+            $finalModel->$childModelName = $childModel;
+        } else {
+            $finalModel = $model;
+        }
+        
+        // run object data through the model
+        return $this->loadModelValues($finalModel, $object);
+    }
+
+    /**
+     * load object data into the current model
      *
      * @param PhalconRest\Models $model            
-     * @param $object A
-     *            client submitted JSON object
-     * @throws HTTPException
-     * @return boolean
+     * @param object $formData            
+     *
+     * @return a model loaded with all relevant data from the object
      */
-    function simpleSave($model, $object)
+    public function loadModelValues($model, $formData)
     {
         // loop through all known fields and save matches
         $metaData = $this->getDI()->get('memory');
@@ -1273,24 +1208,32 @@ class Entity extends \Phalcon\DI\Injectable
             // but if it isn't present, fall back to attributes
             $colMap = $metaData->getAttributes($model);
         }
+        
         foreach ($colMap as $key => $label) {
-            if (isset($object->$label)) {
+            if (isset($formData->$label)) {
                 // odd because $key shows up on model while $label doesn't
                 // but $label WORKS and $key doesn't
                 // must be some magic method property stuff
-                // $model->$key = $object->$label;
-                $model->$label = $object->$label;
+                $model->$label = $formData->$label;
             }
         }
-        $result = $model->save();
         
+        return $model;
+    }
+
+    /**
+     * save a model and collect any error messages that may be returned
+     * return the model PKID whether insert or update
+     *
+     * @param PhalconRest\Models $model            
+     * @throws HTTPException
+     * @return int
+     */
+    function simpleSave($model)
+    {
+        $result = $model->save();
         // if the save failed, gather errors and return a validation failure
         if ($result == false) {
-            $list = array();
-            foreach ($model->getMessages() as $message) {
-                $list[] = $message->getMessage();
-            }
-            
             throw new ValidationException("Validation Errors Encountered", array(
                 'internalCode' => '7894181864684'
             ), $model->getMessages());

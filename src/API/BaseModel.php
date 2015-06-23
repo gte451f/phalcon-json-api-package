@@ -95,7 +95,7 @@ class BaseModel extends \Phalcon\Mvc\Model
 
     /**
      * for a provided model name, return that model's parent
-     * 
+     *
      * @param string $name            
      */
     public static function getParentModel($name)
@@ -257,7 +257,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
             
             foreach ($colMap as $key => $value) {
-                if (! array_search($value, $this->blockColumns)) {
+                if (array_search($value, $this->blockColumns) === false) {
                     $approvedColumns[] = $modelNameSpace . $value;
                 }
             }

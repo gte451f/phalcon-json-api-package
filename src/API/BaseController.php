@@ -61,11 +61,10 @@ class BaseController extends \Phalcon\DI\Injectable
         $this->getEntity();
     }
 
-    
     /**
      * Load a default model until one is already in place
      * return the currently loaded model
-     *  
+     *
      * @return \PhalconRest\Models
      */
     public function getModel($modelNameString = false)
@@ -73,7 +72,7 @@ class BaseController extends \Phalcon\DI\Injectable
         if ($this->model == false) {
             $config = $this->getDI()->get('config');
             // auto load model so we can inject it into the entity
-            if(!$modelNameString){
+            if (! $modelNameString) {
                 $modelNameString = $this->getControllerName();
             }
             
@@ -84,11 +83,10 @@ class BaseController extends \Phalcon\DI\Injectable
         return $this->model;
     }
 
-    
     /**
      * Load a default entity unless one is already in place
      * return the currentlyloaded entity
-     * 
+     *
      * @return \PhalconRest\Entities
      */
     public function getEntity()
@@ -182,17 +180,16 @@ class BaseController extends \Phalcon\DI\Injectable
         $id = $this->entity->save($post);
         
         // now fetch the record so we can return it
-        $new_record = $this->entity->findFirst($id);
+        $search_result = $this->entity->findFirst($id);
         
-        if ($new_record) {
-            // new record created
-            return $this->respond($new_record);
-        } else {
-            // error pulling record after creation?
+        if ($search_result == false) {
+            // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException("There was an error retreiving the newly created record.", 500, array(
-                'internalCode' => '2157',
-                'more' => ''
-            )); // Could have link to documentation here.
+                'dev' => 'The resource you requested is not available.',
+                'internalCode' => '1238510381861'
+            ));
+        } else {
+            return $this->respond($search_result);
         }
     }
 
@@ -210,8 +207,6 @@ class BaseController extends \Phalcon\DI\Injectable
 
     /**
      * read in a resource and update it
-     * TODO does not yet support saving related entities yet....
-     * ...maybe this should go in the entity anyway
      *
      * @param int $id            
      * @return multitype:string
@@ -225,44 +220,27 @@ class BaseController extends \Phalcon\DI\Injectable
         if (! $put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
                 'dev' => "Invalid data posted to the server",
-                'internalCode' => '13',
-                'more' => ''
-            )); // Could have link to documentation here.
+                'internalCode' => '568136818916816'
+            ));
         }
-        $result = $this->entity->save($put, $id);
+        $id = $this->entity->save($put, $id);
         
-        if ($result == false) {
-            $messages = '';
-            foreach ($this->entity->getMessages() as $message) {
-                $messages .= $message . "\n";
-            }
-            
-            throw new HTTPException("There was an error updating record #$id.", 500, array(
-                'dev' => $messages,
-                'internalCode' => '14',
-                'more' => ''
-            )); // Could have link to documentation here.
+        // reload record so we can return it
+        $search_result = $this->entity->findFirst($id);
+        if ($search_result == false) {
+            // This is bad. Throw a 500. Responses should always be objects.
+            throw new HTTPException("Could not find newly updated record.", 500, array(
+                'dev' => 'The resource you requested is not available.',
+                'internalCode' => '6816168161681'
+            ));
         } else {
-            // reload record so we can return it
-            $record = $this->entity->findFirst($id);
-            
-            if ($record) {
-                // format for return
-                return $this->respond($record);
-            } else {
-                // error pulling record after creation?
-                throw new HTTPException("Could not find record we just saved.", 500, array(
-                    'dev' => $messages,
-                    'internalCode' => '15',
-                    'more' => ''
-                )); // Could have link to documentation here.
-            }
+            return $this->respond($search_result);
         }
     }
 
     /**
      *
-     * @param unknown $id            
+     * @param mixed $id            
      * @return multitype:string
      */
     public function patch($id)
