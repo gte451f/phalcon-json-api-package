@@ -375,7 +375,7 @@ class Entity extends \Phalcon\DI\Injectable
                 $refModelNameSpace = $modelNameSpace . $relation->getModelName();
                 $query->join($refModelNameSpace);
                 // add all parent joins to the column list
-                if (in_array($refModelNameSpace, $parentModels)) {
+                if ($parentModels AND in_array($refModelNameSpace, $parentModels)) {
                     $columns[] = "$refModelNameSpace.*";
                 }
             }
