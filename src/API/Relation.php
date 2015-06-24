@@ -29,6 +29,13 @@ class Relation
     private $modelName = null;
 
     /**
+     * the user defined alias for the relationship
+     *
+     * @string
+     */
+    private $alias;
+
+    /**
      * The core relation object
      *
      * @var \Phalcon\Mvc\Model\Relation
@@ -91,6 +98,25 @@ class Relation
     }
 
     /**
+     * Get the primary model for a relationship
+     *
+     * @return string
+     */
+    public function getAlias()
+    {
+        if (! isset($this->alias)) {
+            $options = $this->getOptions();
+            if (isset($options['alias'])) {
+                $this->alias = $options['alias'];
+            } else {
+                $this->alias = NULL;
+            }
+        }
+        
+        return $this->alias;
+    }
+
+    /**
      * get the name of the parent model (w/o namespace)
      *
      * @return string or false
@@ -99,6 +125,5 @@ class Relation
     {
         $name = $this->relation->getReferencedModel();
         return $name::$parentModel;
-        
     }
 }

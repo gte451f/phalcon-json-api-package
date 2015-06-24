@@ -166,11 +166,11 @@ class Entity extends \Phalcon\DI\Injectable
         $this->restResponse[$this->model->getTableName()] = array();
         
         $foundSet = 0;
-        foreach ($baseRecords as $baseRecord) {
+        foreach ($baseRecords as $base) {
             // normalize results, pull out join fields
-            $baseRecord = $this->extractMainRow($baseRecord);
+            $base = $this->extractMainRow($base);
             // store related records in restResponse or load for optimized DB queries
-            $this->processRelationships($baseRecord);
+            $this->processRelationships($base);
             $this->restResponse[$this->model->getTableName()][] = $this->baseRecord;
             $foundSet ++;
         }
@@ -375,7 +375,7 @@ class Entity extends \Phalcon\DI\Injectable
                 $refModelNameSpace = $modelNameSpace . $relation->getModelName();
                 $query->join($refModelNameSpace);
                 // add all parent joins to the column list
-                if ($parentModels AND in_array($refModelNameSpace, $parentModels)) {
+                if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
                     $columns[] = "$refModelNameSpace.*";
                 }
             }
@@ -701,7 +701,7 @@ class Entity extends \Phalcon\DI\Injectable
         
         // process all loaded relationships by fetching related data
         foreach ($this->activeRelations as $relation) {
-            // skip any parent relationships
+            // skip any parent relationships because they are merged into the main record
             $refModelNameSpace = $relation->getReferencedModel();
             if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
                 continue;
@@ -716,9 +716,11 @@ class Entity extends \Phalcon\DI\Injectable
             $primaryKeyName = $refModel->getPrimaryKeyName();
             
             // figure out if we have a preferred alias
-            $options = $relation->getOptions();
-            if (isset($options['alias'])) {
-                $refModelName = $options['alias'];
+            $alias = $relation->getAlias();
+            if (isset($alias)) {
+                $refModelName = $alias;
+            } else {
+                $refModelName = $relation->getModelName();
             }
             
             // Check for a bad reference
@@ -769,24 +771,26 @@ class Entity extends \Phalcon\DI\Injectable
                     $relatedRecordIds = null;
                 }
                 
-                // populate the linked property or merge in additional records
-                // attempt to store the name similar to the table name
-                $property = preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $refModelName);
-                $property = strtolower($property);
-                
-                $this->updateRestResponse($property, $relatedRecords);
+                // we map table names to end point resource names and vice versa
+                // regardless of relationship, the related records are returned as part of the end point resource name
+                $this->updateRestResponse($relation->getTableName(), $relatedRecords);
                 
                 // add related record ids to the baseArray
                 // this is how JSON API suggests that you related resources
                 // will save nothing, a single value or an array
-                if ($relatedRecordIds !== null) {
-                    if (is_array($relatedRecordIds)) {
-                        $suffix = '_ids';
-                    } else {
-                        $suffix = '_id';
-                    }
+                
+                // does this only run when working with hasMany?
+                // belongsTo and hasOne are already in place, yes?
+                if ($relatedRecordIds !== null and $refType == 2) {
+                    $suffix = '_ids';
+                    
+                    // populate the linked property or merge in additional records
+                    // attempt to store the name similar to the table name
+                    $property = preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $relation->getTableName());
+                    $property = strtolower($property);
                     
                     // TODO shortcut here, do better
+                    // this will fail on non-standard plural names
                     $name = substr($property, 0, strlen($property) - 1);
                     $this->baseRecord[$name . $suffix] = $relatedRecordIds;
                 }
@@ -885,6 +889,8 @@ class Entity extends \Phalcon\DI\Injectable
             $refModelNameSpace . ".*"
         );
         
+        $foo = $relation->getParent();
+        
         // join in parent record if specified
         if ($relation->getParent()) {
             $columns[] = $modelNameSpace . $relation->getParent() . '.*';
@@ -981,9 +987,22 @@ class Entity extends \Phalcon\DI\Injectable
         
         // load all active relationships as defined by searchHelper
         foreach ($modelRelationships as $relation) {
+            $tableName = $relation->getTableName();
+            $modelName = $relation->getModelName();
+            $aliasName = $relation->getAlias();
+            
             // make sure the relationship is approved either as the table name, model name or ALL
-            if ($all or in_array($relation->getTableName(), $requestedRelationships) or in_array($relation->getModelName(), $requestedRelationships)) {
-                $this->activeRelations[$relation->getTableName()] = $relation;
+            // table names because end point resources = table names
+            // model name because some auto generated relationships use this name instead
+            // alias is used to STORE the active relationship in case multiple relationships point to the same model
+            // but it is not a valid way for a client to request data
+            if ($all or in_array($tableName, $requestedRelationships) or in_array($modelName, $requestedRelationships)) {
+                // figure out if we have a preferred alias
+                if ($aliasName) {
+                    $this->activeRelations[$aliasName] = $relation;
+                } else {
+                    $this->activeRelations[$modelName] = $relation;
+                }
             }
         }
         return true;
