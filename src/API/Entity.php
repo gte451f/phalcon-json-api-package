@@ -736,7 +736,14 @@ class Entity extends \Phalcon\DI\Injectable
                     $relatedRecords = $this->getBelongsToRecord($relation);
                 } elseif ($refType == 1) {
                     // all hasOne relationships would be loaded in the initial query right?
-                    $relatedRecords = $this->loadAllowedColumns($baseRecord->$refModelName);
+                    // if the hasOne itself has a parent, then treat it more like a belongsTO so
+                    // merged columns are loaded
+                    $relatedParent = $refModelNameSpace::$parentModel;
+                    if ($relatedParent) {
+                        $relatedRecords = $this->getBelongsToRecord($relation);
+                    } else {
+                        $relatedRecords = $this->loadAllowedColumns($baseRecord->$refModelName);
+                    }
                 } else {
                     $relatedRecords = $this->getHasManyRecords($relation);
                 }
@@ -748,7 +755,7 @@ class Entity extends \Phalcon\DI\Injectable
                         // process hasOne records as well
                         case 1:
                         case 0:
-                            // this doesn't seem right, why are they occaisionally showing up inside an array?
+                            // this doesn't seem right, why are they occasionally showing up inside an array?
                             if (isset($relatedRecords[$primaryKeyName])) {
                                 $relatedRecordIds = $relatedRecords[$primaryKeyName];
                                 // wrap in array so we can store multiple hasOnes from many different main records
