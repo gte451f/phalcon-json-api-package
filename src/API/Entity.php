@@ -870,8 +870,23 @@ class Entity extends \Phalcon\DI\Injectable
     private function getBelongsToRecord(\PhalconRest\API\Relation $relation)
     {
         $query = $this->buildRelationQuery($relation);
+        $referencedField = $relation->getReferencedFields();
         $foreignKey = $relation->getFields();
-        $query->where("{$relation->getReferencedFields()} = \"{$this->baseRecord[$foreignKey]}\"");
+        
+        // can take a shortcut here,
+        // if the related record has already been loaded, than return empty array
+        $tableName = $relation->getTableName();
+        $foreignKeyValue = $this->baseRecord[$foreignKey];
+        
+        if (isset($this->restResponse[$tableName])) {
+            foreach ($this->restResponse[$tableName] as $row) {
+                if ($row[$referencedField] == $foreignKeyValue) {
+                    return array();
+                }
+            }
+        }
+        
+        $query->where("{$referencedField} = \"{$this->baseRecord[$foreignKey]}\"");
         $result = $query->getQuery()->execute();
         return $this->loadRelationRecords($result, $relation);
     }
