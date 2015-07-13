@@ -15,18 +15,32 @@ class Relation
 {
 
     /**
-     * name in sql database
+     * singular name in sql database
      *
      * @var string
      */
-    private $tableName = null;
+    private $singularTableName = null;
 
     /**
-     * name of model that represents table
+     * plural name in sql database
      *
      * @var string
      */
-    private $modelName = null;
+    private $pluralTableName = null;
+
+    /**
+     * singular name of model that represents table
+     *
+     * @var string
+     */
+    private $singularModelName = null;
+
+    /**
+     * plural name of model that represents table
+     *
+     * @var string
+     */
+    private $pluralModelName = null;
 
     /**
      * the user defined alias for the relationship
@@ -68,33 +82,33 @@ class Relation
     }
 
     /**
-     * get the tableName?
+     * get the table name by passing this along to the underlying model
      */
-    public function getTableName()
+    public function getTableName($type = 'plural')
     {
-        if (! isset($this->tableName)) {
+        $property = $type . 'TableName';
+        if ($this->$property == null) {
             $name = $this->relation->getReferencedModel();
             $model = new $name();
-            $this->tableName = $model->getTableName();
+            $this->$property = $model->getTableName($type);
         }
-        return $this->tableName;
+        return $this->$property;
     }
 
     /**
-     * Get the primary model for a relationship
+     * Get the singular/plural model name for a relationship
      *
      * @return string
      */
-    public function getModelName()
+    public function getModelName($type = 'plural')
     {
-        if (isset($this->modelName)) {
-            return $this->modelName;
+        $property = $type . 'ModelName';
+        if ($this->$property == null) {
+            $name = $this->relation->getReferencedModel();
+            $model = new $name();
+            $this->$property = $model->getModelName($type);
         }
-        $name = $this->relation->getReferencedModel();
-        $pieces = explode('\\', $name);
-        $slot = count($pieces) - 1;
-        $this->modelName = $pieces[$slot];
-        return $pieces[$slot];
+        return $this->$property;
     }
 
     /**

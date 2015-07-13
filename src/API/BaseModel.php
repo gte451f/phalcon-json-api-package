@@ -193,6 +193,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         }
         
         if ($type == 'singular') {
+            // not the smartest way to make a value singular
             return substr($tableName, 0, strlen($tableName) - 1);
         }
     }

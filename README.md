@@ -14,22 +14,27 @@ Phalcon is the underlying framework this project depends on.  Any user of the AP
 # How is JSONAPI used?
 The Phalcon JSON API package attempts to follow the JSON API as closely as possible.  There are several enhancements this project incorporates beyond the JSON API specification.
 
-# How can I get started?
+# How can I quickly see this project in action?
 New folks are encouraged to download and install the [sister project](https://github.com/gte451f/phalcon-json-api) that acts as a simple example application to demonstrate how one could use the API.  This simple application include all the building blocks that make up the api including use of traditional Phalcon objects like Controllers and Models along with objects designed for use in the API such as Entities, Route and SearchHelpers.
 
-# Within the context of the API, please describe
+# How can I install this project?
+Aside from meeting the system requirements, you should include this project in your composer file.  Here is an example composer file that includes a few extra libraries needed for testing and timing api respones.
 
-# What is an API End Point ?
-And end point in the API represents a resource which client applications can perform actions on.  Each end point can support any number of defined RESTish verbs like POST, GET etc. The minimum set of files an end point requires is a Controller, Model, Entity and Route.
+```
+{
+    "require": {
+        "jsanc623/phpbenchtime": "dev-master",
+        "gte451f/phalcon-json-api-package": "dev-master"
+    },
+    "require-dev": {
+        "codeception/codeception": "*",
+        "flow/jsonpath": "dev-master"
+    }
+}
+```
 
-# What is a Model and how is it used?
-A model is a normal Phalcon object that you are probably already familiar with.  The API contains an extended version of a [Phalcon Model](https://docs.phalconphp.com/en/latest/reference/models.html) that you should base all models off of from within your application.  A model represents a table from your persistence layer.  Each Phalcon model expects a primary key which is often detected via Phalcon::ORM.  The upstream Entity object depends on a model to perform crud operations.  
+# Where is the wiki?
+Lots more help is available [here](https://github.com/gte451f/phalcon-json-api-package/wiki).
 
-# What is an Entity and how is it used?
-An entity is a custom contstruct of the API.  It acts as a layer of abstraction that sits on top of and coordinates among models and their relationsionships.  It also takes into account an associated searchHelper object that further describes how the entity should gather and data before turning to the requesting client.
-
-# What is a Controller and how is it used?
-A controller is also a normal Phalcon object with some specific enhancements for performaing it's responsabilities.  It catches requests from a calling client (ie a web browser) and gathers any specific data beforing delegating work to an underlying entity.  The controller also formats data returned from an Entity into the correct format configured in the API.  JSON repsonses are the most tested, but an abstraction layer provides an option to use a different response format.
-
-# What is a searchHelper and how is it used?
-A SearchHelper works in conjunction with an entity to further guide the API in gathering and formating data.  Specifically, a SearhcHelper drives entity behavior around building relationships, filtering data and showing or hiding columns.
+# Where do babies come from?
+![The Stork Silly!](http://img2.wikia.nocookie.net/__cb20120518150112/disney/images/2/2f/Dumbo-disneyscreencaps_com-672.jpg "Dumbo Photo")

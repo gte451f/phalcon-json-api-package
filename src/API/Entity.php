@@ -790,15 +790,9 @@ class Entity extends \Phalcon\DI\Injectable
                 // belongsTo and hasOne are already in place, yes?
                 if ($relatedRecordIds !== null and $refType == 2) {
                     $suffix = '_ids';
-                    
                     // populate the linked property or merge in additional records
                     // attempt to store the name similar to the table name
-                    $property = preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $relation->getTableName());
-                    $property = strtolower($property);
-                    
-                    // TODO shortcut here, do better
-                    // this will fail on non-standard plural names
-                    $name = substr($property, 0, strlen($property) - 1);
+                    $name = $relation->getTableName('singular');
                     $this->baseRecord[$name . $suffix] = $relatedRecordIds;
                 }
             }
