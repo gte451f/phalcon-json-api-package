@@ -1165,17 +1165,17 @@ class Entity extends \Phalcon\DI\Injectable
             // need parent logic here
             $model = $this->model;
             $primaryModel = $model::findFirst($id);
-            $primaryModel = $this->loadModelValues($primaryModel, $formData);
+            $primaryModel = $this->loadParentModel($primaryModel, $formData);
             
-            // TODO this only works with 1 parent so far....
-            $parentModelName = $model::$parentModel;
-            if ($parentModelName) {
-                $config = $this->getDI()->get('config');
-                $modelNameSpace = $config['namespaces']['models'];
-                $parentNameSpace = $modelNameSpace . $parentModelName;
-                $parentModel = $parentNameSpace::findFirst($id);
-                $primaryModel = $this->loadModelValues($parentModel, $formData);
-            }
+//             // TODO this only works with 1 parent so far....
+//             $parentModelName = $model::$parentModel;
+//             if ($parentModelName) {
+//                 $config = $this->getDI()->get('config');
+//                 $modelNameSpace = $config['namespaces']['models'];
+//                 $parentNameSpace = $modelNameSpace . $parentModelName;
+//                 $parentModel = $parentNameSpace::findFirst($id);
+//                 $primaryModel = $this->loadModelValues($parentModel, $formData);
+//             }
         }
         
         $result = $this->simpleSave($primaryModel, $formData);
@@ -1212,6 +1212,13 @@ class Entity extends \Phalcon\DI\Injectable
             $parentNameSpace = $modelNameSpace . $model::$parentModel;
             $parentModel = new $parentNameSpace();
             $finalModel = $this->loadParentModel($parentModel, $object);
+            
+            if($this->saveMode == 'update'){
+                $primaryKey = $model->getPrimaryKeyName();
+                $finalModel = $parentModel::findFirst($model->$primaryKey);
+            } else {
+                $finalModel = $this->loadParentModel($parentModel, $object);
+            }
             
             // don't forget to load the child model values and mount into parent model
             $childModel = $this->loadModelValues($model, $object);
