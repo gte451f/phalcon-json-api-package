@@ -44,7 +44,7 @@ class SearchHelper
     public $entityLimit = 500;
 
     /**
-     * used for paginating results
+     * used for paginating results but kindof dumb to set from the server side, why not leave it only for the client to request?
      *
      * @var int
      */
@@ -72,7 +72,8 @@ class SearchHelper
      */
     public $entityWith = 'none';
     
-    // field1,-field2
+    // a default sort order that could be over ridden by a client submitted value
+    // ie. field1,-field2
     public $entitySort = null;
     
     // a list of fields that are reserved in order to process other search related searches
@@ -89,7 +90,8 @@ class SearchHelper
         'per_page',
         'page',
         'type',
-        '_url'
+        '_url',
+        'order'
     );
     // added since it seems to be included with some installs
     
