@@ -11,7 +11,8 @@ interface AdapterInterface
 {
 
     /**
-     * each adapter mush provide a way to authenticate a user
+     * each adapter must provide a way to authenticate a user
+     * 
      * @param string $userName
      * @param string $password
      * @return boolean

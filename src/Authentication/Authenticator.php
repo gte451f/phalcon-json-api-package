@@ -16,7 +16,7 @@ use Phalcon\DI\Injectable;
  * @author jjenkins
  *        
  */
-final class Authenticator extends Injectable implements AuthenticatorInterface
+class Authenticator extends Injectable implements AuthenticatorInterface
 {
 
     /**
@@ -70,9 +70,11 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
     public function logUserOut($token)
     {
         $result = $this->isLoggedIn($token);
+        $this->beforeLogout($token);
         if ($result) {
             $result = $this->profile->resetToken(true);
         }
+        $this->afterLogout($token, $result);
         return $result;
     }
 
@@ -86,11 +88,13 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
      */
     public function authenticate($userName, $password)
     {
+        $this->beforeLogin($userName, $password);
         $result = $this->adapter->authenticate($userName, $password);
         if ($result) {
             $this->profile->loadProfile("$this->userNameFieldName = '$userName'");
             $this->profile->resetToken();
         }
+        $this->afterLogin($userName, $password, $result);
         return $result;
     }
 
@@ -104,4 +108,40 @@ final class Authenticator extends Injectable implements AuthenticatorInterface
     {
         return $this->profile;
     }
+
+    /**
+     * hook to call before a login attempt
+     *
+     * @param string $userName            
+     * @param string $password            
+     */
+    public function beforeLogin($userName, $password)
+    {}
+
+    /**
+     * hook to call after a login attempt
+     *
+     * @param string $userName            
+     * @param string $password            
+     */
+    public function afterLogin($userName, $password, $result)
+    {}
+
+    /**
+     * hook to call before a logout attempt
+     *
+     * @param string $userName            
+     * @param string $password            
+     */
+    public function beforeLogout($token)
+    {}
+
+    /**
+     * hook to call after a logout attempt
+     *
+     * @param string $userName            
+     * @param string $password            
+     */
+    public function afterLogout($token, $result)
+    {}
 }

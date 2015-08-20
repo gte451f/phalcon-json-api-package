@@ -9,9 +9,8 @@ namespace PhalconRest\Authentication;
  *        
  */
 interface AuthenticatorInterface
-{
-    
-    // persiste to cache or session?
+{    
+    // persist to cache or session?
     
     /**
      * is the current user logged in?
