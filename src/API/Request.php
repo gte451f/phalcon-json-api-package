@@ -49,9 +49,8 @@ class Request extends \Phalcon\Http\Request
                     // expected name not found
                     throw new HTTPException("Could not find expected json data.", 500, array(
                         'dev' => json_encode($json),
-                        'internalCode' => '112',
-                        'more' => ''
-                    )); // Could have link to documentation here.
+                        'code' => '112928308402707'
+                    ));
                     return false;
                 }
             } else {

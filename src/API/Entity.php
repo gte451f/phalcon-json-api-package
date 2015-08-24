@@ -539,7 +539,7 @@ class Entity extends \Phalcon\DI\Injectable
             if ($matchFound == false) {
                 throw new HTTPException("Unkown table prefix supplied in filter.", 500, array(
                     'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
-                    'internalCode' => '891488651361948131461849'
+                    'code' => '891488651361948131461849'
                 ));
             }
         } else {
@@ -621,7 +621,7 @@ class Entity extends \Phalcon\DI\Injectable
             // can't have an offset w/o an limit
             throw new HTTPException("A bad query was attempted.", 500, array(
                 'dev' => "Encountered an offset clause w/o a limit which is a no-no.",
-                'internalCode' => '894791981'
+                'code' => '894791981'
             ));
         }
         
@@ -726,9 +726,9 @@ class Entity extends \Phalcon\DI\Injectable
             // Check for a bad reference
             if (! isset($baseRecord->$refModelName)) {
                 // TODO throw error here
-                throw new HTTPException("A bad model->relatedModel reference was encountered.", 500, array(
+                throw new HTTPException("A bad relationship reference was encountered.", 500, array(
                     'dev' => "Bad reference was: {$this->model->getModelName()} -> $refModelName",
-                    'internalCode' => '654981091519894'
+                    'code' => '654981091519894'
                 ));
             } else {
                 // harmonize relatedRecords
@@ -1048,14 +1048,14 @@ class Entity extends \Phalcon\DI\Injectable
                     $messageBag->set($message->getMessage());
                 }
                 throw new HTTPException("Error deleting record #$id.", 500, array(
-                    'internalCode' => '66498419846816'
+                    'code' => '66498419846816'
                 ));
             }
         } else {
             // no record found to delete
             throw new HTTPException("Could not find record #$id to delete.", 404, array(
                 'dev' => "No record was found to delete",
-                'internalCode' => '2343467699'
+                'code' => '2343467699'
             )); // Could have link to documentation here.
         }
         
@@ -1167,15 +1167,15 @@ class Entity extends \Phalcon\DI\Injectable
             $primaryModel = $model::findFirst($id);
             $primaryModel = $this->loadParentModel($primaryModel, $formData);
             
-//             // TODO this only works with 1 parent so far....
-//             $parentModelName = $model::$parentModel;
-//             if ($parentModelName) {
-//                 $config = $this->getDI()->get('config');
-//                 $modelNameSpace = $config['namespaces']['models'];
-//                 $parentNameSpace = $modelNameSpace . $parentModelName;
-//                 $parentModel = $parentNameSpace::findFirst($id);
-//                 $primaryModel = $this->loadModelValues($parentModel, $formData);
-//             }
+            // // TODO this only works with 1 parent so far....
+            // $parentModelName = $model::$parentModel;
+            // if ($parentModelName) {
+            // $config = $this->getDI()->get('config');
+            // $modelNameSpace = $config['namespaces']['models'];
+            // $parentNameSpace = $modelNameSpace . $parentModelName;
+            // $parentModel = $parentNameSpace::findFirst($id);
+            // $primaryModel = $this->loadModelValues($parentModel, $formData);
+            // }
         }
         
         $result = $this->simpleSave($primaryModel, $formData);
@@ -1213,7 +1213,7 @@ class Entity extends \Phalcon\DI\Injectable
             $parentModel = new $parentNameSpace();
             $finalModel = $this->loadParentModel($parentModel, $object);
             
-            if($this->saveMode == 'update'){
+            if ($this->saveMode == 'update') {
                 $primaryKey = $model->getPrimaryKeyName();
                 $finalModel = $parentModel::findFirst($model->$primaryKey);
             } else {
@@ -1277,7 +1277,8 @@ class Entity extends \Phalcon\DI\Injectable
         // if the save failed, gather errors and return a validation failure
         if ($result == false) {
             throw new ValidationException("Validation Errors Encountered", array(
-                'internalCode' => '7894181864684'
+                'code' => '7894181864684',
+                'dev' => 'entity->simpleSave failed to save model'
             ), $model->getMessages());
         }
         return $model->getPrimaryKeyValue();

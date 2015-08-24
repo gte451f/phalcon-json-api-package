@@ -4,7 +4,7 @@ A composer package designed to help you create a JSON:API in Phalcon
 What happens when a PHP developer wants to create an api to drive their client-side SPA?  Well you start with [Phalcon](http://phalconphp.com/en/) (A modern super fast framework) loosely follow the [JSON:API](http://jsonapi.org/) and package it up for [Composer](https://getcomposer.org/).  The result is the phalcon-json-api package (herafter referred to as the API) so enjoy.
 
 # System requirements
-- Phalcon 1.X (The latest release in the 1.x series)  The 2.x series has not been tested yet.
+- Phalcon 2.x
 - SQL persistance layer (ie. MYSQL, MariaDB)  Make sure the database is supported by [Phalcon's Databse Abstation Layer](https://docs.phalconphp.com/en/latest/reference/db.html).
 - PHP Version 5.5 or greater?
 

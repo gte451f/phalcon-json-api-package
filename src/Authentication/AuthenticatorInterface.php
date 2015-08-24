@@ -9,7 +9,7 @@ namespace PhalconRest\Authentication;
  *        
  */
 interface AuthenticatorInterface
-{    
+{
     // persist to cache or session?
     
     /**

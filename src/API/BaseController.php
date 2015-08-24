@@ -158,7 +158,7 @@ class BaseController extends \Phalcon\DI\Injectable
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException("Resource not available.", 404, array(
                 'dev' => 'The resource you requested is not available.',
-                'internalCode' => '43758093745021'
+                'code' => '43758093745021'
             ));
         } else {
             return $this->respond($search_result);
@@ -185,8 +185,8 @@ class BaseController extends \Phalcon\DI\Injectable
         if ($search_result == false) {
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException("There was an error retreiving the newly created record.", 500, array(
-                'dev' => 'The resource you requested is not available.',
-                'internalCode' => '1238510381861'
+                'dev' => 'The resource you requested is not available after it was just created',
+                'code' => '1238510381861'
             ));
         } else {
             return $this->respond($search_result);
@@ -220,7 +220,7 @@ class BaseController extends \Phalcon\DI\Injectable
         if (! $put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
                 'dev' => "Invalid data posted to the server",
-                'internalCode' => '568136818916816'
+                'code' => '568136818916816'
             ));
         }
         $id = $this->entity->save($put, $id);
@@ -231,7 +231,7 @@ class BaseController extends \Phalcon\DI\Injectable
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException("Could not find newly updated record.", 500, array(
                 'dev' => 'The resource you requested is not available.',
-                'internalCode' => '6816168161681'
+                'code' => '6816168161681'
             ));
         } else {
             return $this->respond($search_result);
@@ -309,8 +309,7 @@ class BaseController extends \Phalcon\DI\Injectable
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException("An error occured while retrieving records.", 500, array(
                 'dev' => 'The records returned were malformed.',
-                'internalCode' => '13',
-                'more' => ''
+                'code' => '861681684364'
             ));
         }
         

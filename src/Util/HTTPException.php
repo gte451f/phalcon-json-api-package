@@ -3,7 +3,7 @@ namespace PhalconRest\Util;
 
 /**
  * where caught HTTP Exceptions go to die
- * 
+ *
  * @author jjenkins
  *        
  */
@@ -16,58 +16,34 @@ class HTTPException extends \Exception
     private $di;
 
     /**
+     * http response code
      *
-     * @var unknown
+     * @var int
      */
-    public $devMessage;
+    protected $code;
 
-    /**
-     * array of additional value that can be passed to the exception
-     * 
-     * @var array
-     */
-    public $errorArray;
+    private $errorStore;
 
     /**
      *
-     * @var unknown
+     * @param string $message
+     *            required user friendly message to return to the requestor
+     * @param string $code
+     *            required HTTP response code
+     * @param array $errorArray
+     *            list of optional properites to set on the error object
      */
-    public $errorCode;
-
-    /**
-     *
-     * @var unknown
-     */
-    public $response;
-
-    /**
-     *
-     * @var string
-     */
-    public $additionalInfo;
-
-    /**
-     *
-     * @param string $message            
-     * @param string $code            
-     * @param array $errorArray            
-     */
-    public function __construct($message, $code, $errorArray)
+    public function __construct($title, $code, $errorList)
     {
-        $this->message = $message;
-        $this->errorArray = $errorArray;
-        $this->devMessage = @$errorArray['dev'];
-        $this->errorCode = @$errorArray['internalCode'];
+        // store general error data
+        $this->errorStore = new \PhalconRest\Util\ErrorStore($errorList);
+        $this->errorStore->title = $title;
+        
+        // store HTTP specific data
         $this->code = $code;
-        $this->additionalInfo = @$errorArray['more'];
+        
         $this->response = $this->getResponseDescription($code);
         $this->di = \Phalcon\DI::getDefault();
-        
-        // pull from messageBag if no explicit devMessage is provided
-        if (is_null($this->devMessage)) {
-            $messageBag = $this->di->getMessageBag();
-            $this->devMessage = $messageBag->getString();
-        }
     }
 
     /**
@@ -76,42 +52,9 @@ class HTTPException extends \Exception
      */
     public function send()
     {
-        $res = $this->di->get('response');
-        $req = $this->di->get('request');
-        
-        // query string, filter, default
-        if (! $req->get('suppress_response_codes', null, null)) {
-            $res->setStatusCode($this->getCode(), $this->response)
-                ->sendHeaders();
-        } else {
-            $res->setStatusCode('200', 'OK')->sendHeaders();
-        }
-        
-        $error = array(
-            'errorCode' => $this->getCode(),
-            'userMessage' => $this->getMessage(),
-            'devMessage' => $this->devMessage,
-            'more' => $this->additionalInfo,
-            'applicationCode' => $this->errorCode
-        );
-        
-        // alter type based on what was requested
-        if (! $req->get('type') || $req->get('type') == 'json') {
-            $response = new \PhalconRest\Responses\JSONResponse();
-            $response->send($error, true);
-            return;
-        } else 
-            if ($req->get('type') == 'csv') {
-                $response = new \PhalconRest\Responses\CSVResponse();
-                $response->send(array(
-                    $error
-                ));
-                return;
-            }
-        
-        // also route log to PHP server?
-        error_log('HTTPException: ' . $this->getFile() . ' at ' . $this->getLine());
-        
+        $output = new \PhalconRest\API\Output();
+        $output->setStatusCode($this->code, $this->response);
+        $output->sendError($this->errorStore);
         return true;
     }
 
@@ -169,6 +112,7 @@ class HTTPException extends \Exception
             415 => 'Unsupported Media Type',
             416 => 'Requested Range Not Satisfiable',
             417 => 'Expectation Failed',
+            422 => 'Unprocessable Entity',
             
             // Server Error 5xx
             500 => 'Internal Server Error',
