@@ -11,7 +11,7 @@ use Phalcon\DI\Injectable;
  * @author jjenkins
  *        
  */
-class UserProfile
+class UserProfile extends \Phalcon\DI\Injectable
 {
 
     public $userName;

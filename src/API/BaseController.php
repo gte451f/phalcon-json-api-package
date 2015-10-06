@@ -62,7 +62,7 @@ class BaseController extends \Phalcon\DI\Injectable
     }
 
     /**
-     * Load a default model until one is already in place
+     * Load a default model unless one is already in place
      * return the currently loaded model
      *
      * @return \PhalconRest\Models
@@ -76,8 +76,7 @@ class BaseController extends \Phalcon\DI\Injectable
                 $modelNameString = $this->getControllerName();
             }
             
-            $modelName = $config['namespaces']['models'] . $modelNameString;
-            
+            $modelName = $config['namespaces']['models'] . $modelNameString;            
             $this->model = new $modelName($this->di);
         }
         return $this->model;

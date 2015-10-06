@@ -425,9 +425,15 @@ class SearchHelper
             
             if (in_array($key, $this->reservedWords)) {
                 // ignore, it is reserved
-            } else {
-                // add to the list of field searches
-                $mapped[$key] = $request->get($key, 'string');
+            } else {                
+                // sanitize fails for < or <=, even html encoded version
+                // insert exception for < value
+                $sanitizedValue = $request->get($key, 'string');
+                if (strlen($sanitizedValue) == 0 and substr($value, 0, 1) == '<') {
+                    $mapped[$key] = $value;
+                } else {
+                    $mapped[$key] = $sanitizedValue;
+                }
             }
         }
         

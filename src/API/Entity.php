@@ -235,6 +235,10 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
+     * add a few extra metrics as enabled by the system
+     *
+     * @param int $foundSet
+     *            a count of the records matching api request
      */
     private function appendMeta($foundSet)
     {
@@ -251,6 +255,12 @@ class Entity extends \Phalcon\DI\Injectable
             
             $registry = $this->getDI()->get('registry');
             $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
+            
+            $config = $this->getDI()->get('config');
+            if ($config['application']['debugApp']) {
+                $registry = $this->getDI()->get('registry');
+                $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
+            }
         }
     }
 
@@ -414,9 +424,8 @@ class Entity extends \Phalcon\DI\Injectable
                 switch ($processedSearchField['queryType']) {
                     case 'and':
                         $fieldName = $this->prependFieldNameNamespace($processedSearchField['fieldName']);
-                        $fieldValue = $processedSearchField['fieldValue'];
-                        $newFieldValue = $this->processFieldValueWildcards($fieldValue);
-                        $operator = $this->determineQueryWhereOperator($newFieldValue);
+                        $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
+                        $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
                         $query->andWhere("$fieldName $operator \"$newFieldValue\"");
                         break;
                     
@@ -442,8 +451,8 @@ class Entity extends \Phalcon\DI\Injectable
                         foreach ($fieldNameArray as $fieldName) {
                             $fieldName = $this->prependFieldNameNamespace($fieldName);
                             foreach ($fieldValueArray as $fieldValue) {
-                                $newFieldValue = $this->processFieldValueWildcards($fieldValue);
-                                $operator = $this->determineQueryWhereOperator($newFieldValue);
+                                $operator = $this->determineWhereOperator($fieldValue);
+                                $newFieldValue = $this->processFieldValue($fieldValue, $operator);
                                 $query->orWhere("$fieldName $operator \"$newFieldValue\"");
                             }
                         }
@@ -559,45 +568,105 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
-     * Given a fieldValue, search for the wildcard character and replace with an SQL specific wildcard
-     * character
+     * Given a fieldValue and operator, filter out the operator from the value
+     * ie.
+     * search for the wildcard character and replace with an SQL specific wildcard
+     *
+     * @param string $fieldValue
+     *            a search string
+     * @param string $operator
+     *            the detected field value
+     * @return string
+     */
+    private function processFieldValue($fieldValue, $operator = '=')
+    {
+        switch ($operator) {
+            case '>':
+            case '<':
+                return substr($fieldValue, 1);
+                break;
+            
+            case '>=':
+            case '<=':
+            case '<>':
+            case '!=':
+                return substr($fieldValue, 2);
+                break;
+            
+            case 'LIKE':
+                // process possible wild cards
+                $firstChar = substr($fieldValue, 0, 1);
+                $lastChar = substr($fieldValue, - 1, 1);
+                
+                // process wildcards
+                if ($firstChar == "*") {
+                    $fieldValue = substr_replace($fieldValue, "%", 0, 1);
+                }
+                if ($lastChar == "*") {
+                    $fieldValue = substr_replace($fieldValue, "%", - 1, 1);
+                }
+                return $fieldValue;
+                break;
+            
+            default:
+                return $fieldValue;
+                break;
+        }
+    }
+
+    /**
+     * for a given value, figure out what type of operator should be used
+     *
+     * supported operators are
+     *
+     * presense of >, <=, >=, <, !=, <> means to use them instead of the default
+     * presense of % means use LIKE operator
+     * = is the default operator
+     *
+     * This is determined by the presence of the SQL wildcard character in the fieldValue string
      *
      * @param string $fieldValue            
      * @return string
      */
-    private function processFieldValueWildcards($fieldValue)
+    private function determineWhereOperator($fieldValue)
     {
-        // check for whether we need to deal with wild cards
+        $defaultOperator = '=';
+        
+        // process wildcards at start and end
         $firstChar = substr($fieldValue, 0, 1);
         $lastChar = substr($fieldValue, - 1, 1);
-        $wildcard = "%";
-        
         if (($firstChar == "*") || ($lastChar == "*")) {
-            if ($firstChar == "*") {
-                $fieldValue = substr_replace($fieldValue, "%", 0, 1);
-            }
-            if ($lastChar == "*") {
-                $fieldValue = substr_replace($fieldValue, "%", - 1, 1);
+            return 'LIKE';
+        }
+        
+        // process supported comparision operators
+        $doubleCharacter = substr($fieldValue, 0, 2);
+        // notice how multi character operators are processed first
+        $supportedComparisonOperators = [
+            '<=',
+            '>=',
+            '<>',
+            '!='
+        ];
+        foreach ($supportedComparisonOperators as $operator) {
+            if ($doubleCharacter === $operator) {
+                return $doubleCharacter;
             }
         }
         
-        return $fieldValue;
-    }
-
-    /**
-     * Determine whether a clause should be processed with and '=' operator or with a 'LIKE' operatoer.
-     * This is determined by the presence of the SQL wildcard character in the fieldValue string
-     *
-     * @param string $value            
-     * @return string
-     */
-    private function determineQueryWhereOperator($value)
-    {
-        if (strpos($value, '%') !== false) {
-            return 'LIKE';
-        } else {
-            return '=';
+        // if nothing else was detected, process single character comparisons
+        $supportedComparisonOperators = [
+            '>',
+            '<'
+        ];
+        foreach ($supportedComparisonOperators as $operator) {
+            if ($firstChar === $operator) {
+                return $firstChar;
+            }
         }
+        
+        // nothing special detected, return the standard operator
+        return $defaultOperator;
     }
 
     /**

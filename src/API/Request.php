@@ -37,7 +37,7 @@ class Request extends \Phalcon\Http\Request
         $name = $inflector->underscore($name);
         // $name = strtolower($name);
         
-        $raw = $this->getRawBody();
+        //$raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
         
         $request = NULL;

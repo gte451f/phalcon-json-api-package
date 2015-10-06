@@ -57,6 +57,11 @@ class Authenticator extends Injectable implements AuthenticatorInterface
      */
     public function isLoggedIn($token)
     {
+        // ignore blank tokens
+        if (strlen($token) == 0) {
+            false;
+        }
+        
         $this->authenticated = $this->profile->loadProfile("$this->tokenFieldName = '$token'");
         return $this->authenticated;
     }
@@ -69,6 +74,11 @@ class Authenticator extends Injectable implements AuthenticatorInterface
      */
     public function logUserOut($token)
     {
+        // ignore blank tokens
+        if (strlen($token) == 0) {
+            false;
+        }
+        
         $result = $this->isLoggedIn($token);
         $this->beforeLogout($token);
         if ($result) {

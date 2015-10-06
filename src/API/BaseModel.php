@@ -89,6 +89,11 @@ class BaseModel extends \Phalcon\Mvc\Model
      * A give away is when the PKID for this model references the parent PKID
      * in the parent model
      *
+     * a parent model effectively merges this table into the child table
+     * as a consequence, parent table columns are displayed when requesting a child end point
+     * child models cannot block these fields from displaying,
+     * instead go to the parent model and block them from there
+     *
      * @var boolean|string
      */
     public static $parentModel = FALSE;
