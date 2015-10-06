@@ -253,9 +253,6 @@ class Entity extends \Phalcon\DI\Injectable
             $this->restResponse['meta']['total_record_count'] = $this->recordCount;
             $this->restResponse['meta']['returned_record_count'] = $foundSet;
             
-            $registry = $this->getDI()->get('registry');
-            $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
-            
             $config = $this->getDI()->get('config');
             if ($config['application']['debugApp']) {
                 $registry = $this->getDI()->get('registry');
