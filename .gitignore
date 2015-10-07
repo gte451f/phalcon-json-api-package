@@ -3,7 +3,7 @@
 /.settings/
 /vendor/
 /composer.lock
-
+/dummy.php
 
 # Octocat's Idea's on what to ignore
 # Compiled source #
