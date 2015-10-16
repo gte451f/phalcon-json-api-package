@@ -894,10 +894,14 @@ class Entity extends \Phalcon\DI\Injectable
     protected function loadAllowedColumns($resultSet)
     {
         $record = array();
-        // $allowedFields = $model->getAllowedColumns(false);
         $allowedFields = $resultSet->getAllowedColumns(false);
         foreach ($allowedFields as $field) {
-            $record[$field] = $resultSet->$field;
+            if (isset($resultSet->$field)) {
+                $record[$field] = $resultSet->$field;
+            } else {
+                // error, field doesn't exist on resultSet!
+                $record[$field] = null;
+            }
         }
         return $record;
     }
