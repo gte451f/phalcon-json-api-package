@@ -397,19 +397,37 @@ class Inflector
      *            Object with camelObject
      * @return object
      */
-    final public function objectPropertiesToSnake($camelObject)
-    {
+    final public function objectPropertiesToSnake($camelObject, $parent_key = root)
+    {        
         // hold the array of new values
         $snakeObject = new \stdClass();
         foreach ($camelObject as $key => $value) {
             // tricky recursive for objects or arrays
             if (is_object($value)) {
-                $value = $this->objectProperitesToSnake($value);
+                $value = $this->objectPropertiesToSnake($value, $key);
             } elseif (is_array($value)) {
                 $value = $this->arrayKeysToSnake($value);
             }
-            $snakeObject->{$this->underscore($key)} = $value;
-            unset($camelObject->$key);
+            
+            $obj_vars = get_object_vars($value);
+            if(in_array($key, array_keys($obj_vars)) && ($parent_key !== "root")){
+                foreach($value->{$key} as $vk => $vv){
+                    $snakeObject->{$parent_key}->{$this->underscore($key)}->{$vk} = $vv;
+                }
+            } else {
+                if($parent_key === "root"){
+                    if(is_array($value)){
+                        $snakeObject->{$key} = $value;
+                    } else {
+                        $propertyKey = array_keys($obj_vars)[0];
+                        foreach($value->{$key} as $vk => $vv){
+                            $snakeObject->{$propertyKey}->{$vk} = $vv;
+                        }
+                    }
+                } else {
+                    $snakeObject->{$parent_key}->{$this->underscore($key)} = $value;
+                }                
+            }
         }
         unset($camelObject);
         return $snakeObject;
