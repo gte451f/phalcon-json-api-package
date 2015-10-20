@@ -397,7 +397,7 @@ class Inflector
      *            Object with camelObject
      * @return object
      */
-    final public function objectPropertiesToSnake($camelObject, $parent_key = root)
+    final public function objectPropertiesToSnake($camelObject, $parent_key = "root")
     {        
         // hold the array of new values
         $snakeObject = new \stdClass();
@@ -409,23 +409,37 @@ class Inflector
                 $value = $this->arrayKeysToSnake($value);
             }
             
-            $obj_vars = get_object_vars($value);
+            if(is_object($value)){
+                $obj_vars = get_object_vars($value);
+            } else {
+                $obj_vars = array();
+            }
+            
             if(in_array($key, array_keys($obj_vars)) && ($parent_key !== "root")){
                 foreach($value->{$key} as $vk => $vv){
-                    $snakeObject->{$parent_key}->{$this->underscore($key)}->{$vk} = $vv;
+                    if(!property_exists($snakeObject->$parent_key, $this->underscore($key))){
+                        $snakeObject->$parent_key->{$this->underscore($key)} = new \stdClass();
+                    }
+                    $snakeObject->$parent_key->{$this->underscore($key)}->{$vk} = $vv;
                 }
             } else {
                 if($parent_key === "root"){
                     if(is_array($value)){
                         $snakeObject->{$key} = $value;
                     } else {
-                        $propertyKey = array_keys($obj_vars)[0];
+                        $property_key = array_keys($obj_vars)[0];
                         foreach($value->{$key} as $vk => $vv){
-                            $snakeObject->{$propertyKey}->{$vk} = $vv;
+                            if(!property_exists($snakeObject, $property_key)){
+                                $snakeObject->$property_key = new \stdClass();
+                            }                            
+                            $snakeObject->$property_key->{$vk} = $vv;
                         }
                     }
                 } else {
-                    $snakeObject->{$parent_key}->{$this->underscore($key)} = $value;
+                    if(!property_exists($snakeObject, $parent_key)){
+                        $snakeObject->$parent_key = new \stdClass();
+                    }                    
+                    $snakeObject->$parent_key->{$this->underscore($key)} = $value;
                 }                
             }
         }
