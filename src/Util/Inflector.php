@@ -407,14 +407,19 @@ class Inflector
                 $value = $this->objectPropertiesToSnake($value, $key);
             } elseif (is_array($value)) {
                 $value = $this->arrayKeysToSnake($value);
-            }
+            }            
             
             if(is_object($value)){
+                // if $value is an object, then it represents an object nested in the root object
+                // e.g. $root->$nested
                 $obj_vars = get_object_vars($value);
-            } else {
+            } else {                
                 $obj_vars = array();
             }
             
+            // if $key is found in the $obj_vars, then we are trying to merge a nested child object into it's nested parent object.
+            // both the parent and the child are below the level of the root object
+            // e.g. - $root->parent->$child = $value
             if(in_array($key, array_keys($obj_vars)) && ($parent_key !== "root")){
                 foreach($value->{$key} as $vk => $vv){
                     if(!property_exists($snakeObject->$parent_key, $this->underscore($key))){
@@ -424,21 +429,27 @@ class Inflector
                 }
             } else {
                 if($parent_key === "root"){
-                    if(is_array($value)){
-                        $snakeObject->{$key} = $value;
-                    } else {
+                    if(!empty($obj_vars)){
+                        // we are now back at the root object level and need to merge a nested child object into the root object
+                        // e.g. - $root->$child = $value;
                         $property_key = array_keys($obj_vars)[0];
                         foreach($value->{$key} as $vk => $vv){
                             if(!property_exists($snakeObject, $property_key)){
                                 $snakeObject->$property_key = new \stdClass();
-                            }                            
+                            }
                             $snakeObject->$property_key->{$vk} = $vv;
                         }
+                    } else {
+                        // this element is a simple string property on the root object
+                        // e.g. - $root->property = (array||string) $value
+                        $snakeObject->{$this->underscore($key)} = $value;
                     }
                 } else {
                     if(!property_exists($snakeObject, $parent_key)){
                         $snakeObject->$parent_key = new \stdClass();
-                    }                    
+                    }
+                    // this element is a simple string property on an object nested in the root object
+                    // e.g. - $root->$nested->property = string;
                     $snakeObject->$parent_key->{$this->underscore($key)} = $value;
                 }                
             }
