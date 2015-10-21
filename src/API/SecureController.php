@@ -16,17 +16,23 @@ class SecureController extends BaseController
         
         switch ($config['security']) {
             case true:
-                
                 $headerToken = $this->request->getHeader("X_AUTHORIZATION");
                 $queryParamToken = $this->getDI()
                     ->get('request')
                     ->getQuery("token");
+                
+                $postedParamToken = $this->getDI()
+                    ->get('request')
+                    ->getPost("token");
                 
                 // try to read in from header first, otherwise attempt to read in from query param
                 if ($headerToken !== "") {
                     $token = $headerToken;
                 } elseif (! is_null($queryParamToken)) {
                     $token = $queryParamToken;
+                } elseif (! is_null($postedParamToken)) {
+                    $token = $postedParamToken;
+                    unset($_POST["token"]);
                 } else {
                     $token = "";
                 }

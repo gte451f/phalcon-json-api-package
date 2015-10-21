@@ -88,27 +88,6 @@ class Request extends \Phalcon\Http\Request
     }
 
     /**
-     * extend to hook up possible case conversion
-     *
-     * @param string $name            
-     * @param string $filters            
-     * @param string $defaultValue            
-     * @return object
-     */
-    public function getPost($name = null, $filters = null, $defaultValue = null)
-    {
-        // perform parent function
-        $request = parent::getPost($name, $filters, $defaultValue);
-        
-        // special handling for array requests, for individual inputs return what is request
-        if (is_array($request) and $this->defaultCaseFormat != false) {
-            return $this->convertCase($request);
-        } else {
-            return $request;
-        }
-    }
-
-    /**
      * for a given array of values, convert cases to the defaultCaseFormat
      *
      * @param array $request            
