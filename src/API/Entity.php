@@ -403,7 +403,7 @@ class Entity extends \Phalcon\DI\Injectable
     {
         $searchFields = $this->searchHelper->getSearchFields();
         if ($searchFields) {
-            // preprocess the search fields to see if any of the search names require preprocessing
+            // pre-process the search fields to see if any of the search names require pre-processing
             // mostly just looking for || or type syntax otherwise process as default (and) WHERE clause
             $processedSearchFields = array();
             foreach ($searchFields as $fieldName => $fieldValue) {
