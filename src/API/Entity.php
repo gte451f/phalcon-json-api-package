@@ -426,8 +426,8 @@ class Entity extends \Phalcon\DI\Injectable
                         $query->andWhere("$fieldName $operator \"$newFieldValue\"");
                         break;
                     
-                    case 'or':
-                        // make sure the field name is an array so we can use the same logic below for either circumstance
+                    case 'or':                        
+                        // format field name(s) is an array so we can use the same logic below for either circumstance
                         if (! is_array($processedSearchField['fieldName'])) {
                             $fieldNameArray = array(
                                 $processedSearchField['fieldName']
@@ -436,7 +436,7 @@ class Entity extends \Phalcon\DI\Injectable
                             $fieldNameArray = $processedSearchField['fieldName'];
                         }
                         
-                        // make sure the field value is an array so we can use the same logic below for either circumstance
+                        // format field value(s) is an array so we can use the same logic below for either circumstance
                         if (! is_array($processedSearchField['fieldValue'])) {
                             $fieldValueArray = array(
                                 $processedSearchField['fieldValue']
@@ -445,14 +445,17 @@ class Entity extends \Phalcon\DI\Injectable
                             $fieldValueArray = $processedSearchField['fieldValue'];
                         }
                         
+                        $queryArr = [];
                         foreach ($fieldNameArray as $fieldName) {
                             $fieldName = $this->prependFieldNameNamespace($fieldName);
                             foreach ($fieldValueArray as $fieldValue) {
                                 $operator = $this->determineWhereOperator($fieldValue);
                                 $newFieldValue = $this->processFieldValue($fieldValue, $operator);
-                                $query->orWhere("$fieldName $operator \"$newFieldValue\"");
+                                $queryArr[] = "$fieldName $operator \"$newFieldValue\"";
                             }
                         }
+                        $sql = implode(' OR ', $queryArr);
+                        $query->andWhere($sql);
                         break;
                 }
             }
@@ -483,8 +486,7 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * This method determines whether the clause should be processed as an 'and' clause or an 'or' clause.
-     * This
-     * is determined based on the results from the \PhalconRest\API\Entity::processSearchFields() method. If that
+     * This is determined based on the results from the \PhalconRest\API\Entity::processSearchFields() method. If that
      * method returns a string, we are dealing with an 'and' clause, if not, we are dealing with an 'or' clause.
      *
      * @param
