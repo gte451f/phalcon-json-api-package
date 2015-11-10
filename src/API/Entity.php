@@ -28,6 +28,14 @@ class Entity extends \Phalcon\DI\Injectable
     public $restResponse;
 
     /**
+     * store the name the endpoint should advertise
+     * if nothing is defined, one will be auto detected
+     * 
+     * @var string
+     */
+    public $endpointName = null;
+
+    /**
      * temporary value used to store the currently loaded database record
      *
      * @var array

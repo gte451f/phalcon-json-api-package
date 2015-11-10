@@ -1,6 +1,8 @@
 <?php
 namespace PhalconRest\API;
 
+use \PhalconRest\Util\HTTPException;
+
 /**
  * placeholder for future work
  *
