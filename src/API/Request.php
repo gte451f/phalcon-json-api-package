@@ -37,7 +37,7 @@ class Request extends \Phalcon\Http\Request
         $name = $inflector->underscore($name);
         // $name = strtolower($name);
         
-        //$raw = $this->getRawBody();
+        // $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
         
         $request = NULL;
@@ -78,6 +78,27 @@ class Request extends \Phalcon\Http\Request
     {
         // perform parent function
         $request = parent::getPut($name, $filters, $defaultValue);
+        
+        // special handling for array requests, for individual inputs return what is request
+        if (is_array($request) and $this->defaultCaseFormat != false) {
+            return $this->convertCase($request);
+        } else {
+            return $request;
+        }
+    }
+
+    /**
+     * extend to hook up possible case conversion
+     *
+     * @param string $name            
+     * @param string $filters            
+     * @param string $defaultValue            
+     * @return object
+     */
+    public function getPost($name = null, $filters = null, $defaultValue = null)
+    {
+        // perform parent function
+        $request = parent::getPost($name, $filters, $defaultValue);
         
         // special handling for array requests, for individual inputs return what is request
         if (is_array($request) and $this->defaultCaseFormat != false) {
