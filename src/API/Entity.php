@@ -213,7 +213,7 @@ class Entity extends \Phalcon\DI\Injectable
      * this method is called from the find and findFirst methods
      *
      */
-    public function afterProcessRelationships($base)
+    public function afterProcessRelationships()
     {}
 
     /**
