@@ -177,8 +177,16 @@ class Entity extends \Phalcon\DI\Injectable
         foreach ($baseRecords as $base) {
             // normalize results, pull out join fields
             $base = $this->extractMainRow($base);
+            
+            // hook for manipulating the base record before processing relationships
+            $base = $this->beforeProcessRelationships($base);
+            
             // store related records in restResponse or load for optimized DB queries
             $this->processRelationships($base);
+            
+            // hook for manipulating the base record after processing relationships
+            $this->afterProcessRelationships();
+            
             $this->restResponse[$this->model->getTableName()][] = $this->baseRecord;
             $foundSet ++;
         }
@@ -188,6 +196,25 @@ class Entity extends \Phalcon\DI\Injectable
         $this->appendMeta($foundSet);
         return $this->restResponse;
     }
+    
+    /**
+     * hook for manipulating the base record before processing relatoinships.
+     * this method is called from the find and findFirst methods
+     * 
+     * @param mixed $base
+     */
+    public function beforeProcessRelationships($base)
+    {
+        return $base;
+    }
+    
+    /**
+     * hook for manipulating the base record after processing relatoinships.
+     * this method is called from the find and findFirst methods
+     *
+     */
+    public function afterProcessRelationships($base)
+    {}
 
     /**
      * for a given ID, load a record including any related tables
@@ -225,8 +252,17 @@ class Entity extends \Phalcon\DI\Injectable
         foreach ($baseRecords as $baseRecord) {
             // normalize results, pull out join fields
             $baseRecord = $this->extractMainRow($baseRecord);
+            
+            // hook for manipulating the base record before processing relationships
+            $base = $this->beforeProcessRelationships($base);
+            
             // store related records in restResponse or load for optimized DB queries
             $this->processRelationships($baseRecord);
+            
+            // hook for manipulating the base record after processing relationships
+            $this->afterProcessRelationships();
+            
+            
             $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
             $foundSet ++;
         }
