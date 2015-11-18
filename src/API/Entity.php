@@ -254,7 +254,7 @@ class Entity extends \Phalcon\DI\Injectable
             $baseRecord = $this->extractMainRow($baseRecord);
             
             // hook for manipulating the base record before processing relationships
-            $base = $this->beforeProcessRelationships($base);
+            $baseRecord = $this->beforeProcessRelationships($baseRecord);
             
             // store related records in restResponse or load for optimized DB queries
             $this->processRelationships($baseRecord);
