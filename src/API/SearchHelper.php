@@ -91,8 +91,10 @@ class SearchHelper
         'page',
         'type',
         '_url',
-        'order'
-    );
+        'order',
+        'token'
+    ) // TOKEN reserved as a common term used for authentication
+;
     // added since it seems to be included with some installs
     
     /**
@@ -425,7 +427,7 @@ class SearchHelper
             
             if (in_array($key, $this->reservedWords)) {
                 // ignore, it is reserved
-            } else {                
+            } else {
                 // sanitize fails for < or <=, even html encoded version
                 // insert exception for < value
                 $sanitizedValue = $request->get($key, 'string');
