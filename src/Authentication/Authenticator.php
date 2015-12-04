@@ -109,12 +109,12 @@ class Authenticator extends Injectable implements AuthenticatorInterface
     }
 
     /**
-     * will return a valid userProfile object for a pre-loaded profile or for a supplied userName
+     * will return a valid userProfile object for a pre-loaded profile
      * (non-PHPdoc)
      *
      * @see \PhalconRest\Authentication\AuthenticatorInterface::getProfile()
      */
-    function getProfile($userName = false)
+    function getProfile()
     {
         return $this->profile;
     }
