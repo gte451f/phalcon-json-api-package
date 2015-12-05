@@ -40,7 +40,6 @@ class SecureController extends BaseController
                 $token = trim(str_ireplace("Token: ", '', $token));
                 if (strlen($token) < 30) {
                     throw new HTTPException("Bad token supplied", 401, array(
-                        'dev' => 'Supplied Token: ' . $token,
                         'code' => '0273497957'
                     ));
                 }

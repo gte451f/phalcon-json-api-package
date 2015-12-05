@@ -63,28 +63,33 @@ class BaseModel extends \Phalcon\Mvc\Model
 
     /**
      * hold a list of columns that can be published to the api
-     * modify this list to prevent sensitive fields from being displayed
-     * even when sideloading this model
+     * this array is not directly modifed but rather inferred
+     * should work, even when sideloading data
      *
      * start as null to detect and only load once
+     * all columns - block columns = allow columns
      *
      * @var array
      */
-    private $approvedColumns = NULL;
+    private $allowColumns = NULL;
 
     /**
-     * works in conjunction w/ approvedColumns
-     * list specific columns that should NEVER be returned to the api
+     * hold a list of columns that are to be blocked by the api
+     * modify this list to prevent sensitive columns from being displayed
+     *
+     * detect if it hasn't been loaded yet and load as needed
      *
      * @var array
      */
-    public $blockColumns = array();
+    private $blockColumns = null;
 
     /**
      * auto populate a few key values
      */
     public function initialize()
-    {}
+    {
+        $this->loadBlockColumns();
+    }
 
     /**
      * The table this model depends on for it's existance
@@ -235,6 +240,38 @@ class BaseModel extends \Phalcon\Mvc\Model
     }
 
     /**
+     * a hook to be run when initializing a model
+     * write logic here to block columns
+     *
+     * could be a static list or something more dynamic
+     */
+    public function loadBlockColumns()
+    {
+        $this->setBlockColumns([], true);
+    }
+
+    /**
+     * for a given array of column names, add them to the block list
+     *
+     * @param array $columnList
+     *            a list of columns to block for this model
+     * @param boolean $clear
+     *            should the existing list of blockColums be cleared to an array
+     *            this has the affect of initializing the list
+     */
+    public function setBlockColumns($columnList, $clear = false)
+    {
+        // reset it requested
+        if ($clear) {
+            $this->blockColumns = [];
+        }
+        
+        foreach ($columnList as $column) {
+            $this->blockColumns[] = $column;
+        }
+    }
+
+    /**
      * - return fields to be included when building a resource
      * - to be used from an entity
      * - works when side loading!
@@ -246,7 +283,12 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getAllowedColumns($nameSpace = true)
     {
-        if ($this->approvedColumns == NULL) {
+        if ($this->allowColumns == NULL) {
+            // load block columns if uninitialized
+            if ($this->blockColumns == null) {
+                $this->loadBlockColumns();
+            }
+            
             // prefix namespace if requested
             if ($nameSpace) {
                 $modelNameSpace = $this->getModelNameSpace() . '.';
@@ -254,7 +296,7 @@ class BaseModel extends \Phalcon\Mvc\Model
                 $modelNameSpace = null;
             }
             
-            $approvedColumns = array();
+            $allowColumns = array();
             
             // build a list of columns for this model
             $metaData = $this->getDI()->get('memory');
@@ -266,12 +308,12 @@ class BaseModel extends \Phalcon\Mvc\Model
             
             foreach ($colMap as $key => $value) {
                 if (array_search($value, $this->blockColumns) === false) {
-                    $approvedColumns[] = $modelNameSpace . $value;
+                    $allowColumns[] = $modelNameSpace . $value;
                 }
             }
-            $this->approvedColumns = $approvedColumns;
+            $this->allowColumns = $allowColumns;
         }
         
-        return $this->approvedColumns;
+        return $this->allowColumns;
     }
 }

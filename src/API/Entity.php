@@ -1250,7 +1250,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * attempt to add/update a new entity
      * watch $id to determine if update or insert
-     * built to accomdate saving records w/ parent tables (hasOne)
+     * built to accommodate saving records w/ parent tables (hasOne)
      *
      * @param $formData the
      *            data submitted to the server
