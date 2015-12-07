@@ -272,6 +272,14 @@ class BaseModel extends \Phalcon\Mvc\Model
     }
 
     /**
+     * basic getter for private property
+     */
+    public function getBlockColumns()
+    {
+        return $this->blockColumns;
+    }
+
+    /**
      * - return fields to be included when building a resource
      * - to be used from an entity
      * - works when side loading!
