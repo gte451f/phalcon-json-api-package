@@ -1320,6 +1320,12 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function loadParentModel($model, $object)
     {
+        
+        // invalid first param, return false though it won't do much good
+        if ($model === false) {
+            return false;
+        }
+        
         if ($model::$parentModel != false) {
             $config = $this->getDI()->get('config');
             $modelNameSpace = $config['namespaces']['models'];
