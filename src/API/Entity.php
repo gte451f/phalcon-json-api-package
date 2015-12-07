@@ -30,7 +30,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * store the name the endpoint should advertise
      * if nothing is defined, one will be auto detected
-     * 
+     *
      * @var string
      */
     public $endpointName = null;
@@ -196,22 +196,21 @@ class Entity extends \Phalcon\DI\Injectable
         $this->appendMeta($foundSet);
         return $this->restResponse;
     }
-    
+
     /**
      * hook for manipulating the base record before processing relatoinships.
      * this method is called from the find and findFirst methods
-     * 
-     * @param mixed $base
+     *
+     * @param mixed $base            
      */
     public function beforeProcessRelationships($base)
     {
         return $base;
     }
-    
+
     /**
      * hook for manipulating the base record after processing relatoinships.
      * this method is called from the find and findFirst methods
-     *
      */
     public function afterProcessRelationships()
     {}
@@ -261,7 +260,6 @@ class Entity extends \Phalcon\DI\Injectable
             
             // hook for manipulating the base record after processing relationships
             $this->afterProcessRelationships();
-            
             
             $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
             $foundSet ++;
@@ -470,7 +468,7 @@ class Entity extends \Phalcon\DI\Injectable
                         $query->andWhere("$fieldName $operator \"$newFieldValue\"");
                         break;
                     
-                    case 'or':                        
+                    case 'or':
                         // format field name(s) is an array so we can use the same logic below for either circumstance
                         if (! is_array($processedSearchField['fieldName'])) {
                             $fieldNameArray = array(
@@ -1322,7 +1320,7 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function loadParentModel($model, $object)
     {
-        if ($model::$parentModel) {
+        if ($model::$parentModel != false) {
             $config = $this->getDI()->get('config');
             $modelNameSpace = $config['namespaces']['models'];
             $parentNameSpace = $modelNameSpace . $model::$parentModel;
