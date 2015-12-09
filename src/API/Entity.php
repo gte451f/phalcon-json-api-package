@@ -1362,7 +1362,7 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function loadModelValues($model, $formData)
     {
-        // loop through all known fields and save matches
+        // loop through nearly all known fields and save matches
         $metaData = $this->getDI()->get('memory');
         // use a colMap to prepare for save
         $colMap = $metaData->getColumnMap($model);
@@ -1371,8 +1371,14 @@ class Entity extends \Phalcon\DI\Injectable
             $colMap = $metaData->getAttributes($model);
         }
         
+        // ignore block columns
+        $blockColumns = $model->getBlockColumns();
+        foreach ($blockColumns as $block) {
+            unset($colMap[$block]);
+        }
+        
         foreach ($colMap as $key => $label) {
-            if (isset($formData->$label)) {
+            if (property_exists($formData, $label)) {
                 // odd because $key shows up on model while $label doesn't
                 // but $label WORKS and $key doesn't
                 // must be some magic method property stuff

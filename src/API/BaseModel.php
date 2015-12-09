@@ -77,9 +77,10 @@ class BaseModel extends \Phalcon\Mvc\Model
      * hold a list of columns that are to be blocked by the api
      * modify this list to prevent sensitive columns from being displayed
      *
-     * detect if it hasn't been loaded yet and load as needed
+     * a null value means block columns haven't been loaded yet
+     * an array represents loaded blockColumns
      *
-     * @var array
+     * @var mixed
      */
     private $blockColumns = null;
 
@@ -276,6 +277,11 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getBlockColumns()
     {
+        // load columns if they haven't been loaded yet
+        if ($this->blockColumns === null) {
+            $this->loadBlockColumns();
+        }
+        // return block columns
         return $this->blockColumns;
     }
 
