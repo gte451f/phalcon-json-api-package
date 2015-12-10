@@ -42,10 +42,18 @@ class BaseModel extends \Phalcon\Mvc\Model
 
     /**
      * the underlying table name
+     * as singular
      *
      * @var string
      */
-    public $tableName;
+    public $singularTableName;
+
+    /**
+     * the underlyting table name as plural
+     *
+     * @var string
+     */
+    public $pluralTableName;
 
     /**
      * store the full path to this model
@@ -194,20 +202,31 @@ class BaseModel extends \Phalcon\Mvc\Model
     }
 
     /**
+     * default behavior is to expect plural table names in schema
      *
      * @param string $type            
      * @return string
      */
     public function getTableName($type = 'plural')
     {
-        $tableName = $this->getSource();
         if ($type == 'plural') {
-            return $this->getSource();
+            if (isset($this->pluralTableName)) {
+                return $this->pluralTableName;
+            } else {
+                $this->pluralTableName = $this->getSource();
+                return $this->pluralTableName;
+            }
         }
         
         if ($type == 'singular') {
-            // not the smartest way to make a value singular
-            return substr($tableName, 0, strlen($tableName) - 1);
+            if (isset($this->singularTableName)) {
+                return $this->singularTableName;
+            } else {
+                $tableName = $this->getTableName('plural');
+                // not the smartest way to make a value singular
+                $this->singularTableName = substr($tableName, 0, strlen($tableName) - 1);
+                return $this->singularTableName;
+            }
         }
     }
 
