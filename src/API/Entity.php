@@ -962,7 +962,17 @@ class Entity extends \Phalcon\DI\Injectable
     private function getHasManyRecords(\PhalconRest\API\Relation $relation)
     {
         $query = $this->buildRelationQuery($relation);
-        $query->where("{$relation->getReferencedFields()} = \"$this->primaryKeyValue\"");
+        
+        // determine the key to search against        
+        $field = $relation->getFields();
+        if (isset($this->baseRecord[$field])) {
+            $fieldValue = $this->baseRecord[$field];
+        } else {
+            // fall back to using the primaryKeyValue           
+            $fieldValue = $this->primaryKeyValue;
+        }
+        
+        $query->where("{$relation->getReferencedFields()} = \"$fieldValue\"");
         $result = $query->getQuery()->execute();
         return $this->loadRelationRecords($result, $relation);
     }
@@ -1018,8 +1028,6 @@ class Entity extends \Phalcon\DI\Injectable
         $columns = array(
             $refModelNameSpace . ".*"
         );
-        
-        $foo = $relation->getParent();
         
         // join in parent record if specified
         if ($relation->getParent()) {
