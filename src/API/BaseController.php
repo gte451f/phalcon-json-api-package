@@ -76,7 +76,7 @@ class BaseController extends \Phalcon\DI\Injectable
                 $modelNameString = $this->getControllerName();
             }
             
-            $modelName = $config['namespaces']['models'] . $modelNameString;            
+            $modelName = $config['namespaces']['models'] . $modelNameString;
             $this->model = new $modelName($this->di);
         }
         return $this->model;
@@ -175,8 +175,10 @@ class BaseController extends \Phalcon\DI\Injectable
         $request = $this->getDI()->get('request');
         $post = $request->getJson($this->getControllerName('singular'));
         
+        $post = $this->beforeSave($post);
         // This record only must be created
         $id = $this->entity->save($post);
+        $this->afterSave($object, $id);
         
         // now fetch the record so we can return it
         $search_result = $this->entity->findFirst($id);
@@ -201,7 +203,9 @@ class BaseController extends \Phalcon\DI\Injectable
      */
     public function delete($id)
     {
+        $this->beforeDelete($id);
         $this->entity->delete($id);
+        $this->afterDelete($id);
     }
 
     /**
@@ -222,7 +226,9 @@ class BaseController extends \Phalcon\DI\Injectable
                 'code' => '568136818916816'
             ));
         }
+        $put = $this->beforeSave($put, $id);
         $id = $this->entity->save($put, $id);
+        $this->afterSave($put, $id);
         
         // reload record so we can return it
         $search_result = $this->entity->findFirst($id);
@@ -235,6 +241,59 @@ class BaseController extends \Phalcon\DI\Injectable
         } else {
             return $this->respond($search_result);
         }
+    }
+
+    /**
+     * hook to be run before a controller calls it's save action
+     * make it easier to extend default save logic
+     *
+     * @param $object the
+     *            data submitted to the server
+     * @param int|null $id
+     *            the pkid of the record to be updated, otherwise null on inserts
+     */
+    public function beforeSave($object, $id = null)
+    {
+        // extend me in child class
+        return $object;
+    }
+
+    /**
+     * hook to be run after a controller completes it's save logic
+     * make it easier to extend default save logic
+     *
+     * @param $object the
+     *            data submitted to the server (not a model)
+     * @param int|null $id
+     *            the pkid of the record to be updated or inserted
+     */
+    public function afterSave($object, $id)
+    {
+        // extend me in child class
+    }
+
+    /**
+     * hook to be run before a controller performs delete logic
+     * make it easier to extend default delete logic
+     *
+     * @param int $id
+     *            the record to be deleted
+     */
+    public function beforeDelete($id)
+    {
+        // extend me in child class
+    }
+
+    /**
+     * hook to be run after a controller performs delete logic
+     * make it easier to extend default delete logic
+     *
+     * @param int $id
+     *            the id of the record that was just removed
+     */
+    public function afterDelete($id)
+    {
+        // extend me in child class
     }
 
     /**

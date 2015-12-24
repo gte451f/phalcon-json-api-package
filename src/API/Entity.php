@@ -1188,7 +1188,7 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * hook to be run before an entity is deleted
-     * make it easy to extend default delete logic
+     * make it easier to extend default delete logic
      *
      * @param $model the
      *            record to be deleted
@@ -1200,7 +1200,7 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * hook to be run after an entity is deleted
-     * make it easy to extend default delete logic
+     * make it easier to extend default delete logic
      *
      * @param $model the
      *            record that was just removed
@@ -1212,14 +1212,14 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * hook to be run before an entity is saved
-     * make it easy to extend default save logic
+     * make it easier to extend default save logic
      *
      * @param $object the
      *            data submitted to the server
      * @param int|null $id
      *            the pkid of the record to be updated, otherwise null on inserts
      */
-    public function beforeSave($object, $id)
+    public function beforeSave($object, $id = null)
     {
         // extend me in child class
         return $object;
@@ -1227,7 +1227,7 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * hook to be run after an entity is saved
-     * make it easy to extend default save logic
+     * make it easier to extend default save logic
      *
      * @param $object the
      *            data submitted to the server
