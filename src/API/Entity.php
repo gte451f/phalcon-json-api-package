@@ -422,7 +422,7 @@ class Entity extends \Phalcon\DI\Injectable
         foreach ($this->activeRelations as $relation) {
             if ($relation->getType() == 1) {
                 $refModelNameSpace = $modelNameSpace . $relation->getModelName();
-                $query->join($refModelNameSpace);
+                $query->leftJoin($refModelNameSpace);
                 // add all parent joins to the column list
                 if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
                     $columns[] = "$refModelNameSpace.*";
@@ -963,12 +963,12 @@ class Entity extends \Phalcon\DI\Injectable
     {
         $query = $this->buildRelationQuery($relation);
         
-        // determine the key to search against        
+        // determine the key to search against
         $field = $relation->getFields();
         if (isset($this->baseRecord[$field])) {
             $fieldValue = $this->baseRecord[$field];
         } else {
-            // fall back to using the primaryKeyValue           
+            // fall back to using the primaryKeyValue
             $fieldValue = $this->primaryKeyValue;
         }
         
@@ -1032,7 +1032,7 @@ class Entity extends \Phalcon\DI\Injectable
         // join in parent record if specified
         if ($relation->getParent()) {
             $columns[] = $modelNameSpace . $relation->getParent() . '.*';
-            $query->join($modelNameSpace . $relation->getParent());
+            $query->leftJoin($modelNameSpace . $relation->getParent());
         }
         $query->columns($columns);
         
