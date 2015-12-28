@@ -423,10 +423,10 @@ class Entity extends \Phalcon\DI\Injectable
             if ($relation->getType() == 1) {
                 $refModelNameSpace = $modelNameSpace . $relation->getModelName();
                 $query->leftJoin($refModelNameSpace);
-                // add all parent joins to the column list
-                if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
-                    $columns[] = "$refModelNameSpace.*";
-                }
+                // add all parent AND hasOne joins to the column list
+                // if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
+                $columns[] = "$refModelNameSpace.*";
+                // }
             }
         }
         $query->columns($columns);
@@ -845,6 +845,15 @@ class Entity extends \Phalcon\DI\Injectable
                 if ($refType == 0) {
                     $relatedRecords = $this->getBelongsToRecord($relation);
                 } elseif ($refType == 1) {
+                    // ignore hasOne since they are processed like a parent relation
+                    // this means current logic will not merg in a parent's record for a hasOne relationship
+                    // it's an edge case but should be supported in the future
+                    continue;
+                    
+                    /*
+                     * The following code is not executed
+                     */
+                    
                     // all hasOne relationships would be loaded in the initial query right?
                     // if the hasOne itself has a parent, then treat it more like a belongsTO so
                     // merged columns are loaded
@@ -852,7 +861,25 @@ class Entity extends \Phalcon\DI\Injectable
                     if ($relatedParent) {
                         $relatedRecords = $this->getBelongsToRecord($relation);
                     } else {
-                        $relatedRecords = $this->loadAllowedColumns($baseRecord->$refModelName);
+                        // if a false is detected then load an empty model to takes it's place
+                        // this is likely the result of a left join on a non-existing record
+                        $relatedModel = $baseRecord->$refModelName;
+                        switch ($relatedModel) {
+                            case false:
+                                $relatedModelPath = "\\PhalconRest\\Models\\" . $refModelName;
+                                $emptyModel = new $relatedModelPath();
+                                $relatedRecords = array(
+                                    $this->loadAllowedColumns($emptyModel)
+                                );
+                                break;
+                            case null:
+                                // throw error here
+                                break;
+                            
+                            default:
+                                $relatedRecords = $this->loadAllowedColumns($relatedModel);
+                                break;
+                        }
                     }
                 } else {
                     $relatedRecords = $this->getHasManyRecords($relation);
@@ -864,6 +891,8 @@ class Entity extends \Phalcon\DI\Injectable
                     switch ($refType) {
                         // process hasOne records as well
                         case 1:
+                            // do nothin w/ hasOne since these are auto merged into the main record
+                            break;
                         case 0:
                             // this doesn't seem right, why are they occasionally showing up inside an array?
                             if (isset($relatedRecords[$primaryKeyName])) {
@@ -996,15 +1025,26 @@ class Entity extends \Phalcon\DI\Injectable
         $tableName = $relation->getTableName();
         $foreignKeyValue = $this->baseRecord[$foreignKey];
         
-        if (isset($this->restResponse[$tableName])) {
+        if (isset($this->restResponse[$tableName]) and count($this->restResponse[$tableName]) > 0) {
+            // figure out how to best refer to the newly loaded field
+            // will check for a refence field first, but if that is blocked....
+            // try the pkid or even worse, just try "id" as a last resort
+            $matchField = 'id';
+            
+            if (isset($this->restResponse[$tableName][0][$referencedField])) {
+                $matchField = $referencedField;
+            } elseif (isset($this->restResponse[$tableName][0][$relation->getPrimaryKeyName()])) {
+                $matchField = $relation->getPrimaryKeyName();
+            }
+            
             foreach ($this->restResponse[$tableName] as $row) {
-                if ($row[$referencedField] == $foreignKeyValue) {
+                if ($row[$matchField] == $foreignKeyValue) {
                     return array();
                 }
             }
         }
-        
-        $query->where("{$referencedField} = \"{$this->baseRecord[$foreignKey]}\"");
+        // query uses model prefix to avoid ambigious queries
+        $query->where("{$relation->getReferencedModel()}.{$referencedField} = \"{$this->baseRecord[$foreignKey]}\"");
         $result = $query->getQuery()->execute();
         return $this->loadRelationRecords($result, $relation);
     }
@@ -1030,10 +1070,20 @@ class Entity extends \Phalcon\DI\Injectable
         );
         
         // join in parent record if specified
-        if ($relation->getParent()) {
-            $columns[] = $modelNameSpace . $relation->getParent() . '.*';
-            $query->leftJoin($modelNameSpace . $relation->getParent());
+        $foo = $relation->getParent();
+        // if ($relation->getParent()) {
+        // $columns[] = $modelNameSpace . $relation->getParent() . '.*';
+        // $query->leftJoin($modelNameSpace . $relation->getParent());
+        // }
+        
+        // hasOnes are auto merged
+        // todo should this be controlled by entityWith?
+        $list = $relation->getHasOnes();
+        foreach ($list as $model) {
+            $columns[] = $model . '.*';
+            $query->leftJoin($model);
         }
+        
         $query->columns($columns);
         
         return $query;
@@ -1041,9 +1091,11 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
+     * will process a related record result set and return
+     * one or more individual record arrays in a larger array
      *
      * @param array $result            
-     * @return multitype:array
+     * @return array
      */
     private function loadRelationRecords($result, \PhalconRest\API\Relation $relation)
     {
@@ -1051,15 +1103,14 @@ class Entity extends \Phalcon\DI\Injectable
         foreach ($result as $relatedRecord) {
             $relatedRecArray = array(); // reset for each run
                                         
-            // load parent record into restResponse in passing
+            // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
-            if ($parent) {
+            if ($parent or get_class($relatedRecord) == 'Phalcon\Mvc\Model\Row') {
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
                     $relatedRecArray = array_merge($relatedRecArray, $this->loadAllowedColumns($rec));
                 }
             } else {
-                // return just the related record, not a joined in parent record as well
                 $relatedRecArray = $this->loadAllowedColumns($relatedRecord);
             }
             $relatedRecords[] = $relatedRecArray;

@@ -93,8 +93,9 @@ class SearchHelper
         '_url',
         'order',
         'token'
-    ) // TOKEN reserved as a common term used for authentication
-;
+    );
+    // TOKEN reserved as a common term used for authentication
+    
     // added since it seems to be included with some installs
     
     /**
@@ -238,8 +239,18 @@ class SearchHelper
             return $this->entityWith;
         }
         
-        // nothing left to do but return what the client asked for
-        return $this->suppliedWith;
+        // put client in charge if entity defers
+        if ($this->entityWith == 'none') {
+            return $this->suppliedWith;
+        }
+        
+        // check for all
+        if ($this->entityWith == 'all' or $this->suppliedWith == 'all') {
+            return 'all';
+        }
+        
+        // return merged result if nothing else was detected
+        return $this->entityWith . ',' . $this->suppliedWith;
     }
 
     /**

@@ -5,7 +5,7 @@ namespace PhalconRest\API;
  * decorate a relation with additional properties and methods
  * attempt to pass property and method requests to the underlying relationship model
  *
- * since we need to process "parent" relationships, sniff for those as well
+ * since we need to process "parent" and hasOne relationships, sniff for those as well
  *
  *
  * @author jjenkins
@@ -43,6 +43,13 @@ class Relation
     private $pluralModelName = null;
 
     /**
+     * store the model's primary key
+     *
+     * @var string
+     */
+    private $primaryKey = null;
+
+    /**
      * the user defined alias for the relationship
      *
      * @string
@@ -57,17 +64,44 @@ class Relation
     private $relation;
 
     /**
+     * some of this classes funcitonality depends on models manager
+     * injected in at runtime
+     *
+     * @var \Phalcon\Mvc\Model\Manager
+     */
+    private $modelManager;
+
+    /**
      * store the parent model of the model described in the model
      *
      * @var string
      */
     private $parentModelName;
 
+    /**
+     * store the parent table name
+     *
+     * @var string
+     */
     private $parentTableName;
 
-    function __construct(\Phalcon\Mvc\Model\Relation $relation)
+    /**
+     * store a copy of the model if it's been called
+     *
+     * @var unknown
+     */
+    private $model = null;
+
+    /**
+     * inject dependencies
+     *
+     * @param \Phalcon\Mvc\Model\Relation $relation            
+     * @param \Phalcon\Mvc\Model\Manager $modelManager            
+     */
+    function __construct(\Phalcon\Mvc\Model\Relation $relation, \Phalcon\Mvc\Model\Manager $modelManager)
     {
         $this->relation = $relation;
+        $this->modelManager = $modelManager;
     }
 
     /**
@@ -88,9 +122,8 @@ class Relation
     {
         $property = $type . 'TableName';
         if ($this->$property == null) {
-            $name = $this->relation->getReferencedModel();
-            $model = new $name();
-            $this->$property = $model->getTableName($type);
+            $this->model = $this->getModel();
+            $this->$property = $this->model->getTableName($type);
         }
         return $this->$property;
     }
@@ -104,11 +137,24 @@ class Relation
     {
         $property = $type . 'ModelName';
         if ($this->$property == null) {
-            $name = $this->relation->getReferencedModel();
-            $model = new $name();
+            $model = $this->getModel();
             $this->$property = $model->getModelName($type);
         }
         return $this->$property;
+    }
+
+    /**
+     * Get the singular/plural model name for a relationship
+     *
+     * @return string
+     */
+    public function getPrimaryKeyName()
+    {
+        if ($this->primaryKey == null) {
+            $model = $this->getModel();
+            $this->primaryKey = $model->getPrimaryKeyName();
+        }
+        return $this->primaryKey;
     }
 
     /**
@@ -139,5 +185,37 @@ class Relation
     {
         $name = $this->relation->getReferencedModel();
         return $name::$parentModel;
+    }
+
+    /**
+     * get a list of hasOne tables, simlar to getParent but more inclusive
+     *
+     * @return string or false
+     */
+    public function getHasOnes()
+    {
+        $modelNameSpace = $this->relation->getReferencedModel();
+        $list = [];
+        $relationships = $this->modelManager->getRelations($modelNameSpace);
+        foreach ($relationships as $relation) {
+            $refType = $relation->getType();
+            if ($refType == 1) {
+                $list[] = $relation->getReferencedModel();
+            }
+        }
+        
+        return $list;
+    }
+
+    /**
+     * ez access to the "foreign" model depicted by the relationship
+     */
+    private function getModel()
+    {
+        if ($this->model == null) {
+            $name = $this->relation->getReferencedModel();
+            $this->model = new $name();
+        }
+        return $this->model;
     }
 }

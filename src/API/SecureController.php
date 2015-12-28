@@ -61,7 +61,7 @@ class SecureController extends BaseController
                 break;
             
             case false:
-                // if security if off, then create a fake user profile
+                // if security is off, then create a fake user profile
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
                 if ($this->auth->isLoggedIn('HACKYHACKERSON')) {
