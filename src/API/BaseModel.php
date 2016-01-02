@@ -331,13 +331,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             
             $allowColumns = array();
             
-            // build a list of columns for this model
-            $metaData = $this->getDI()->get('memory');
-            $colMap = $metaData->getColumnMap($this);
-            if (is_null($colMap)) {
-                // but if it isn't present, fall back to attributes
-                $colMap = $metaData->getAttributes($this);
-            }
+            $colMap = $this->getAllColumns();
             
             foreach ($colMap as $key => $value) {
                 if (array_search($value, $this->blockColumns) === false) {
@@ -348,5 +342,20 @@ class BaseModel extends \Phalcon\Mvc\Model
         }
         
         return $this->allowColumns;
+    }
+
+    /**
+     * return what should be a full set of columns for the model
+     */
+    public function getAllColumns()
+    {
+        // build a list of columns for this model
+        $metaData = $this->getDI()->get('memory');
+        $colMap = $metaData->getColumnMap($this);
+        if (is_null($colMap)) {
+            // but if it isn't present, fall back to attributes
+            $colMap = $metaData->getAttributes($this);
+        }
+        return $colMap;
     }
 }

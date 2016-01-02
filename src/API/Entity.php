@@ -594,8 +594,7 @@ class Entity extends \Phalcon\DI\Injectable
             }
         } else {
             $modelNameSpace = $this->model->getModelNameSpace();
-            // $colMap = $metaData->getColumnMap($this->model);
-            $colMap = $this->model->getAllowedColumns(false);
+            $colMap = $this->model->getAllColumns();
         }
         
         // prepend modelNameSpace if the field is detected in the selected model's column map
