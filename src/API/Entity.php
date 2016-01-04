@@ -36,6 +36,13 @@ class Entity extends \Phalcon\DI\Injectable
     public $endpointName = null;
 
     /**
+     * keep a copy of the entity records PKID
+     *
+     * @var int
+     */
+    public $primaryKeyValue = null;
+
+    /**
      * temporary value used to store the currently loaded database record
      *
      * @var array
@@ -427,6 +434,13 @@ class Entity extends \Phalcon\DI\Injectable
                 // if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
                 $columns[] = "$refModelNameSpace.*";
                 // }
+            }
+            
+            // what to do about belongsTo? side load would be more performant and allow for better filtering options
+            // but can we do this with out breaking everything?
+            if ($relation->getType() == 0) {
+                $refModelNameSpace = $modelNameSpace . $relation->getModelName();
+                $query->leftJoin($refModelNameSpace);
             }
         }
         $query->columns($columns);
@@ -1332,6 +1346,10 @@ class Entity extends \Phalcon\DI\Injectable
             // pre-save hook placed after saveMode
             $formData = $this->beforeSave($formData, $id);
             
+            // make sure that the PKID is always stored in the formData
+            $name = $this->model->getPrimaryKeyName();
+            $formData->$name = $id;
+            
             $this->primaryKeyValue = $id;
             
             // need parent logic here
@@ -1350,7 +1368,7 @@ class Entity extends \Phalcon\DI\Injectable
             // }
         }
         
-        $result = $this->simpleSave($primaryModel, $formData);
+        $result = $this->simpleSave($primaryModel);
         
         // if still blank, pull from recently created $result
         if (is_null($id)) {
