@@ -178,7 +178,7 @@ class BaseController extends \Phalcon\DI\Injectable
         $post = $this->beforeSave($post);
         // This record only must be created
         $id = $this->entity->save($post);
-        $this->afterSave($object, $id);
+        $this->afterSave($post, $id);
         
         // now fetch the record so we can return it
         $search_result = $this->entity->findFirst($id);

@@ -768,7 +768,7 @@ class Entity extends \Phalcon\DI\Injectable
         // detect the correct name space for sort string
         // notice this might be a fieldname with a sort suffix
         $fieldBits = explode(' ', $rawSort);
-        if (count($fieldBits) > 0) {
+        if (count($fieldBits) > 1) {
             // isolate just the field name
             $fieldName = $fieldBits[0];
             $suffix = $fieldBits[1];
