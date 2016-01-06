@@ -586,7 +586,10 @@ class Entity extends \Phalcon\DI\Injectable
         
         // if a related table is referenced, then search related model column maps instead of the primary model
         if (count($searchBits) == 2) {
-            $matchFound = false;           
+            // build fieldname from 2nd value
+            $fieldName = $searchBits[1];
+            // start search for a related model
+            $matchFound = false;
             foreach ($this->activeRelations as $item) {
                 if ($searchBits[0] == $item->getTableName()) {
                     // set namespace for later pickup
