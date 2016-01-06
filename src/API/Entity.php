@@ -586,14 +586,13 @@ class Entity extends \Phalcon\DI\Injectable
         
         // if a related table is referenced, then search related model column maps instead of the primary model
         if (count($searchBits) == 2) {
-            $matchFound = false;
-            $fieldName = $searchBits[1];
+            $matchFound = false;           
             foreach ($this->activeRelations as $item) {
                 if ($searchBits[0] == $item->getTableName()) {
+                    // set namespace for later pickup
                     $modelNameSpace = $item->getReferencedModel();
                     $relatedModel = new $modelNameSpace();
-                    $colMap = $relatedModel->getAllowedColumns(false);
-                    $fieldName = $searchBits[1];
+                    $colMap = $relatedModel->getAllColumns();
                     $matchFound = true;
                     break;
                 }
@@ -763,8 +762,18 @@ class Entity extends \Phalcon\DI\Injectable
         // process sort
         $rawSort = $this->searchHelper->getSort('sql');
         
-        // by default, use the local namespace
-        $preparedSort = $this->prependFieldNameNamespace($rawSort);
+        // detect the correct name space for sort string
+        // notice this might be a fieldname with a sort suffix
+        $fieldBits = explode(' ', $rawSort);
+        if (count($fieldBits) > 0) {
+            // isolate just the field name
+            $fieldName = $fieldBits[0];
+            $suffix = $fieldBits[1];
+            $preparedSort = $this->prependFieldNameNamespace($fieldName) . ' ' . $suffix;
+        } else {
+            $preparedSort = $this->prependFieldNameNamespace($rawSort);
+        }
+        
         if ($preparedSort != false) {
             $query->orderBy($preparedSort);
         }
