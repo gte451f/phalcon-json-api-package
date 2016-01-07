@@ -425,22 +425,29 @@ class Entity extends \Phalcon\DI\Injectable
         $parentModels = $this->getParentModels(true);
         
         $columns = [];
-        // join all active hasOne's instead of just the parent
+        // join all active hasOne and belongTo instead of just the parent hasOne
         foreach ($this->activeRelations as $relation) {
-            if ($relation->getType() == 1) {
-                $refModelNameSpace = $modelNameSpace . $relation->getModelName();
-                $query->leftJoin($refModelNameSpace);
-                // add all parent AND hasOne joins to the column list
-                // if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
-                $columns[] = "$refModelNameSpace.*";
-                // }
+            // refer to alias or model path to prefix each relationship
+            // prefer alias over model path in case of colisions
+            $alias = $relation->getAlias();
+            $referencedModel = $relation->getReferencedModel();
+            if (! $alias) {
+                $alias = $referencedModel;
             }
             
             // what to do about belongsTo? side load would be more performant and allow for better filtering options
             // but can we do this with out breaking everything?
-            if ($relation->getType() == 0) {
-                $refModelNameSpace = $modelNameSpace . $relation->getModelName();
-                $query->leftJoin($refModelNameSpace);
+            if ($relation->getType() == 0 or $relation->getType() == 1) {
+                // create both sides of the join
+                $left = $alias . '.' . $relation->getReferencedFields();
+                $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                // create and alias join
+                $query->leftJoin($referencedModel, "$left = $right", $alias);
+            }
+            
+            // add all parent AND hasOne joins to the column list
+            if ($relation->getType() == 1) {
+                $columns[] = "$alias.*";
             }
         }
         $query->columns($columns);
@@ -590,10 +597,17 @@ class Entity extends \Phalcon\DI\Injectable
             $fieldName = $searchBits[1];
             // start search for a related model
             $matchFound = false;
-            foreach ($this->activeRelations as $item) {
-                if ($searchBits[0] == $item->getTableName()) {
+            foreach ($this->activeRelations as $relation) {
+                if ($searchBits[0] == $relation->getTableName()) {
+                    
+                    // detect the relationship alias
+                    $alias = $relation->getAlias();
+                    if (! $alias) {
+                        $alias = $relation->getReferencedModel();
+                    }
+                    
                     // set namespace for later pickup
-                    $modelNameSpace = $item->getReferencedModel();
+                    $modelNameSpace = $relation->getReferencedModel();
                     $relatedModel = new $modelNameSpace();
                     $colMap = $relatedModel->getAllColumns();
                     $matchFound = true;
@@ -609,14 +623,14 @@ class Entity extends \Phalcon\DI\Injectable
                 ));
             }
         } else {
-            $modelNameSpace = $this->model->getModelNameSpace();
+            $alias = $this->model->getModelNameSpace();
             $colMap = $this->model->getAllColumns();
         }
         
         // prepend modelNameSpace if the field is detected in the selected model's column map
         foreach ($colMap as $field) {
             if ($fieldName == $field) {
-                return "$modelNameSpace.$fieldName";
+                return "$alias.$fieldName";
             }
         }
         
