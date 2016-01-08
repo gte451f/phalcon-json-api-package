@@ -1104,9 +1104,7 @@ class Entity extends \Phalcon\DI\Injectable
         
         $query = $mm->createBuilder()->from($refModelNameSpace);
         
-        $columns = array(
-            $refModelNameSpace . ".*"
-        );
+        $columns = array();
         
         // join in parent record if specified
         $foo = $relation->getParent();
@@ -1123,6 +1121,8 @@ class Entity extends \Phalcon\DI\Injectable
             $query->leftJoin($model);
         }
         
+        // Load the main record field at the end, so they are not overwritten
+        $columns[] = $refModelNameSpace . ".*";
         $query->columns($columns);
         
         return $query;
