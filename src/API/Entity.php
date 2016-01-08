@@ -439,7 +439,7 @@ class Entity extends \Phalcon\DI\Injectable
             // but can we do this with out breaking everything?
             if ($relation->getType() == 0 or $relation->getType() == 1) {
                 // create both sides of the join
-                $left = $alias . '.' . $relation->getReferencedFields();
+                $left = "[$alias]" . '.' . $relation->getReferencedFields();
                 $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
                 // create and alias join
                 $query->leftJoin($referencedModel, "$left = $right", $alias);
@@ -447,7 +447,7 @@ class Entity extends \Phalcon\DI\Injectable
             
             // add all parent AND hasOne joins to the column list
             if ($relation->getType() == 1) {
-                $columns[] = "$alias.*";
+                $columns[] = "[$alias].*";
             }
         }
         $query->columns($columns);
@@ -630,7 +630,7 @@ class Entity extends \Phalcon\DI\Injectable
         // prepend modelNameSpace if the field is detected in the selected model's column map
         foreach ($colMap as $field) {
             if ($fieldName == $field) {
-                return "$alias.$fieldName";
+                return "[$alias].$fieldName";
             }
         }
         
