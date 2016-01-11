@@ -845,17 +845,48 @@ class Entity extends \Phalcon\DI\Injectable
     {
         // load primaryKeyValue
         $this->primaryKeyValue = $this->baseRecord[$this->model->getPrimaryKeyName()];
-        // store parentModels for later use
-        $parentModels = $this->getParentModels(true);
         
         // process all loaded relationships by fetching related data
         foreach ($this->activeRelations as $relation) {
-            // skip any parent relationships because they are merged into the main record
-            $refModelNameSpace = $relation->getReferencedModel();
-            if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
-                continue;
+            // check if this relationship has been flagged for custom processing
+            $relationOptions = $relation->getOptions();
+            if (isset($relationOptions) && (array_key_exists('customProcessing', $relationOptions) && ($relationOptions['customProcessing'] === true))) {
+                $this->processCustomRelationships($relation, $baseRecord);
+            } else {
+                $this->processStandardRelationships($relation, $baseRecord);
             }
+        }
+        return true;
+    }
+
+    /**
+	 * This method is stubbed out here so that it can be extended and used in local Entity file
+	 * to do custom processing for certain endpoints
+	 *
+	 * @param object $relation
+	 * @param array $baseRecord
+	 */
+    protected function processCustomRelationships($relation, $baseRecord)
+    {
+        return true;
+    }
+
+    /**
+     * Standard method for processing relationships
+     *
+     * @param object $relation
+     * @param array $baseRecord
+     */
+    protected function processStandardRelationships($relation, $baseRecord)
+    {
+        // store parentModels for later use
+        $parentModels = $this->getParentModels(true);
+        
+        // skip any parent relationships because they are merged into the main record
+        $refModelNameSpace = $relation->getReferencedModel();
+        if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
             
+        } else {
             $refType = $relation->getType();
             
             // store a copy of all related record (PKIDs)
@@ -884,97 +915,125 @@ class Entity extends \Phalcon\DI\Injectable
                 if ($refType == 0) {
                     $relatedRecords = $this->getBelongsToRecord($relation);
                 } elseif ($refType == 1) {
-                    // ignore hasOne since they are processed like a parent relation
-                    // this means current logic will not merg in a parent's record for a hasOne relationship
-                    // it's an edge case but should be supported in the future
-                    continue;
+                    // // ignore hasOne since they are processed like a parent relation
+                    // // this means current logic will not merg in a parent's record for a hasOne relationship
+                    // // it's an edge case but should be supported in the future
+                    // continue;
                     
-                    /*
-                     * The following code is not executed
-                     */
+                    // /*
+                    // * The following code is not executed
+                    // */
                     
-                    // all hasOne relationships would be loaded in the initial query right?
-                    // if the hasOne itself has a parent, then treat it more like a belongsTO so
-                    // merged columns are loaded
-                    $relatedParent = $refModelNameSpace::$parentModel;
-                    if ($relatedParent) {
-                        $relatedRecords = $this->getBelongsToRecord($relation);
-                    } else {
-                        // if a false is detected then load an empty model to takes it's place
-                        // this is likely the result of a left join on a non-existing record
-                        $relatedModel = $baseRecord->$refModelName;
-                        switch ($relatedModel) {
-                            case false:
-                                $relatedModelPath = "\\PhalconRest\\Models\\" . $refModelName;
-                                $emptyModel = new $relatedModelPath();
-                                $relatedRecords = array(
-                                    $this->loadAllowedColumns($emptyModel)
-                                );
-                                break;
-                            case null:
-                                // throw error here
-                                break;
-                            
-                            default:
-                                $relatedRecords = $this->loadAllowedColumns($relatedModel);
-                                break;
-                        }
-                    }
+                    // // all hasOne relationships would be loaded in the initial query right?
+                    // // if the hasOne itself has a parent, then treat it more like a belongsTO so
+                    // // merged columns are loaded
+                    // $relatedParent = $refModelNameSpace::$parentModel;
+                    // if ($relatedParent) {
+                    // $relatedRecords = $this->getBelongsToRecord($relation);
+                    // } else {
+                    // // if a false is detected then load an empty model to takes it's place
+                    // // this is likely the result of a left join on a non-existing record
+                    // $relatedModel = $baseRecord->$refModelName;
+                    // switch ($relatedModel) {
+                    // case false:
+                    // $relatedModelPath = "\\PhalconRest\\Models\\" . $refModelName;
+                    // $emptyModel = new $relatedModelPath();
+                    // $relatedRecords = array(
+                    // $this->loadAllowedColumns($emptyModel)
+                    // );
+                    // break;
+                    // case null:
+                    // // throw error here
+                    // break;
+                    
+                    // default:
+                    // $relatedRecords = $this->loadAllowedColumns($relatedModel);
+                    // break;
+                    // }
+                    // }
+                } elseif($refType == 4) {
+                    $relatedRecords = $this->getHasManyToManyRecords($relation);
                 } else {
                     $relatedRecords = $this->getHasManyRecords($relation);
                 }
                 
-                // save the PKID for each record returned
-                if (count($relatedRecords) > 0) {
-                    // 1 = hasOne 0 = belongsTo 2 = hasMany
-                    switch ($refType) {
-                        // process hasOne records as well
-                        case 1:
-                            // do nothin w/ hasOne since these are auto merged into the main record
-                            break;
-                        case 0:
-                            // this doesn't seem right, why are they occasionally showing up inside an array?
-                            if (isset($relatedRecords[$primaryKeyName])) {
-                                $relatedRecordIds = $relatedRecords[$primaryKeyName];
-                                // wrap in array so we can store multiple hasOnes from many different main records
-                                $relatedRecords = array(
-                                    $relatedRecords
-                                );
-                            } else {
-                                $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
-                            }
-                            break;
-                        
-                        default:
-                            $relatedRecordIds = array();
-                            foreach ($relatedRecords as $rec) {
-                                $relatedRecordIds[] = $rec[$primaryKeyName];
-                            }
-                            break;
-                    }
-                } else {
-                    $relatedRecordIds = null;
-                }
-                
-                // we map table names to end point resource names and vice versa
-                // regardless of relationship, the related records are returned as part of the end point resource name
-                $this->updateRestResponse($relation->getTableName(), $relatedRecords);
-                
-                // add related record ids to the baseArray
-                // this is how JSON API suggests that you related resources
-                // will save nothing, a single value or an array
-                
-                // does this only run when working with hasMany?
-                // belongsTo and hasOne are already in place, yes?
-                if ($relatedRecordIds !== null and $refType == 2) {
-                    $suffix = '_ids';
-                    // populate the linked property or merge in additional records
-                    // attempt to store the name similar to the table name
-                    $name = $relation->getTableName('singular');
-                    $this->baseRecord[$name . $suffix] = $relatedRecordIds;
-                }
+                return $this->normalizeRelatedRecords($baseRecord, $relatedRecords, $relation);
             }
         }
+    }
+    
+    /**
+     * Normalize the related records so they can be added into the response object
+     * 
+     * @param unknown $baseRecord
+     * @param unknown $relatedRecords
+     * @param unknown $relation
+     * @return boolean
+     */
+    protected function normalizeRelatedRecords($baseRecord, $relatedRecords, $relation)
+    {
+        $refType = $relation->getType();
+        
+        $refModelNameSpace = $relation->getReferencedModel();
+        
+        // store a copy of all related record (PKIDs)
+        // this must be attached w/ the parent records for joining purposes
+        $relatedRecordIds = null;
+        $refModel = new $refModelNameSpace();
+        $primaryKeyName = $refModel->getPrimaryKeyName();
+        
+        // save the PKID for each record returned
+        if (count($relatedRecords) > 0) {
+            // 1 = hasOne 0 = belongsTo 2 = hasMany
+            switch ($refType) {
+                // process hasOne records as well
+                case 1:
+                    // do nothin w/ hasOne since these are auto merged into the main record
+                    break;
+                case 0:
+                    // this doesn't seem right, why are they occasionally showing up inside an array?
+                    if (isset($relatedRecords[$primaryKeyName])) {
+                        $relatedRecordIds = $relatedRecords[$primaryKeyName];
+                        // wrap in array so we can store multiple hasOnes from many different main records
+                        $relatedRecords = array(
+                            $relatedRecords
+                        );
+                    } else {
+                        $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
+                    }
+                    break;
+        
+                default:
+                    $relatedRecordIds = array();
+                    foreach ($relatedRecords as $rec) {
+                        $relatedRecordIds[] = $rec[$primaryKeyName];
+                    }
+                    break;
+            }
+        } else {
+            $relatedRecordIds = null;
+        }
+        
+        // we map table names to end point resource names and vice versa
+        // regardless of relationship, the related records are returned as part of the end point resource name
+        $this->updateRestResponse($relation->getTableName(), $relatedRecords);
+        
+        // add related record ids to the baseArray
+        // this is how JSON API suggests that you related resources
+        // will save nothing, a single value or an array
+        
+        // does this only run when working with hasMany?
+        // belongsTo and hasOne are already in place, yes?
+        if ($relatedRecordIds !== null) {
+            if($refType == 2 || $refType == 4){
+                $suffix = '_ids';
+                // populate the linked property or merge in additional records
+                // attempt to store the name similar to the table name
+                $name = $relation->getTableName('singular');
+                $this->baseRecord[$name . $suffix] = $relatedRecordIds;
+            }
+        }
+        
         return true;
     }
 
@@ -987,7 +1046,7 @@ class Entity extends \Phalcon\DI\Injectable
      *            usually related records, but could side load just about any records to an api response
      * @return void
      */
-    private function updateRestResponse($table, $records)
+    protected function updateRestResponse($table, $records)
     {
         if (! isset($this->restResponse[$table])) {
             $this->restResponse[$table] = $records;
@@ -1027,7 +1086,7 @@ class Entity extends \Phalcon\DI\Injectable
      *
      * @return \PhalconRest\API\Relation $relation
      */
-    private function getHasManyRecords(\PhalconRest\API\Relation $relation)
+    protected function getHasManyRecords(\PhalconRest\API\Relation $relation)
     {
         $query = $this->buildRelationQuery($relation);
         
@@ -1087,6 +1146,60 @@ class Entity extends \Phalcon\DI\Injectable
         $result = $query->getQuery()->execute();
         return $this->loadRelationRecords($result, $relation);
     }
+    
+    /**
+	 * load the query object for a hasManyToMany relationship
+     *
+     * @param \PhalconRest\API\Relation $relation
+     * @return multitype:array
+     */
+    protected function getHasManyToManyRecords($relation)
+    {
+        $refModelNameSpace = $relation->getReferencedModel();
+        $intermediateModelNameSpace = $relation->getIntermediateModel();
+        
+        $config = $this->getDI()->get('config');
+        $modelNameSpace = $config['namespaces']['models'];
+        $mm = $this->getDI()->get('modelsManager');
+        
+        $query = $mm->createBuilder()->from($intermediateModelNameSpace);
+        
+        $query->join($refModelNameSpace);
+        
+        $columns = array();
+        
+        // join in parent record if specified
+        $foo = $relation->getParent();
+        // if ($relation->getParent()) {
+        // $columns[] = $modelNameSpace . $relation->getParent() . '.*';
+        // $query->leftJoin($modelNameSpace . $relation->getParent());
+        // }
+        
+//         // hasOnes are auto merged
+//         // todo should this be controlled by entityWith?
+//         $list = $relation->getHasOnes();
+//         foreach ($list as $model) {
+//             $columns[] = $model . '.*';
+//             $query->leftJoin($model);
+//         }
+        
+        // Load the main record field at the end, so they are not overwritten
+        $columns[] = $refModelNameSpace . ".*, " . $intermediateModelNameSpace . ".*";
+        $query->columns($columns);
+        
+        // determine the key to search against
+        $field = $relation->getFields();
+        if (isset($this->baseRecord[$field])) {
+            $fieldValue = $this->baseRecord[$field];
+        } else {
+            // fall back to using the primaryKeyValue
+            $fieldValue = $this->primaryKeyValue;
+        }
+        
+        $query->where("{$relation->getIntermediateFields()} = \"$fieldValue\"");
+        $result = $query->getQuery()->execute();
+        return $this->loadRelationRecords($result, $relation);
+    }
 
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
@@ -1136,7 +1249,7 @@ class Entity extends \Phalcon\DI\Injectable
      * @param array $result            
      * @return array
      */
-    private function loadRelationRecords($result, \PhalconRest\API\Relation $relation)
+    protected function loadRelationRecords($result, \PhalconRest\API\Relation $relation)
     {
         $relatedRecords = array(); // store all related records
         foreach ($result as $relatedRecord) {
@@ -1233,6 +1346,14 @@ class Entity extends \Phalcon\DI\Injectable
                 }
             }
         }
+        
+        $this->afterloadActiveRelationships();
+        
+        return true;
+    }
+    
+    protected function afterLoadActiveRelationships()
+    {
         return true;
     }
 
