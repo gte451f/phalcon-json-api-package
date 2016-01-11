@@ -251,6 +251,12 @@ class BaseModel extends \Phalcon\Mvc\Model
             // load them manually
             $mm = $this->getModelsManager();
             $relationships = $mm->getRelations(get_class($this));
+            // Temporary fix because $mm->getRelations() doesn't support hasManyToMany relations right now.
+            // get them separately and merge them
+            $mtmRelationships = $mm->getHasManyToMany($this);
+            
+            $relationships  = array_merge($relationships, $mtmRelationships);
+            
             foreach ($relationships as $relation) {
                 // todo load custom relationship
                 $this->relationships[] = new \PhalconRest\API\Relation($relation, $mm);
