@@ -957,7 +957,11 @@ class Entity extends \Phalcon\DI\Injectable
                     $relatedRecords = $this->getHasManyRecords($relation);
                 }
                 
-                return $this->normalizeRelatedRecords($baseRecord, $relatedRecords, $relation);
+                if(isset($relatedRecords) && $relatedRecords){
+                    return $this->normalizeRelatedRecords($baseRecord, $relatedRecords, $relation);
+                }
+                
+                return true;
             }
         }
     }
