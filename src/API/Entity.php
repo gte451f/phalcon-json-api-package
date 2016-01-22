@@ -860,12 +860,12 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
-	 * This method is stubbed out here so that it can be extended and used in local Entity file
-	 * to do custom processing for certain endpoints
-	 *
-	 * @param object $relation
-	 * @param array $baseRecord
-	 */
+     * This method is stubbed out here so that it can be extended and used in local Entity file
+     * to do custom processing for certain endpoints
+     *
+     * @param object $relation            
+     * @param array $baseRecord            
+     */
     protected function processCustomRelationships($relation, $baseRecord)
     {
         return true;
@@ -874,8 +874,8 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * Standard method for processing relationships
      *
-     * @param object $relation
-     * @param array $baseRecord
+     * @param object $relation            
+     * @param array $baseRecord            
      */
     protected function processStandardRelationships($relation, $baseRecord)
     {
@@ -884,9 +884,7 @@ class Entity extends \Phalcon\DI\Injectable
         
         // skip any parent relationships because they are merged into the main record
         $refModelNameSpace = $relation->getReferencedModel();
-        if ($parentModels and in_array($refModelNameSpace, $parentModels)) {
-            
-        } else {
+        if ($parentModels and in_array($refModelNameSpace, $parentModels)) {} else {
             $refType = $relation->getType();
             
             // store a copy of all related record (PKIDs)
@@ -951,13 +949,13 @@ class Entity extends \Phalcon\DI\Injectable
                     // break;
                     // }
                     // }
-                } elseif($refType == 4) {
+                } elseif ($refType == 4) {
                     $relatedRecords = $this->getHasManyToManyRecords($relation);
                 } else {
                     $relatedRecords = $this->getHasManyRecords($relation);
                 }
                 
-                if(isset($relatedRecords) && $relatedRecords){
+                if (isset($relatedRecords) && $relatedRecords) {
                     return $this->normalizeRelatedRecords($baseRecord, $relatedRecords, $relation);
                 }
                 
@@ -965,13 +963,13 @@ class Entity extends \Phalcon\DI\Injectable
             }
         }
     }
-    
+
     /**
      * Normalize the related records so they can be added into the response object
-     * 
-     * @param unknown $baseRecord
-     * @param unknown $relatedRecords
-     * @param unknown $relation
+     *
+     * @param unknown $baseRecord            
+     * @param unknown $relatedRecords            
+     * @param unknown $relation            
      * @return boolean
      */
     protected function normalizeRelatedRecords($baseRecord, $relatedRecords, $relation)
@@ -1006,7 +1004,7 @@ class Entity extends \Phalcon\DI\Injectable
                         $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
                     }
                     break;
-        
+                
                 default:
                     $relatedRecordIds = array();
                     foreach ($relatedRecords as $rec) {
@@ -1029,7 +1027,7 @@ class Entity extends \Phalcon\DI\Injectable
         // does this only run when working with hasMany?
         // belongsTo and hasOne are already in place, yes?
         if ($relatedRecordIds !== null) {
-            if($refType == 2 || $refType == 4){
+            if ($refType == 2 || $refType == 4) {
                 $suffix = '_ids';
                 // populate the linked property or merge in additional records
                 // attempt to store the name similar to the table name
@@ -1150,11 +1148,11 @@ class Entity extends \Phalcon\DI\Injectable
         $result = $query->getQuery()->execute();
         return $this->loadRelationRecords($result, $relation);
     }
-    
+
     /**
-	 * load the query object for a hasManyToMany relationship
+     * load the query object for a hasManyToMany relationship
      *
-     * @param \PhalconRest\API\Relation $relation
+     * @param \PhalconRest\API\Relation $relation            
      * @return multitype:array
      */
     protected function getHasManyToManyRecords($relation)
@@ -1179,13 +1177,13 @@ class Entity extends \Phalcon\DI\Injectable
         // $query->leftJoin($modelNameSpace . $relation->getParent());
         // }
         
-//         // hasOnes are auto merged
-//         // todo should this be controlled by entityWith?
-//         $list = $relation->getHasOnes();
-//         foreach ($list as $model) {
-//             $columns[] = $model . '.*';
-//             $query->leftJoin($model);
-//         }
+        // // hasOnes are auto merged
+        // // todo should this be controlled by entityWith?
+        // $list = $relation->getHasOnes();
+        // foreach ($list as $model) {
+        // $columns[] = $model . '.*';
+        // $query->leftJoin($model);
+        // }
         
         // Load the main record field at the end, so they are not overwritten
         $columns[] = $refModelNameSpace . ".*, " . $intermediateModelNameSpace . ".*";
@@ -1355,7 +1353,7 @@ class Entity extends \Phalcon\DI\Injectable
         
         return true;
     }
-    
+
     protected function afterLoadActiveRelationships()
     {
         return true;

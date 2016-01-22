@@ -175,6 +175,14 @@ class BaseController extends \Phalcon\DI\Injectable
         $request = $this->getDI()->get('request');
         $post = $request->getJson($this->getControllerName('singular'));
         
+        // filter out any block columns from the posted data
+        $blockFields = $this->model->getBlockColumns();
+        foreach ($blockFields as $key => $value) {
+            if (isset($post->$value)) {
+                unset($post->$value);
+            }
+        }
+        
         $post = $this->beforeSave($post);
         // This record only must be created
         $id = $this->entity->save($post);
@@ -219,6 +227,14 @@ class BaseController extends \Phalcon\DI\Injectable
         $request = $this->getDI()->get('request');
         // load up the expected object based on the controller name
         $put = $request->getJson($this->getControllerName('singular'));
+        
+        // filter out any block columns from the posted data
+        $blockFields = $this->model->getBlockColumns();
+        foreach ($blockFields as $key => $value) {
+            if (isset($put->$value)) {
+                unset($put->$value);
+            }
+        }
         
         if (! $put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
