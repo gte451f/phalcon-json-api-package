@@ -281,6 +281,12 @@ class BaseModel extends \Phalcon\Mvc\Model
             $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
             $parentModel = new $parentModelNameSpace();
             $blockColumns = $parentModel->getBlockColumns();
+            
+            // the parent model may return null, let's catch and change to an empty array
+            // thus indicated that block columns have been "loaded" even if they are blank
+            if ($blockColumns == null) {
+                $blockColumns = [];
+            }
         }
         $this->setBlockColumns($blockColumns, true);
     }
@@ -308,6 +314,8 @@ class BaseModel extends \Phalcon\Mvc\Model
 
     /**
      * basic getter for private property
+     *
+     * @return mixed
      */
     public function getBlockColumns()
     {
