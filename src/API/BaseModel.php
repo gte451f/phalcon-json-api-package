@@ -255,7 +255,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             // get them separately and merge them
             $mtmRelationships = $mm->getHasManyToMany($this);
             
-            $relationships  = array_merge($relationships, $mtmRelationships);
+            $relationships = array_merge($relationships, $mtmRelationships);
             
             foreach ($relationships as $relation) {
                 // todo load custom relationship
@@ -273,7 +273,16 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function loadBlockColumns()
     {
-        $this->setBlockColumns([], true);
+        $blockColumns = [];
+        $class = get_class($this);
+        $parentModelName = $class::$parentModel;
+        
+        if ($parentModelName) {
+            $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
+            $parentModel = new $parentModelNameSpace();
+            $blockColumns = $parentModel->getBlockColumns();
+        }
+        $this->setBlockColumns($blockColumns, true);
     }
 
     /**
