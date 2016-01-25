@@ -1579,6 +1579,8 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * load object data into the current model
+     * only include specific known fields
+     * will also include block fields since it expects there to be blocked at the controller
      *
      * @param PhalconRest\Models $model            
      * @param object $formData            
@@ -1594,12 +1596,6 @@ class Entity extends \Phalcon\DI\Injectable
         if (is_null($colMap)) {
             // but if it isn't present, fall back to attributes
             $colMap = $metaData->getAttributes($model);
-        }
-        
-        // ignore block columns
-        $blockColumns = $model->getBlockColumns();
-        foreach ($blockColumns as $block) {
-            unset($colMap[$block]);
         }
         
         foreach ($colMap as $key => $label) {
