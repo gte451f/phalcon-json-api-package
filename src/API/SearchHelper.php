@@ -134,6 +134,16 @@ class SearchHelper
      */
     public $relationships = null;
 
+
+    /**
+     *
+     * to parse the query parameters on an endpoint call
+     * initialize with an empty array
+     *
+     * @var array
+     */
+    public $suppliedSearchFields = array();
+
     /**
      * load the DI, is this the best way ?
      */
