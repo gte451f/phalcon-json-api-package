@@ -1160,37 +1160,31 @@ class Entity extends \Phalcon\DI\Injectable
         $refModelNameSpace = $relation->getReferencedModel();
         $intermediateModelNameSpace = $relation->getIntermediateModel();
         
+        // determine the key to search against
+        $field = $relation->getFields();
+        
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
         $mm = $this->getDI()->get('modelsManager');
         
-        $query = $mm->createBuilder()->from($intermediateModelNameSpace);
-        
-        $query->join($refModelNameSpace);
+        $query = $mm->createBuilder()
+            ->from($intermediateModelNameSpace)
+            ->join($refModelNameSpace);
         
         $columns = array();
         
-        // join in parent record if specified
-        $foo = $relation->getParent();
-        // if ($relation->getParent()) {
-        // $columns[] = $modelNameSpace . $relation->getParent() . '.*';
-        // $query->leftJoin($modelNameSpace . $relation->getParent());
-        // }
-        
-        // // hasOnes are auto merged
-        // // todo should this be controlled by entityWith?
-        // $list = $relation->getHasOnes();
-        // foreach ($list as $model) {
-        // $columns[] = $model . '.*';
-        // $query->leftJoin($model);
-        // }
+        // join in parent record if one is detected
+        $parentName = $relation->getParent();
+        if ($parentName) {
+            $columns[] = "$parentName.*";
+            $intField = $relation->getIntermediateReferencedFields();
+            $query->join($modelNameSpace . $parentName, "$parentName.$field = $refModelNameSpace.$intField", $parentName);
+        }
         
         // Load the main record field at the end, so they are not overwritten
         $columns[] = $refModelNameSpace . ".*, " . $intermediateModelNameSpace . ".*";
         $query->columns($columns);
         
-        // determine the key to search against
-        $field = $relation->getFields();
         if (isset($this->baseRecord[$field])) {
             $fieldValue = $this->baseRecord[$field];
         } else {
@@ -1198,7 +1192,8 @@ class Entity extends \Phalcon\DI\Injectable
             $fieldValue = $this->primaryKeyValue;
         }
         
-        $query->where("{$relation->getIntermediateFields()} = \"$fieldValue\"");
+        $whereField = $intermediateModelNameSpace . '.' . $relation->getIntermediateFields();
+        $query->where("{$whereField} = \"$fieldValue\"");
         $result = $query->getQuery()->execute();
         return $this->loadRelationRecords($result, $relation);
     }
@@ -1220,13 +1215,6 @@ class Entity extends \Phalcon\DI\Injectable
         $query = $mm->createBuilder()->from($refModelNameSpace);
         
         $columns = array();
-        
-        // join in parent record if specified
-        $foo = $relation->getParent();
-        // if ($relation->getParent()) {
-        // $columns[] = $modelNameSpace . $relation->getParent() . '.*';
-        // $query->leftJoin($modelNameSpace . $relation->getParent());
-        // }
         
         // hasOnes are auto merged
         // todo should this be controlled by entityWith?
@@ -1255,13 +1243,22 @@ class Entity extends \Phalcon\DI\Injectable
     {
         $relatedRecords = array(); // store all related records
         foreach ($result as $relatedRecord) {
-            $relatedRecArray = array(); // reset for each run
-                                        
+            // reset for each run
+            $relatedRecArray = array();
             // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
+            
             if ($parent or get_class($relatedRecord) == 'Phalcon\Mvc\Model\Row') {
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
+                    // filter manyHasMany differently than other relationships
+                    if ($relation->getType() == 4) {
+                        // only intersted in the "end" relationship, not the intermediate
+                        $intermediateModelNameSpace = $relation->getIntermediateModel();
+                        if ($intermediateModelNameSpace == get_class($rec)) {
+                            continue;
+                        }
+                    }
                     $relatedRecArray = array_merge($relatedRecArray, $this->loadAllowedColumns($rec));
                 }
             } else {
@@ -1269,6 +1266,7 @@ class Entity extends \Phalcon\DI\Injectable
             }
             $relatedRecords[] = $relatedRecArray;
         }
+        
         return $relatedRecords;
     }
 
