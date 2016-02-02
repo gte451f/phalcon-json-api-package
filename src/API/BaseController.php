@@ -178,9 +178,7 @@ class BaseController extends \Phalcon\DI\Injectable
         // filter out any block columns from the posted data
         $blockFields = $this->model->getBlockColumns();
         foreach ($blockFields as $key => $value) {
-            if (isset($post->$value)) {
-                unset($post->$value);
-            }
+            unset($post->$value);
         }
         
         $post = $this->beforeSave($post);
@@ -231,9 +229,7 @@ class BaseController extends \Phalcon\DI\Injectable
         // filter out any block columns from the posted data
         $blockFields = $this->model->getBlockColumns();
         foreach ($blockFields as $key => $value) {
-            if (isset($put->$value)) {
-                unset($put->$value);
-            }
+            unset($put->$value);
         }
         
         if (! $put) {
