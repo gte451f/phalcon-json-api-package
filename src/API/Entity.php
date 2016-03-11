@@ -289,7 +289,7 @@ class Entity extends \Phalcon\DI\Injectable
      * @param int $foundSet
      *            a count of the records matching api request
      */
-    private function appendMeta($foundSet)
+    protected function appendMeta($foundSet)
     {
         
         // should we load pager information?

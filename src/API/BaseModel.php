@@ -326,6 +326,13 @@ class BaseModel extends \Phalcon\Mvc\Model
         // return block columns
         return $this->blockColumns;
     }
+    
+    /**
+     * get the private notifyColumns property
+     */
+    public function getNotifyColumns(){
+        return null;
+    }
 
     /**
      * - return fields to be included when building a resource
