@@ -487,8 +487,9 @@ class Entity extends \Phalcon\DI\Injectable
                         $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
                         $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
                         // $query->andWhere("$fieldName $operator \"$newFieldValue\"");
-                        $query->andWhere("$fieldName $operator :value:", array(
-                            'value' => $newFieldValue
+                        $randomName = 'rand'. rand(1,1000000);
+                        $query->andWhere("$fieldName $operator :$randomName:", array(
+                            $randomName => $newFieldValue
                         ));
                         break;
                     
