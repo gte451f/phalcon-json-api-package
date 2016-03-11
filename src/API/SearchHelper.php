@@ -134,7 +134,6 @@ class SearchHelper
      */
     public $relationships = null;
 
-
     /**
      *
      * to parse the query parameters on an endpoint call
@@ -449,9 +448,14 @@ class SearchHelper
             if (in_array($key, $this->reservedWords)) {
                 // ignore, it is reserved
             } else {
+                $sanitizedValue = $request->get($key, 'string');
+                
+                // make exception for single quote
+                // support filtering values like o'brien
+                $sanitizedValue = str_ireplace("&#39;", "'", $sanitizedValue);
+                
                 // sanitize fails for < or <=, even html encoded version
                 // insert exception for < value
-                $sanitizedValue = $request->get($key, 'string');
                 if (strlen($sanitizedValue) == 0 and substr($value, 0, 1) == '<') {
                     $mapped[$key] = $value;
                 } else {

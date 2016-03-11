@@ -486,7 +486,10 @@ class Entity extends \Phalcon\DI\Injectable
                         $fieldName = $this->prependFieldNameNamespace($processedSearchField['fieldName']);
                         $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
                         $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
-                        $query->andWhere("$fieldName $operator \"$newFieldValue\"");
+                        // $query->andWhere("$fieldName $operator \"$newFieldValue\"");
+                        $query->andWhere("$fieldName $operator :value:", array(
+                            'value' => $newFieldValue
+                        ));
                         break;
                     
                     case 'or':
@@ -508,17 +511,23 @@ class Entity extends \Phalcon\DI\Injectable
                             $fieldValueArray = $processedSearchField['fieldValue'];
                         }
                         
+                        // update to bind params instead of using string concatination
                         $queryArr = [];
+                        $valueArr = [];
+                        $count = 1;
                         foreach ($fieldNameArray as $fieldName) {
                             $fieldName = $this->prependFieldNameNamespace($fieldName);
                             foreach ($fieldValueArray as $fieldValue) {
+                                $marker = 'marker' . $count;
                                 $operator = $this->determineWhereOperator($fieldValue);
                                 $newFieldValue = $this->processFieldValue($fieldValue, $operator);
-                                $queryArr[] = "$fieldName $operator \"$newFieldValue\"";
+                                $queryArr[] = "$fieldName $operator :$marker:";
+                                $valueArr[$marker] = $newFieldValue;
+                                $count ++;
                             }
                         }
                         $sql = implode(' OR ', $queryArr);
-                        $query->andWhere($sql);
+                        $query->andWhere($sql, $valueArr);
                         break;
                 }
             }
