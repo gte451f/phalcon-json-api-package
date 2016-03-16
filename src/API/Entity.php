@@ -173,7 +173,7 @@ class Entity extends \Phalcon\DI\Injectable
         $baseRecords = $this->runSearch($suppliedParameters);
         
         // if we don't find a record, terminate with false
-        if ($baseRecords == false) {
+        if ($baseRecords === false) {
             return false;
         }
         
@@ -250,7 +250,7 @@ class Entity extends \Phalcon\DI\Injectable
         $baseRecords = $this->runSearch();
         
         // if we don't find a record, terminate with false
-        if ($baseRecords == false) {
+        if ($baseRecords === false) {
             return false;
         }
         
@@ -330,10 +330,14 @@ class Entity extends \Phalcon\DI\Injectable
             $result = $query->getQuery()->getSingleResult();
             $this->recordCount = intval($result->count);
             
-            // now run the real query
-            $query = $this->queryBuilder();
-            $result = $query->getQuery()->execute();
-            return $result;
+            if (!$this->searchHelper->isCount) {
+                // now run the real query
+                $query = $this->queryBuilder();
+                $result = $query->getQuery()->execute();
+                return $result;
+            } else {
+                return array();
+            }
         } else {
             // strip out colum filter since phalcon doesn't return a full object then
             if (isset($suppliedParameters['columns'])) {

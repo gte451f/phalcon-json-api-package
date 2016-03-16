@@ -92,6 +92,7 @@ class SearchHelper
         'type',
         '_url',
         'order',
+        'count',
         'token'
     );
     // TOKEN reserved as a common term used for authentication
@@ -121,6 +122,14 @@ class SearchHelper
      * @var boolean
      */
     public $isPager = true;
+
+    /**
+     * should the request only return the meta data
+     * set to false by default
+     *
+     * @var boolean
+     */
+    public $isCount = false;
 
     /**
      * store a list of relationships to be loaded
@@ -360,6 +369,11 @@ class SearchHelper
         } elseif ($request->get('page', "int", null) != NULL) {
             $this->suppliedOffset = ($request->get('page', "int", null) - 1) * $this->suppliedLimit;
             $this->isPager = true;
+        }
+
+        // Check if we pass the count parameter with whatever value
+        if ($request->has('count')) {
+            $this->isCount = true;
         }
         
         // http://jsonapi.org/format/#fetching
