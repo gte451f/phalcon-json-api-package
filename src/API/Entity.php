@@ -44,6 +44,7 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * temporary value used to store the currently loaded database record
+     * can be accessed from around the entity class
      *
      * @var array
      */
@@ -181,18 +182,18 @@ class Entity extends \Phalcon\DI\Injectable
         $this->restResponse[$this->model->getTableName()] = array();
         
         $foundSet = 0;
-        foreach ($baseRecords as $base) {
+        foreach ($baseRecords as $baseResult) {
             // normalize results, pull out join fields
-            $base = $this->extractMainRow($base);
+            $baseResult = $this->extractMainRow($baseResult);
             
             // hook for manipulating the base record before processing relationships
-            $base = $this->beforeProcessRelationships($base);
+            $baseResult = $this->beforeProcessRelationships($baseResult);
             
             // store related records in restResponse or load for optimized DB queries
-            $this->processRelationships($base);
+            $this->processRelationships($baseResult);
             
             // hook for manipulating the base record after processing relationships
-            $this->afterProcessRelationships();
+            $this->afterProcessRelationships($baseResult);
             
             $this->restResponse[$this->model->getTableName()][] = $this->baseRecord;
             $foundSet ++;
@@ -208,18 +209,22 @@ class Entity extends \Phalcon\DI\Injectable
      * hook for manipulating the base record before processing relatoinships.
      * this method is called from the find and findFirst methods
      *
-     * @param mixed $base            
+     * @param mixed $baseResult            
      */
-    public function beforeProcessRelationships($base)
+    public function beforeProcessRelationships($baseResult)
     {
-        return $base;
+        return $baseResult;
     }
 
     /**
      * hook for manipulating the base record after processing relatoinships.
      * this method is called from the find and findFirst methods
+     *
+     * will accept baseResult as param but there is no point in passing it back up since the real data is in a class level object
+     *
+     * @param mixed $baseResult            
      */
-    public function afterProcessRelationships()
+    public function afterProcessRelationships($baseResult)
     {}
 
     /**
@@ -255,18 +260,18 @@ class Entity extends \Phalcon\DI\Injectable
         }
         
         $foundSet = 0;
-        foreach ($baseRecords as $baseRecord) {
+        foreach ($baseRecords as $baseResult) {
             // normalize results, pull out join fields
-            $baseRecord = $this->extractMainRow($baseRecord);
+            $baseResult = $this->extractMainRow($baseResult);
             
             // hook for manipulating the base record before processing relationships
-            $baseRecord = $this->beforeProcessRelationships($baseRecord);
+            $baseResult = $this->beforeProcessRelationships($baseResult);
             
             // store related records in restResponse or load for optimized DB queries
-            $this->processRelationships($baseRecord);
+            $this->processRelationships($baseResult);
             
             // hook for manipulating the base record after processing relationships
-            $this->afterProcessRelationships();
+            $this->afterProcessRelationships($baseResult);
             
             $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
             $foundSet ++;
@@ -330,7 +335,7 @@ class Entity extends \Phalcon\DI\Injectable
             $result = $query->getQuery()->getSingleResult();
             $this->recordCount = intval($result->count);
             
-            if (!$this->searchHelper->isCount) {
+            if (! $this->searchHelper->isCount) {
                 // now run the real query
                 $query = $this->queryBuilder();
                 $result = $query->getQuery()->execute();
@@ -491,7 +496,7 @@ class Entity extends \Phalcon\DI\Injectable
                         $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
                         $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
                         // $query->andWhere("$fieldName $operator \"$newFieldValue\"");
-                        $randomName = 'rand'. rand(1,1000000);
+                        $randomName = 'rand' . rand(1, 1000000);
                         $query->andWhere("$fieldName $operator :$randomName:", array(
                             $randomName => $newFieldValue
                         ));
