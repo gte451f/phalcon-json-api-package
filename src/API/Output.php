@@ -17,17 +17,22 @@ class Output extends \Phalcon\DI\Injectable
 
     private $httpMessage = 'OK';
 
+    /**
+     * hold a valid errorStore object
+     *
+     * @var \PhalconRest\Util\ErrorStore
+     */
     public $errorStore = false;
 
     /**
      *
-     * @var unknown
+     * @var boolean
      */
     protected $snake = true;
 
     /**
      *
-     * @var unknown
+     * @var boolean
      */
     protected $envelope = true;
 
@@ -66,6 +71,12 @@ class Output extends \Phalcon\DI\Injectable
         return $this;
     }
 
+    /**
+     * process an errorStore into a simple message
+     * 
+     * @param \PhalconRest\Util\ErrorStore $errorStore            
+     * @return \PhalconRest\API\Output
+     */
     public function sendError(\PhalconRest\Util\ErrorStore $errorStore)
     {
         $message = array();
@@ -88,6 +99,11 @@ class Output extends \Phalcon\DI\Injectable
         return $this;
     }
 
+    /**
+     * for a given string message, prepare a basic json response for the browser
+     *
+     * @param string $message            
+     */
     private function _send($message)
     {
         // Error's come from HTTPException. This helps set the proper envelope data
@@ -162,6 +178,12 @@ class Output extends \Phalcon\DI\Injectable
         return str_replace(' ', '', lcfirst(ucwords(str_replace('_', ' ', $val))));
     }
 
+    /**
+     * simple setter for properties
+     *
+     * @param int $code            
+     * @param string $message            
+     */
     public function setStatusCode($code, $message)
     {
         $this->httpCode = $code;

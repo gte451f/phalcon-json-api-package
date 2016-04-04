@@ -56,6 +56,12 @@ class ErrorStore
      */
     public $errorCode;
 
+    /**
+     * construct with supplied standard array
+     * break list down into smaller properites
+     * 
+     * @param array $errorList
+     */
     public function __construct($errorList)
     {
         $di = \Phalcon\DI::getDefault();

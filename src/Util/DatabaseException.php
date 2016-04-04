@@ -2,12 +2,12 @@
 namespace PhalconRest\Util;
 
 /**
- * where caught HTTP Exceptions go to die
+ * where caught Database Exceptions go to die
  *
  * @author jjenkins
  *        
  */
-class HTTPException extends \Exception
+class DatabaseException extends \Exception
 {
 
     /**
