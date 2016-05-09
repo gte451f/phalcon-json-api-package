@@ -464,6 +464,28 @@ class Entity extends \Phalcon\DI\Injectable
     }
 
     /**
+     * This function can be used to process custom field filters
+     * in the concrete endpoint
+     *
+     * @param $fieldName string the name of the field to be added to the processedSearchFields array
+     * @param $fieldValue mixed the value to the query
+     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query *In case we need to join other tables
+     *
+     * @return array | false
+     */
+    public function processFilterField($fieldName, $fieldValue, \Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    {
+        $processedFieldName = $this->processSearchFields($fieldName);
+        $processedFieldValue = $this->processSearchFields($fieldValue);
+        $processedFieldQueryType = $this->processSearchFieldQueryType($processedFieldName, $processedFieldValue);
+        return array(
+            'queryType' => $processedFieldQueryType,
+            'fieldName' => $processedFieldName,
+            'fieldValue' => $processedFieldValue
+        );
+    }
+
+    /**
      * help $this->queryBuilder to construct a PHQL object
      * apply search rules based on the searchHelper conditions and return query
      *
@@ -479,14 +501,10 @@ class Entity extends \Phalcon\DI\Injectable
             // mostly just looking for || or type syntax otherwise process as default (and) WHERE clause
             $processedSearchFields = array();
             foreach ($searchFields as $fieldName => $fieldValue) {
-                $processedFieldName = $this->processSearchFields($fieldName);
-                $processedFieldValue = $this->processSearchFields($fieldValue);
-                $processedFieldQueryType = $this->processSearchFieldQueryType($processedFieldName, $processedFieldValue);
-                $processedSearchFields[] = array(
-                    'queryType' => $processedFieldQueryType,
-                    'fieldName' => $processedFieldName,
-                    'fieldValue' => $processedFieldValue
-                );
+                $processed = $this->processFilterField($fieldName, $fieldValue, $query);
+                if ($processed !== false) {
+                    $processedSearchFields[] = $processed;
+                }
             }
             
             foreach ($processedSearchFields as $processedSearchField) {
@@ -496,10 +514,14 @@ class Entity extends \Phalcon\DI\Injectable
                         $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
                         $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
                         // $query->andWhere("$fieldName $operator \"$newFieldValue\"");
-                        $randomName = 'rand' . rand(1, 1000000);
-                        $query->andWhere("$fieldName $operator :$randomName:", array(
-                            $randomName => $newFieldValue
-                        ));
+                        if ($operator === 'IS NULL') {
+                            $query->andWhere("$fieldName $operator");
+                        } else {
+                            $randomName = 'rand' . rand(1, 1000000);
+                            $query->andWhere("$fieldName $operator :$randomName:", array(
+                                $randomName => $newFieldValue
+                            ));
+                        }
                         break;
                     
                     case 'or':
@@ -557,7 +579,7 @@ class Entity extends \Phalcon\DI\Injectable
      * @param string $fieldParam            
      * @return mixed return an array if || is found, otherwise a string
      */
-    private function processSearchFields($fieldParam)
+    protected function processSearchFields($fieldParam)
     {
         if (strpos($fieldParam, '||') !== false) {
             return explode('||', $fieldParam);
@@ -577,7 +599,7 @@ class Entity extends \Phalcon\DI\Injectable
      *            string or array $processedFieldValue
      * @return string
      */
-    private function processSearchFieldQueryType($processedFieldName, $processedFieldValue)
+    protected function processSearchFieldQueryType($processedFieldName, $processedFieldValue)
     {
         $result = 'and';
         
@@ -605,7 +627,7 @@ class Entity extends \Phalcon\DI\Injectable
      * @param string $fieldName            
      * @return string
      */
-    private function prependFieldNameNamespace($fieldName)
+    protected function prependFieldNameNamespace($fieldName)
     {
         // $metaData = $this->getDI()->get('memory');
         $searchBits = explode(':', $fieldName);
@@ -667,7 +689,7 @@ class Entity extends \Phalcon\DI\Injectable
      *            the detected field value
      * @return string
      */
-    private function processFieldValue($fieldValue, $operator = '=')
+    protected function processFieldValue($fieldValue, $operator = '=')
     {
         switch ($operator) {
             case '>':
@@ -717,7 +739,7 @@ class Entity extends \Phalcon\DI\Injectable
      * @param string $fieldValue            
      * @return string
      */
-    private function determineWhereOperator($fieldValue)
+    protected function determineWhereOperator($fieldValue)
     {
         $defaultOperator = '=';
         
@@ -726,6 +748,10 @@ class Entity extends \Phalcon\DI\Injectable
         $lastChar = substr($fieldValue, - 1, 1);
         if (($firstChar == "*") || ($lastChar == "*")) {
             return 'LIKE';
+        }
+
+        if (strtoupper($fieldValue) === 'NULL') {
+            return 'IS NULL';
         }
         
         // process supported comparision operators
