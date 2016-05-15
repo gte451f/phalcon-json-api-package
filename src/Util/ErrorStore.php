@@ -2,10 +2,10 @@
 namespace PhalconRest\Util;
 
 /**
- * class to standardize what properites the API stores in each error
+ * class to standardize what properties the API stores in each error
  *
  * @author jjenkins
- *        
+ *
  */
 class ErrorStore
 {
@@ -32,7 +32,7 @@ class ErrorStore
      *
      * @var string
      */
-    public $more;
+    public $more = null;
 
     /**
      * internal reporting information when the api is set to debug mode
@@ -59,17 +59,19 @@ class ErrorStore
     /**
      * construct with supplied standard array
      * break list down into smaller properites
-     * 
+     *
      * @param array $errorList
      */
     public function __construct($errorList)
     {
         $di = \Phalcon\DI::getDefault();
-        
+
         $this->dev = @$errorList['dev'];
         $this->code = @$errorList['code'];
-        $this->more = @$errorList['more'];
-        
+        if (isset($errorList['more'])) {
+            $this->more = @$errorList['more'];
+        }
+
         // pull from messageBag if no explicit devMessage is provided
         if (is_null($this->dev)) {
             $messageBag = $di->getMessageBag();
