@@ -7,7 +7,7 @@ use \PhalconRest\Util\HTTPException;
  * placeholder for future work
  *
  * @author jjenkins
- *        
+ *
  */
 class BaseModel extends \Phalcon\Mvc\Model
 {
@@ -93,14 +93,6 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $blockColumns = null;
 
     /**
-     * auto populate a few key values
-     */
-    public function initialize()
-    {
-        $this->loadBlockColumns();
-    }
-
-    /**
      * The table this model depends on for it's existance
      * A give away is when the PKID for this model references the parent PKID
      * in the parent model
@@ -115,13 +107,32 @@ class BaseModel extends \Phalcon\Mvc\Model
     public static $parentModel = FALSE;
 
     /**
+     * store one or more parent models that this entity
+     * should merge into the final resource
+     *
+     * stores basic model names, not name spaces
+     *
+     * @var boolean|array
+     */
+    protected $parentModels = null;
+    
+    /**
+     * auto populate a few key values
+     */
+    public function initialize()
+    {
+        $this->loadBlockColumns();
+    }
+
+
+    /**
      * for a provided model name, return that model's parent
      *
-     * @param string $name            
+     * @param string $name
      */
     public static function getParentModel($name)
     {
-        $config = $this->getDI()->get('config');
+        $config = self::getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
         $path = $modelNameSpace . $name;
         return $path::$parentModel;
@@ -130,8 +141,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * provided to lazy load the model's name
      *
-     * @param
-     *            string type singular|plural
+     * @param string type singular|plural
      * @return string
      */
     public function getModelName($type = 'plural')
@@ -142,21 +152,21 @@ class BaseModel extends \Phalcon\Mvc\Model
             } else {
                 $config = $this->getDI()->get('config');
                 $modelNameSpace = $config['namespaces']['models'];
-                
+
                 $name = get_class($this);
                 $name = str_replace($modelNameSpace, '', $name);
                 $this->pluralName = $name;
                 return $this->pluralName;
             }
         }
-        
+
         if ($type == 'singular') {
-            if (! isset($this->singularName)) {
+            if (!isset($this->singularName)) {
                 $this->singularName = substr($this->getPluralName(), 0, strlen($this->getPluralName()) - 1);
             }
             return $this->singularName;
         }
-        
+
         // todo throw and error here?
         return false;
     }
@@ -168,12 +178,12 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getModelNameSpace()
     {
-        if (! isset($this->modelNameSpace)) {
+        if (!isset($this->modelNameSpace)) {
             $config = $this->getDI()->get('config');
             $nameSpace = $config['namespaces']['models'];
             $this->modelNameSpace = $nameSpace . $this->getModelName();
         }
-        
+
         return $this->modelNameSpace;
     }
 
@@ -184,12 +194,12 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getPrimaryKeyName()
     {
-        if (! isset($this->primaryKeyName)) {
+        if (!isset($this->primaryKeyName)) {
             // lazy load
             $memory = $this->getDI()->get('memory');
             $attributes = $memory->getPrimaryKeyAttributes($this);
             $attributeKey = $attributes[0];
-            
+
             // adjust for colMaps if any are provided
             $colMap = $memory->getColumnMap($this);
             if (is_null($colMap)) {
@@ -204,7 +214,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * default behavior is to expect plural table names in schema
      *
-     * @param string $type            
+     * @param string $type
      * @return string
      */
     public function getTableName($type = 'plural')
@@ -217,7 +227,7 @@ class BaseModel extends \Phalcon\Mvc\Model
                 return $this->pluralTableName;
             }
         }
-        
+
         if ($type == 'singular') {
             if (isset($this->singularTableName)) {
                 return $this->singularTableName;
@@ -246,7 +256,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getRelations()
     {
-        if (! isset($this->relationships)) {
+        if (!isset($this->relationships)) {
             $this->relationships = array();
             // load them manually
             $mm = $this->getModelsManager();
@@ -254,9 +264,9 @@ class BaseModel extends \Phalcon\Mvc\Model
             // Temporary fix because $mm->getRelations() doesn't support hasManyToMany relations right now.
             // get them separately and merge them
             $mtmRelationships = $mm->getHasManyToMany($this);
-            
+
             $relationships = array_merge($relationships, $mtmRelationships);
-            
+
             foreach ($relationships as $relation) {
                 // todo load custom relationship
                 $this->relationships[] = new \PhalconRest\API\Relation($relation, $mm);
@@ -276,12 +286,12 @@ class BaseModel extends \Phalcon\Mvc\Model
         $blockColumns = [];
         $class = get_class($this);
         $parentModelName = $class::$parentModel;
-        
+
         if ($parentModelName) {
             $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
             $parentModel = new $parentModelNameSpace();
             $blockColumns = $parentModel->getBlockColumns();
-            
+
             // the parent model may return null, let's catch and change to an empty array
             // thus indicated that block columns have been "loaded" even if they are blank
             if ($blockColumns == null) {
@@ -306,7 +316,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($clear) {
             $this->blockColumns = [];
         }
-        
+
         foreach ($columnList as $column) {
             $this->blockColumns[] = $column;
         }
@@ -326,11 +336,12 @@ class BaseModel extends \Phalcon\Mvc\Model
         // return block columns
         return $this->blockColumns;
     }
-    
+
     /**
      * get the private notifyColumns property
      */
-    public function getNotifyColumns(){
+    public function getNotifyColumns()
+    {
         return null;
     }
 
@@ -340,8 +351,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * - works when side loading!
      * - will exclude any fields listed in $this->blockFields
      *
-     * @param
-     *            should the resulting array have a nameSpace prefix?
+     * @param boolean $nameSpace should the resulting array have a nameSpace prefix?
      * @return array
      */
     public function getAllowedColumns($nameSpace = true)
@@ -351,18 +361,18 @@ class BaseModel extends \Phalcon\Mvc\Model
             if ($this->blockColumns == null) {
                 $this->loadBlockColumns();
             }
-            
+
             // prefix namespace if requested
             if ($nameSpace) {
                 $modelNameSpace = $this->getModelNameSpace() . '.';
             } else {
                 $modelNameSpace = null;
             }
-            
+
             $allowColumns = array();
-            
+
             $colMap = $this->getAllColumns();
-            
+
             foreach ($colMap as $key => $value) {
                 if (array_search($value, $this->blockColumns) === false) {
                     $allowColumns[] = $modelNameSpace . $value;
@@ -370,7 +380,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
             $this->allowColumns = $allowColumns;
         }
-        
+
         return $this->allowColumns;
     }
 
@@ -387,5 +397,50 @@ class BaseModel extends \Phalcon\Mvc\Model
             $colMap = $metaData->getAttributes($this);
         }
         return $colMap;
+    }
+
+    /**
+     * ask this entity for all parents from the model and up the chain
+     * lazy load and cache
+     *
+     * @param bool $nameSpace
+     * should the parent names be formatted as a full namespace?
+     *
+     * @return array $parents
+     */
+    public function getParentModels($nameSpace = false)
+    {
+        // first load parentModels
+        if (!isset($parentModels)) {
+            $config = $this->getDI()->get('config');
+            $modelNameSpace = $config['namespaces']['models'];
+            $path = $modelNameSpace . $this->getModelName();
+            $parents = array();
+
+            $currentParent = $path::$parentModel;
+
+            while ($currentParent) :
+                $parents[] = $currentParent;
+                $path = $modelNameSpace . $currentParent;
+                $currentParent = $path::$parentModel;
+            endwhile;
+            $this->parentModels = $parents;
+        }
+
+        if (count($this->parentModels) == 0) {
+            return false;
+        }
+
+        // reset name space if it was not asked for
+        if (!$nameSpace) {
+            $modelNameSpace = null;
+        }
+
+        $parents = array();
+        foreach ($this->parentModels as $parent) {
+            $parents[] = $modelNameSpace . $parent;
+        }
+
+        return $parents;
     }
 }
