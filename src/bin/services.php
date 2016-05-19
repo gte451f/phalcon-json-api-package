@@ -13,7 +13,7 @@ use Phalcon\Crypt;
 use Phalcon\Security;
 
 $T = new \PHPBenchTime\Timer();
-$T->start();
+$T->start('Booting App');
 
 /**
  * The DI is our direct injector.
@@ -34,7 +34,6 @@ $di->setShared('request', function () {
 
 // stopwatch service to track
 $di->setShared('stopwatch', function () use ($T) {
-    // start the stopwatch
     return $T;
 });
 
@@ -43,7 +42,7 @@ $di->setShared('stopwatch', function () use ($T) {
  * routes/collections.
  * These will be mounted into the app itself later.
  */
-$di->set('collections', function () use ($config) {
+$di->set('collections', function () use ($T) {
     $collections = include('../app/routes/routeLoader.php');
     return $collections;
 });

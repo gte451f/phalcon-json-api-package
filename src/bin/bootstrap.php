@@ -25,9 +25,11 @@ $app->before(function () use($app, $di) {
 /**
  * Mount all of the collections, which makes the routes active.
  */
+$T->lap('Loading Routes');
 foreach ($di->get('collections') as $collection) {
     $app->mount($collection);
 }
+$T->lap('Processing Request');
 
 /**
  * The base route return the list of defined routes for the application.
@@ -58,7 +60,7 @@ $app->get('/', function () use($app) {
  * the application runs the following function which actually sends the response to the client.
  *
  * The default behavior is to send the Controller's returned value to the client as JSON.
- * However, by parsing the request querystring's 'type' paramter, it is easy to install
+ * However, by parsing the request query string's 'type' parameter, it is easy to install
  * different response type handlers.
  */
 $app->after(function () use($app) {
@@ -100,6 +102,6 @@ $app->notFound(function () use($app) {
     throw new \PhalconRest\Util\HTTPException('Not Found.', 404, array(
         'dev' => 'That route was not found on the server.',
         'code' => '4',
-        'more' => 'Check route for mispellings.'
+        'more' => 'Check route for misspellings.'
     ));
 });
