@@ -1,5 +1,9 @@
 <?php
 
+// read in config values from API and currently defined environment
+require_once API_PATH . 'bin/config.php';
+
+
 /*
  * Interact with Phalcon auto loader, also load composer related vendor/* files
  * This is the best way I've found to use Phalcon's autoload while seamlessly incorporating Composer libs

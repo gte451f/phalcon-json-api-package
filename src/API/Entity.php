@@ -137,6 +137,10 @@ class Entity extends \Phalcon\DI\Injectable
         $this->restResponse[$this->model->getTableName()] = array();
 
         $foundSet = 0;
+        if ($this->di->get('config')['application']['debugApp'] == true) {
+            $timer = $this->di->get('stopwatch');
+            $timer->lap('Gather Records');
+        }
         foreach ($baseRecords as $baseResult) {
             // normalize results, pull out join fields
             $baseResult = $this->extractMainRow($baseResult);
@@ -153,9 +157,10 @@ class Entity extends \Phalcon\DI\Injectable
             $this->restResponse[$this->model->getTableName()][] = $this->baseRecord;
             $foundSet++;
         }
-
+        if ($this->di->get('config')['application']['debugApp'] == true) {
+            $timer->lap('Formatting Output');
+        }
         // TODO single DB query for records related to main query
-
         $this->appendMeta($foundSet);
         return $this->restResponse;
     }
@@ -217,6 +222,10 @@ class Entity extends \Phalcon\DI\Injectable
         }
 
         $foundSet = 0;
+        if ($this->di->get('config')['application']['debugApp'] == true) {
+            $timer = $this->di->get('stopwatch');
+            $timer->lap('Gathering Records');
+        }
         foreach ($baseRecords as $baseResult) {
             // normalize results, pull out join fields
             $baseResult = $this->extractMainRow($baseResult);
@@ -232,6 +241,10 @@ class Entity extends \Phalcon\DI\Injectable
 
             $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
             $foundSet++;
+        }
+
+        if ($this->di->get('config')['application']['debugApp'] == true) {
+            $timer->lap('Formatting Output');
         }
 
         // no records found on a findFirst?
@@ -267,6 +280,7 @@ class Entity extends \Phalcon\DI\Injectable
             if ($config['application']['debugApp']) {
                 $registry = $this->getDI()->get('registry');
                 $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
+                $this->restResponse['meta']['database_query_timer'] = $registry->dbTimer . ' ms';
             }
         }
     }
@@ -359,7 +373,8 @@ class Entity extends \Phalcon\DI\Injectable
     public function processRelationships($baseRecord)
     {
         // load primaryKeyValue
-        $this->primaryKeyValue = $this->baseRecord[$this->model->getPrimaryKeyName()];
+        $primaryKeyName = $this->model->getPrimaryKeyName();
+        $this->primaryKeyValue = $this->baseRecord[$primaryKeyName];
 
         // process all loaded relationships by fetching related data
         foreach ($this->activeRelations as $relation) {
