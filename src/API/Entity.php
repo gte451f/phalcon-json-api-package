@@ -179,9 +179,6 @@ class Entity extends \Phalcon\DI\Injectable
             $this->restResponse[$this->model->getTableName()][] = $this->baseRecord;
             $foundSet++;
         }
-
-        $this->processDelayedRelationships();
-
         if (isset($timer)) {
             $timer->lap('Formatting Output');
         }
@@ -288,12 +285,9 @@ class Entity extends \Phalcon\DI\Injectable
             $foundSet++;
         }
 
-        $this->processDelayedRelationships();
-
         if (isset($timer)) {
             $timer->lap('Formatting Output');
         }
-
         // no records found on a findFirst?
         // json api calls for a 404
         if ($foundSet == 0) {

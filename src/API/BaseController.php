@@ -77,7 +77,7 @@ class BaseController extends Injectable
             if (! $modelNameString) {
                 $modelNameString = $this->getControllerName();
             }
-            
+
             $modelName = $config['namespaces']['models'] . $modelNameString;
             $this->model = new $modelName($this->di);
         }
