@@ -11,24 +11,45 @@ require_once API_PATH . 'bin/base.php';
 // your main application config file
 $config = [
     'application' => [
+        // the path to the main directory holding the application
         'appDir' => APPLICATION_PATH,
+        // path values to commonly expected api files
         "controllersDir" => APPLICATION_PATH . 'controllers/',
         "modelsDir" => APPLICATION_PATH . 'models/',
         "entitiesDir" => APPLICATION_PATH . 'entities/',
         "responsesDir" => APPLICATION_PATH . 'responses/',
-        "exceptionsDir" => APPLICATION_PATH . 'exceptions/',
         "librariesDir" => APPLICATION_PATH . 'libraries/',
+
+        // is this used?
+        "exceptionsDir" => APPLICATION_PATH . 'exceptions/',
+
         // base string after FQDN.../api/v1 or some such
+        // set to simple default and expect app to override
         'baseUri' => '/',
         'basePath' => '/',
         // should the api return additional meta data and enable additional server logging?
-        'debugApp' => false,
+        'debugApp' => true,
+        // where to store cache related files?
+        'cacheDir' => '/tmp/',
+        // where should system temp files go?
+        'tempDir' => '/tmp/',
+        // where should app generated logs be stored?
+        'loggingDir' => '/tmp/',
+
     ],
     'namespaces' => [
         'models' => "PhalconRest\\Models\\",
         'controllers' => "PhalconRest\\Controllers\\",
         'libraries' => "PhalconRest\\Libraries\\",
         'entities' => "PhalconRest\\Entities\\"
+    ],
+    // is security enabled for this app?
+    'security' => true,
+    // a series of experimental features
+    'feature_flags' => [
+        // run this in the main query instead of pulling as individual queries
+        'fastBelongsTo' => false,
+        'fastHasMany' => false
     ]
 ];
 

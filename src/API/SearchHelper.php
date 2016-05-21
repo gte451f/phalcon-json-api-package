@@ -32,7 +32,7 @@ class SearchHelper
      * side load no relationships
      */
     public $suppliedWith = 'default';
-    
+
     // field1,-field2
     public $suppliedSort = null;
 
@@ -71,11 +71,15 @@ class SearchHelper
      * @var string
      */
     public $entityWith = 'none';
-    
+
     // a default sort order that could be over ridden by a client submitted value
     // ie. field1,-field2
     public $entitySort = null;
-    
+
+    // entity supplied search fields that are always applied
+    public $entitySearchFields = [];
+
+
     // a list of fields that are reserved in order to process other search related searches
     // this only applies to GET requests
     private $reservedWords = array(
@@ -96,9 +100,9 @@ class SearchHelper
         'token'
     );
     // TOKEN reserved as a common term used for authentication
-    
+
     // added since it seems to be included with some installs
-    
+
     /**
      * If query string contains 'q' parameter.
      * This indicates the request is searching an entity
@@ -159,7 +163,7 @@ class SearchHelper
     {
         $di = \Phalcon\DI::getDefault();
         $this->di = $di;
-        
+
         // close enough, let's parse the inputs since we assume searchHelper is always called within the context of a query
         $this->parseRequest();
     }
@@ -172,9 +176,9 @@ class SearchHelper
      */
     public function getLimit()
     {
-        if (! is_null($this->suppliedLimit)) {
+        if (!is_null($this->suppliedLimit)) {
             return $this->suppliedLimit;
-        } elseif (! is_null($this->entityLimit)) {
+        } elseif (!is_null($this->entityLimit)) {
             return $this->entityLimit;
         }
         return false;
@@ -188,9 +192,9 @@ class SearchHelper
      */
     public function getOffset()
     {
-        if (! is_null($this->suppliedOffset)) {
+        if (!is_null($this->suppliedOffset)) {
             return $this->suppliedOffset;
-        } elseif (! is_null($this->entityOffset)) {
+        } elseif (!is_null($this->entityOffset)) {
             return $this->entityOffset;
         }
         return false;
@@ -206,21 +210,21 @@ class SearchHelper
      */
     public function getSort($format = 'native')
     {
-        if (! is_null($this->suppliedSort)) {
+        if (!is_null($this->suppliedSort)) {
             $nativeSort = $this->suppliedSort;
-        } elseif (! is_null($this->entitySort)) {
+        } elseif (!is_null($this->entitySort)) {
             $nativeSort = $this->entitySort;
         } else {
             // no explicit sort supplied, return false
             return false;
         }
-        
+
         // convert to sql dialect if asked
         if ($format == 'sql') {
             // first_name,-last_name
             $sortFields = explode(',', $nativeSort);
             $parsedSorts = array(); // the final Phalcon friendly sort array
-            
+
             foreach ($sortFields as $order) {
                 if (substr($order, 0, 1) == '-') {
                     $subOrder = substr($order, 1);
@@ -231,7 +235,7 @@ class SearchHelper
             }
             $nativeSort = implode(',', $parsedSorts);
         }
-        
+
         return $nativeSort;
     }
 
@@ -251,22 +255,22 @@ class SearchHelper
         if ($this->entityWith == 'block') {
             return 'none';
         }
-        
+
         // put entity in charge if client defers
         if ($this->suppliedWith == 'default') {
             return $this->entityWith;
         }
-        
+
         // put client in charge if entity defers
         if ($this->entityWith == 'none') {
             return $this->suppliedWith;
         }
-        
+
         // check for all
         if ($this->entityWith == 'all' or $this->suppliedWith == 'all') {
             return 'all';
         }
-        
+
         // return merged result if nothing else was detected
         return $this->entityWith . ',' . $this->suppliedWith;
     }
@@ -279,18 +283,18 @@ class SearchHelper
     public function getSearchFields()
     {
         $searchFields = array();
-        
+
         // return false if nothing is specified
-        if (! isset($this->entitySearchFields) and ! isset($this->suppliedSearchFields)) {
+        if (!isset($this->entitySearchFields) and !isset($this->suppliedSearchFields)) {
             return false;
         }
-        
+
         // list supplied first so it will get overwritten by entity
         $sources = array(
             'suppliedSearchFields',
             'entitySearchFields'
         );
-        
+
         foreach ($sources as $source) {
             if (isset($this->$source)) {
                 foreach ($this->$source as $key => $value) {
@@ -298,7 +302,7 @@ class SearchHelper
                 }
             }
         }
-        
+
         return $searchFields;
     }
 
@@ -312,18 +316,18 @@ class SearchHelper
     {
         // pull various supported inputs from post
         $request = $this->di->get('request');
-        
+
         // only process if it is a get
         if ($request->isGet() == false) {
             return;
         }
-        
+
         // simple stuff first
         $with = $request->get('with', "string", null);
-        if (! is_null($with)) {
+        if (!is_null($with)) {
             $this->suppliedWith = $with;
         }
-        
+
         // load possible sort values in the following order
         // be sure to mark this as a paginated result set
         if ($request->get('sort', "string", null) != NULL) {
@@ -336,10 +340,10 @@ class SearchHelper
             $this->suppliedSort = $request->get('sortField', "string", null);
             $this->isPager = true;
         }
-        
+
         // prep for the harder stuff
         // ?page=1&perPage=25&orderAscending=false
-        
+
         // load possible limit values in the following order
         // be sure to mark this as a paginated result set
         if ($request->get('limit', "string", null) != NULL) {
@@ -352,14 +356,14 @@ class SearchHelper
             $this->suppliedLimit = $request->get('perPage', "string", null);
             $this->isPager = true;
         }
-        
+
         // look for string that means to show all records
         if ($this->isPager) {
             if ($this->suppliedLimit == 'all') {
                 $this->suppliedLimit = 9999999999;
             }
         }
-        
+
         // load offset values in the following order
         // Notice that a page is treated differently than offset
         // $this->offset = ($offset != null) ? $offset : $this->offset;
@@ -375,14 +379,9 @@ class SearchHelper
         if ($request->has('count')) {
             $this->isCount = true;
         }
-        
+
         // http://jsonapi.org/format/#fetching
         $this->parseSearchParameters($request);
-        
-        // If there's a 'fields' parameter
-        if ($request->get('fields', null, null)) {
-            $this->parsePartialFields($request->get('fields', null, null));
-        }
     }
 
     /**
@@ -393,7 +392,7 @@ class SearchHelper
     public function buildSearchParameters()
     {
         $search_parameters = array();
-        
+
         if ($this->isSearch) {
             // format for a search
             $approved_search = array();
@@ -411,27 +410,23 @@ class SearchHelper
                 implode(' and ', $approved_search)
             );
         }
-        
+
         $limit = $this->getLimit();
         if ($limit) {
             $search_parameters['limit'] = $limit;
         }
-        
+
         $offset = $this->getOffset();
         if ($offset) {
             $search_parameters['offset'] = $offset;
         }
-        
-        // if (is_array($this->partialFields))
-        // $search_parameters['columns'] = $this->partialFields;
-        // // $search_parameters['columns'] = implode(',', $this->partialFields);
-        
+
         $sort = $this->getSort('sql');
         if ($sort) {
             // first_name,-last_name
             $search_parameters['order'] = $sort;
         }
-        
+
         return $search_parameters;
     }
 
@@ -451,23 +446,23 @@ class SearchHelper
     protected function parseSearchParameters($request)
     {
         $allFields = $request->get();
-        
+
         $this->isSearch = true;
-        
+
         $mapped = array();
-        
+
         // Split the strings at their colon, set left to key, and right to value.
         foreach ($allFields as $key => $value) {
-            
+
             if (in_array($key, $this->reservedWords)) {
                 // ignore, it is reserved
             } else {
                 $sanitizedValue = $request->get($key, 'string');
-                
+
                 // make exception for single quote
                 // support filtering values like o'brien
                 $sanitizedValue = str_ireplace("&#39;", "'", $sanitizedValue);
-                
+
                 // sanitize fails for < or <=, even html encoded version
                 // insert exception for < value
                 if (strlen($sanitizedValue) == 0 and substr($value, 0, 1) == '<') {
@@ -477,7 +472,7 @@ class SearchHelper
                 }
             }
         }
-        
+
         // save the parsed fields to the class
         $this->suppliedSearchFields = $mapped;
     }
