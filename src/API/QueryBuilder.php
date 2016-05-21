@@ -107,7 +107,6 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      *
      *
      * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
-     * @param string $nameSpace
      * @return \Phalcon\Mvc\Model\Query\BuilderInterface
      */
     public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
@@ -115,22 +114,19 @@ class QueryBuilder extends \Phalcon\DI\Injectable
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
 
-        $parentModels = $this->model->getParentModels(true);
-
         $columns = [];
         // join all active hasOne and belongTo instead of just the parent hasOne
         foreach ($this->entity->activeRelations as $relation) {
             // refer to alias or model path to prefix each relationship
-            // prefer alias over model path in case of colisions
+            // prefer alias over model path in case of collisions
             $alias = $relation->getAlias();
             $referencedModel = $relation->getReferencedModel();
             if (!$alias) {
                 $alias = $referencedModel;
             }
 
-            // what to do about belongsTo? side load would be more performant and allow for better filtering options
-            // but can we do this with out breaking everything?
-            if ($relation->getType() == 0 or $relation->getType() == 1) {
+            // structure to always join in belongsTo just in case the query filters by a related field
+            if ($relation->getType() == 1 || $relation->getType() == 0) {
                 // create both sides of the join
                 $left = "[$alias]" . '.' . $relation->getReferencedFields();
                 $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
@@ -141,6 +137,16 @@ class QueryBuilder extends \Phalcon\DI\Injectable
             // add all parent AND hasOne joins to the column list
             if ($relation->getType() == 1) {
                 $columns[] = "[$alias].*";
+            }
+
+            // process feature flag for belongsTo
+            // attempt to join in side loaded belongsTo records
+            if ($config['feature_flags']['fastBelongsTo']) {
+
+                // add all parent AND hasOne joins to the column list
+                if ($relation->getType() == 0) {
+                    $columns[] = "[$alias].*";
+                }
             }
         }
         $query->columns($columns);
