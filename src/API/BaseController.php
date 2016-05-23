@@ -65,14 +65,14 @@ class BaseController extends \Phalcon\DI\Injectable
      * Load a default model unless one is already in place
      * return the currently loaded model
      *
-     * @return \PhalconRest\Models
+     * @return \PhalconRest\API\Models
      */
     public function getModel($modelNameString = false)
     {
         if ($this->model == false) {
             $config = $this->getDI()->get('config');
             // auto load model so we can inject it into the entity
-            if (! $modelNameString) {
+            if (!$modelNameString) {
                 $modelNameString = $this->getControllerName();
             }
 
@@ -86,7 +86,7 @@ class BaseController extends \Phalcon\DI\Injectable
      * Load a default entity unless one is already in place
      * return the currentlyloaded entity
      *
-     * @return \PhalconRest\Entities
+     * @return \PhalconRest\API\Entities
      */
     public function getEntity()
     {
@@ -139,8 +139,7 @@ class BaseController extends \Phalcon\DI\Injectable
      */
     public function get()
     {
-        $search_result = $this->entity->find();
-        return $this->respond($search_result);
+        return $this->entity->find();
     }
 
     /**
@@ -148,11 +147,11 @@ class BaseController extends \Phalcon\DI\Injectable
      * bypass nearly all normal search params and just search by the primary key
      *
      * @param int $id
+     * @throws HTTPException
      */
     public function getOne($id)
     {
         $search_result = $this->entity->findFirst($id);
-
         if ($search_result == false) {
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException("Resource not available.", 404, array(
@@ -160,7 +159,7 @@ class BaseController extends \Phalcon\DI\Injectable
                 'code' => '43758093745021'
             ));
         } else {
-            return $this->respond($search_result);
+            return $search_result;
         }
     }
 
@@ -232,7 +231,7 @@ class BaseController extends \Phalcon\DI\Injectable
             unset($put->$value);
         }
 
-        if (! $put) {
+        if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
                 'dev' => "Invalid data posted to the server",
                 'code' => '568136818916816'
@@ -375,7 +374,7 @@ class BaseController extends \Phalcon\DI\Injectable
      */
     protected function respond($recordsResult)
     {
-        if (! is_array($recordsResult)) {
+        if (!is_array($recordsResult)) {
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException("An error occurred while retrieving records.", 500, array(
                 'dev' => 'The records returned were malformed.',

@@ -3,7 +3,6 @@
 use Phalcon\DI\FactoryDefault as DefaultDI;
 use Phalcon\Loader;
 
-
 // PhalconRest libraries
 use PhalconRest\API\Request as Request;
 use PhalconRest\API\Inflector;
@@ -111,6 +110,12 @@ $di->set('queryBuilder', [
 $di->setShared('inflector', function () {
     return new Inflector();
 });
+
+//
+$di->setShared('result', function () {
+    return new \PhalconRest\Result\Result();
+});
+
 
 /**
  * If our request contains a body, it has to be valid JSON.
