@@ -54,12 +54,13 @@ class Output extends \Phalcon\DI\Injectable
      * @param array $records
      * @param string $error
      */
-    public function send($records)
+    public function send($result)
     {
+
         // Most devs prefer camelCase to snake_Case in JSON, but this can be overridden here
-        if ($this->snake) {
-            $records = $this->arrayKeysToSnake($records);
-        }
+//        if ($this->snake) {
+//            $records = $this->arrayKeysToSnake($records);
+//        }
 
         // stop timer and add to meta
         if ($this->di->get('config')['application']['debugApp'] == true) {
@@ -73,11 +74,10 @@ class Output extends \Phalcon\DI\Injectable
             foreach ($timer->laps as $lap) {
                 $summary['laps'][$lap['name']] = round(($lap['end'] - $lap['start']) * 1000, 2) . ' ms';
             }
-            $records['meta']['stopwatch'] = $summary;
+            $result->addMeta('stopwatch', $summary);
         }
 
-
-        $this->_send($records);
+        $this->_send($result->outputJSON());
         return $this;
     }
 

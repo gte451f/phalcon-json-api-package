@@ -74,7 +74,7 @@ class BaseController extends Injectable
         if ($this->model == false) {
             $config = $this->getDI()->get('config');
             // auto load model so we can inject it into the entity
-            if (! $modelNameString) {
+            if (!$modelNameString) {
                 $modelNameString = $this->getControllerName();
             }
 
@@ -140,8 +140,7 @@ class BaseController extends Injectable
      */
     public function get()
     {
-        $search_result = $this->entity->find();
-        return $this->respond($search_result);
+        return $this->entity->find();
     }
 
     /**
@@ -155,7 +154,6 @@ class BaseController extends Injectable
     public function getOne($id)
     {
         $search_result = $this->entity->findFirst($id);
-
         if ($search_result == false) {
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException('Resource not available.', 404, array(
@@ -163,7 +161,7 @@ class BaseController extends Injectable
                 'code' => '43758093745021'
             ));
         } else {
-            return $this->respond($search_result);
+            return $search_result;
         }
     }
 
@@ -237,7 +235,7 @@ class BaseController extends Injectable
             unset($put->$value);
         }
 
-        if (! $put) {
+        if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
                 'dev' => "Invalid data posted to the server",
                 'code' => '568136818916816'
@@ -374,8 +372,8 @@ class BaseController extends Injectable
     protected function respond($recordsResult)
     {
         if (!is_array($recordsResult)) {
-            // This is bad. Throw a 500. Responses should always be arrays of data
-            throw new HTTPException("An error occurred while retrieving records.", 500, [
+            // This is bad. Throw a 500. Responses should always be objects.
+            throw new HTTPException("An error occurred while retrieving records.", 500, array(
                 'dev' => 'The records returned were malformed.',
                 'code' => '861681684364'
             ]);
