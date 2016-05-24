@@ -146,8 +146,9 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * for a given search query, perform find + load related records for each!
-     * @param mixed $suppliedParameters
-     * @return array
+     *
+     * @param null $suppliedParameters
+     * @return bool|mixed|\PhalconRest\Result\Result
      */
     public function find($suppliedParameters = null)
     {
@@ -168,16 +169,19 @@ class Entity extends \Phalcon\DI\Injectable
             // normalize results, pull out join fields and store in a class lvl variable
             $this->extractMainRow($baseResult);
 
-            // hook for manipulating the base record before processing relationships
-            $baseResult = $this->beforeProcessRelationships($baseResult);
+            // process relations if there are any
+            if (count($this->activeRelations) > 0) {
+                // hook for manipulating the base record before processing relationships
+                $baseResult = $this->beforeProcessRelationships($baseResult);
 
-            // store related records in restResponse or load for optimized DB queries
-            $this->processRelationships($baseResult);
+                // store related records in restResponse or load for optimized DB queries
+                $this->processRelationships($baseResult);
 
-            // hook for manipulating the base record after processing relationships
-            $this->afterProcessRelationships($baseResult);
-
-            $data = $this->result->addData($this->baseRecord);
+                // hook for manipulating the base record after processing relationships
+                $this->afterProcessRelationships($baseResult);
+            }
+            // finally add the data object to result, last chance to manipulate this object
+            $this->result->addData($this->baseRecord);
             $foundSet++;
         }
         if (isset($timer)) {
@@ -193,22 +197,13 @@ class Entity extends \Phalcon\DI\Injectable
      */
     public function processDelayedRelationships()
     {
-        $config = $this->getDI()->get('config');
-        if (isset($config['feature_flags']) && !$config['feature_flags']['fastHasMany']) {
-            // feature flag is disabled, nothing to do
-            return;
-        }
-
         foreach ($this->activeRelations as $relation) {
             $refType = $relation->getType();
             if ($refType == 2) {
                 // finally process a combined call for child records
-                $relatedRecords = $this->getHasManyRecords($relation);
-                $this->updateBaseRecords($relatedRecords, $relation);
-                $this->updateRestResponse($relation->getTableName(), $relatedRecords);
+                $this->getHasManyRecords($relation);
             }
         }
-
     }
 
     /**
@@ -452,7 +447,8 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * Standard method for processing relationships
      * build an intermediate list of related records
-     * then normalize them for inclusion in the final response
+     * 1) add them to the current data records
+     * 2) normalize them for inclusion in the final response
      *
      * @param Relation $relation
      * @param array $baseRecord
@@ -464,19 +460,10 @@ class Entity extends \Phalcon\DI\Injectable
         // store parentModels for later use
         $parentModels = $this->model->getParentModels(true);
 
-        // the intermediate set of related records
-        $relatedRecords = [];
-
-        // store a copy of all related record (PKIDs)
-        // this must be attached w/ the parent records for joining purposes
-        $relatedRecordIds = null;
-
         if ($parentModels and in_array($relation->getReferencedModel(), $parentModels)) {
             // skip any parent relationships because they are merged into the main record
         } else {
-            $refType = $relation->getType();
             $alias = $relation->getAlias();
-
             // figure out if we have a preferred alias
             if (isset($alias)) {
                 $refModelName = $alias;
@@ -484,37 +471,26 @@ class Entity extends \Phalcon\DI\Injectable
                 $refModelName = $relation->getModelName();
             }
 
-            $config = $this->getDI()->get('config');
             // harmonize relatedRecords
-            if ($refType == 0) {
-                // extract belongsTo record differently if it's already present in the original query
-                if (!$config['feature_flags']['fastBelongsTo']) {
-                    $relatedRecords = $this->getBelongsToRecord($relation);
-                } else {
+            switch ($relation->getType()) {
+                case 0:
                     //pluck the related record out of base record since we know its in there
-                    $relatedRecords = $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
-                }
-            } elseif ($refType == 1) {
-                // ignore hasOne since they are processed like a parent relation
-                // this means current logic will not merge in a parent's record for a hasOne relationship
-                // it's an edge case but should be supported in the future
-            } elseif ($refType == 4) {
-                $relatedRecords = $this->getHasManyToManyRecords($relation);
-            } else {
-                if (!$config['feature_flags']['fastHasMany']) {
-                    $relatedRecords = $this->getHasManyRecords($relation);
-                } else {
+                    $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
+                    break;
+                case 1:
+                    // ignore hasOne since they are processed like a parent relation
+                    // this means current logic will not merge in a parent's record for a hasOne relationship
+                    // it's an edge case but should be supported in the future
+                    break;
+                case 4:
+                    $this->getHasManyToManyRecords($relation);
+                    break;
+                default:
                     // register a future record request to be processed later
                     $this->registerHasManyRequest($relation);
-                }
+                    break;
             }
-
-            if (isset($relatedRecords) && $relatedRecords) {
-                return $this->normalizeRelatedRecords($baseRecord, $relatedRecords, $relation);
-            }
-
             return true;
-
         }
     }
 
@@ -648,13 +624,6 @@ class Entity extends \Phalcon\DI\Injectable
         foreach ($records as $record) {
             $this->result->addIncluded(new Data($record['id'], $table, $record));
         }
-//        if (!isset($this->restResponse[$table])) {
-//            $this->restResponse[$table] = $records;
-//        } else {
-//            $a = $this->restResponse[$table];
-//            $b = array_merge($a, $records);
-//            $this->restResponse[$table] = $b;
-//        }
     }
 
     /**
@@ -692,26 +661,12 @@ class Entity extends \Phalcon\DI\Injectable
     {
         $query = $this->buildRelationQuery($relation);
 
-        $config = $this->getDI()->get('config');
-        if (!$config['feature_flags']['fastHasMany']) {
-            // feature flag is disabled, only looking for one parent record
-            // determine the key to search against
-            $field = $relation->getFields();
-            if (isset($this->baseRecord[$field])) {
-                $fieldValue = $this->baseRecord[$field];
-            } else {
-                // fall back to using the primaryKeyValue
-                $fieldValue = $this->primaryKeyValue;
-            }
-            $query->where("{$relation->getReferencedFields()} = \"$fieldValue\"");
-        } else {
-            // feature flag is enable, pulling from register instead
-            $foreign_keys = array_unique($this->hasManyRegistry[$relation->getReferencedModel()]);
-            $query->inWhere($relation->getReferencedFields(), $foreign_keys);
-        }
+        // feature flag is enable, pulling from register instead
+        $foreign_keys = array_unique($this->hasManyRegistry[$relation->getReferencedModel()]);
+        $query->inWhere($relation->getReferencedFields(), $foreign_keys);
 
         $result = $query->getQuery()->execute();
-        return $this->loadRelationRecords($result, $relation);
+        return $this->loadRelationRecords($result, $relation, false);
     }
 
     /**
@@ -722,8 +677,8 @@ class Entity extends \Phalcon\DI\Injectable
     {
         // determine the key to search against
         $field = $relation->getFields();
-        if (isset($this->baseRecord[$field])) {
-            $fieldValue = $this->baseRecord[$field];
+        if (isset($this->baseRecord->attributes[$field])) {
+            $fieldValue = $this->baseRecord->attributes[$field];
         } else {
             // fall back to using the primaryKeyValue
             $fieldValue = $this->primaryKeyValue;
@@ -780,7 +735,8 @@ class Entity extends \Phalcon\DI\Injectable
      * @param Relation $relation
      * @return array
      */
-    protected function getHasManyToManyRecords($relation)
+    protected
+    function getHasManyToManyRecords($relation)
     {
         $refModelNameSpace = $relation->getReferencedModel();
         $intermediateModelNameSpace = $relation->getIntermediateModel();
@@ -853,22 +809,20 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
-     * will process a related record result set and return
-     * one or more individual record arrays in a larger array
+     * will process a related record result set update the result and current baseRecord objects
      *
-     * @param array $result
+     * @param array $relatedRecords
      * @param Relation $relation
-     * @return array
+     * @param boolean $before is this being run before or after all baseRecords were loaded?
      */
-    protected function loadRelationRecords($result, Relation $relation)
+    protected
+    function loadRelationRecords($relatedRecords, \PhalconRest\API\Relation $relation, $before = true)
     {
-        $relatedRecords = array(); // store all related records
-        foreach ($result as $relatedRecord) {
+        foreach ($relatedRecords as $relatedRecord) {
             // reset for each run
             $relatedRecArray = array();
             // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
-
             if ($parent or get_class($relatedRecord) == 'Phalcon\Mvc\Model\Row') {
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
@@ -885,9 +839,16 @@ class Entity extends \Phalcon\DI\Injectable
             } else {
                 $relatedRecArray = $this->loadAllowedColumns($relatedRecord);
             }
-            $relatedRecords[] = $relatedRecArray;
+
+            if ($before) {
+                $this->baseRecord->addRelationship($relation->getTableName('plural'), $relatedRecArray['id']);
+            } else {
+                // load relationship after baseRecords have been processed
+                $this->result->addRelationship($relation->getTableName('plural'), $relatedRecArray[$relation->getReferencedFields()], $relatedRecArray['id']);
+            }
+
+            $this->result->addIncluded(new Data($relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray));
         }
-        return $relatedRecords;
     }
 
     /**

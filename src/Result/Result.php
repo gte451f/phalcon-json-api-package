@@ -75,4 +75,22 @@ class Result extends \Phalcon\DI\Injectable
         return $result;
     }
 
+    /**
+     * for a supplied primary id and relate id, create a relationship
+     * @param $id
+     * @param $tableName
+     * @param $related_id
+     * @return boolean
+     */
+    public function addRelationship($tableName, $id, $related_id)
+    {
+        foreach ($this->data as $key => $data) {
+            if ($data->getId() == $id) {
+                $this->data[$key]->addRelationship($tableName, $related_id);
+            }
+            return true;
+        }
+        return false;
+    }
+
 }
