@@ -72,7 +72,7 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         if (!$type) {
             $type = $tableName;
         }
-        $this->relationships[$tableName] = ['id' => $id, 'type' => $type];
+        $this->relationships[$tableName][] = ['id' => $id, 'type' => $type];
     }
 
     /*
