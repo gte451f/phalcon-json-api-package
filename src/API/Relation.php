@@ -7,9 +7,15 @@ namespace PhalconRest\API;
  *
  * since we need to process "parent" and hasOne relationships, sniff for those as well
  *
+ * Relationship Type Numbers
+ * BELONGS_TO = 0;
+ * HAS_ONE = 1;
+ * HAS_MANY = 2;
+ * HAS_ONE_THROUGH = 3;
+ * HAS_MANY_THROUGH = 4;
  *
  * @author jjenkins
- *        
+ *
  */
 class Relation
 {
@@ -95,8 +101,8 @@ class Relation
     /**
      * inject dependencies
      *
-     * @param \Phalcon\Mvc\Model\Relation $relation            
-     * @param \Phalcon\Mvc\Model\Manager $modelManager            
+     * @param \Phalcon\Mvc\Model\Relation $relation
+     * @param \Phalcon\Mvc\Model\Manager $modelManager
      */
     function __construct(\Phalcon\Mvc\Model\Relation $relation, \Phalcon\Mvc\Model\Manager $modelManager)
     {
@@ -107,8 +113,8 @@ class Relation
     /**
      * pass unknown functions down to $relation
      *
-     * @param mixed $name            
-     * @param mixed $arguments            
+     * @param mixed $name
+     * @param mixed $arguments
      */
     function __call($name, $arguments)
     {
@@ -172,7 +178,7 @@ class Relation
                 $this->alias = NULL;
             }
         }
-        
+
         return $this->alias;
     }
 
@@ -203,7 +209,7 @@ class Relation
                 $list[] = $relation->getReferencedModel();
             }
         }
-        
+
         return $list;
     }
 

@@ -54,25 +54,39 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      */
     public function JsonSerialize()
     {
+        // if formatting is requested, well then format baby!
+        $config = $this->di->get('config');
+        if ($config['application']['propertyFormatTo'] == 'none') {
+            $attributes = $this->attributes;
+        } else {
+            $inflector = $this->di->get('inflector');
+            $attributes = [];
+            foreach ($this->attributes as $key => $value) {
+                $attributes[$inflector->normalize($key,
+                    $config['application']['propertyFormatFrom'],
+                    $config['application']['propertyFormatTo'])] = $value;
+            }
+        }
+
         return [
             'id' => $this->id,
             'type' => $this->type,
-            'attributes' => $this->attributes,
+            'attributes' => $attributes,
             'relationships' => $this->relationships
         ];
     }
 
     /**
-     * @param $tableName string the plural table name
+     * @param $relationship string the singular/plural to match the defined relationship
      * @param $id integer the value this data relates to
-     * @param bool $type mixed the singular value of the table name
+     * @param bool $type mixed seems to always be the plural version
      */
-    public function addRelationship($tableName, $id, $type = false)
+    public function addRelationship($relationship, $id, $type = false)
     {
         if (!$type) {
-            $type = $tableName;
+            $type = $relationship;
         }
-        $this->relationships[$tableName][] = ['id' => $id, 'type' => $type];
+        $this->relationships[$relationship][] = ['id' => $id, 'type' => $type];
     }
 
     /*

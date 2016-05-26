@@ -15,7 +15,7 @@ $app->setDI($di);
  * Returning true in this function resumes normal routing.
  * Returning false stops any route from executing.
  */
-$app->before(function () use($app, $di) {
+$app->before(function () use ($app, $di) {
     // set standard CORS headers before routing just in case no valid route is found
     $config = $di->get('config');
     $app->response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
@@ -36,7 +36,7 @@ $T->lap('Processing Request');
  * This is not strictly REST compliant, but it helps to base API documentation off of.
  * By calling this, you can quickly see a list of all routes and their methods.
  */
-$app->get('/', function () use($app) {
+$app->get('/', function () use ($app) {
     $routes = $app->getRouter()
         ->getRoutes();
     $routeDefinitions = array(
@@ -63,7 +63,7 @@ $app->get('/', function () use($app) {
  * However, by parsing the request query string's 'type' parameter, it is easy to install
  * different response type handlers.
  */
-$app->after(function () use($app) {
+$app->after(function () use ($app) {
     $method = $app->request->getMethod();
     $output = new \PhalconRest\API\Output();
 
@@ -85,20 +85,15 @@ $app->after(function () use($app) {
             break;
     }
 
-    // Results returned from the route's controller. All Controllers should return an array
-    $records = $app->getReturnedValue();
-
-    // this is default behavior
-    $output->convertSnakeCase(false)
-        ->send($records);
-    return;
+    // Results returned from the route's controller passed to output class for delivery
+    $output->send($app->getReturnedValue());
 });
 
 /**
  * The notFound service is the default handler function that runs when no route was matched.
  * We set a 404 here unless there's a suppress error codes.
  */
-$app->notFound(function () use($app) {
+$app->notFound(function () use ($app) {
     throw new \PhalconRest\Util\HTTPException('Not Found.', 404, array(
         'dev' => 'That route was not found on the server.',
         'code' => '4',

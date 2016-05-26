@@ -1,14 +1,11 @@
 <?php
-// define security roles
-define("PORTAL_USER", "Portal - User");
-define("ADMIN_USER", "System - Administrator");
-
 /**
  * load low level helper here so it also works when used in conjunction with phalcon devtools
  */
 require_once API_PATH . 'bin/base.php';
 
 // your main application config file
+// you can override these values with an environmental specific file in app/config/FILE.php
 $config = [
     'application' => [
         // the path to the main directory holding the application
@@ -36,20 +33,33 @@ $config = [
         // where should app generated logs be stored?
         'loggingDir' => '/tmp/',
 
+        // how should property names be formatted?
+        // possible values are camel, snake, dash and none
+        // none means perform no processing on the final output
+        'propertyFormatTo' => 'snake',
+
+        // how are your existing database field name formatted?
+        // possible values are camel, snake, dash
+        // this value is ignored if property_format_to is set to none
+        'propertyFormatFrom' => 'dash'
+
     ],
+
+    // location to various code sources
     'namespaces' => [
         'models' => "PhalconRest\\Models\\",
         'controllers' => "PhalconRest\\Controllers\\",
         'libraries' => "PhalconRest\\Libraries\\",
         'entities' => "PhalconRest\\Entities\\"
     ],
+
     // is security enabled for this app?
     'security' => true,
+
     // a series of experimental features
+    // this section may be left blank
     'feature_flags' => [
-        // run this in the main query instead of pulling as individual queries
-        'fastBelongsTo' => false,
-        'fastHasMany' => false
+
     ]
 ];
 
@@ -63,6 +73,13 @@ if (file_exists($overridePath)) {
         'dev' => "Invalid Environmental Config!  Could not load the specific config file.  Your environment is: "
             . APPLICATION_ENV . " but not matching file was found in /app/config/",
         'code' => '23897293759275'
+    ));
+}
+
+if ($config['application']['propertyFormatTo'] == $config['application']['propertyFormatFrom']) {
+    throw new HTTPException('Invalid nomalization requested', 404, array(
+        'dev' => 'The API attempted to normalize from one format to the same format',
+        'code' => '9879486448949497977'
     ));
 }
 
