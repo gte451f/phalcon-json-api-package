@@ -815,8 +815,7 @@ class Entity extends \Phalcon\DI\Injectable
      * @param Relation $relation
      * @param boolean $before is this being run before or after all baseRecords were loaded?
      */
-    protected
-    function loadRelationRecords($relatedRecords, \PhalconRest\API\Relation $relation, $before = true)
+    protected function loadRelationRecords($relatedRecords, \PhalconRest\API\Relation $relation, $before = true)
     {
         foreach ($relatedRecords as $relatedRecord) {
             // reset for each run
@@ -840,11 +839,18 @@ class Entity extends \Phalcon\DI\Injectable
                 $relatedRecArray = $this->loadAllowedColumns($relatedRecord);
             }
 
+            if ($relation->getType() == 0) {
+                $relationshipName = $relation->getTableName('singular');
+            } else {
+                $relationshipName = $relation->getTableName('plural');
+            }
+
+
             if ($before) {
-                $this->baseRecord->addRelationship($relation->getTableName('plural'), $relatedRecArray['id']);
+                $this->baseRecord->addRelationship($relationshipName, $relatedRecArray['id'], $relation->getTableName('plural'));
             } else {
                 // load relationship after baseRecords have been processed
-                $this->result->addRelationship($relation->getTableName('plural'), $relatedRecArray[$relation->getReferencedFields()], $relatedRecArray['id']);
+                $this->result->addRelationship($relationshipName, $relatedRecArray[$relation->getReferencedFields()], $relatedRecArray['id'], $relation->getTableName('plural'));
             }
 
             $this->result->addIncluded(new Data($relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray));

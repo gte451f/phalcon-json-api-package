@@ -78,15 +78,16 @@ class Result extends \Phalcon\DI\Injectable
     /**
      * for a supplied primary id and relate id, create a relationship
      * @param $id
-     * @param $tableName
+     * @param $relationship
      * @param $related_id
+     * @type mixed $type just pass through to data
      * @return boolean
      */
-    public function addRelationship($tableName, $id, $related_id)
+    public function addRelationship($id, $relationship, $related_id, $type = false)
     {
         foreach ($this->data as $key => $data) {
             if ($data->getId() == $id) {
-                $this->data[$key]->addRelationship($tableName, $related_id);
+                $this->data[$key]->addRelationship($relationship, $related_id, $type);
             }
             return true;
         }

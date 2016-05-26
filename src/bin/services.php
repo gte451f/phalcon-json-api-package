@@ -7,7 +7,7 @@ use Phalcon\Loader;
 
 // PhalconRest libraries
 use PhalconRest\API\Request as Request;
-use PhalconRest\API\Inflector;
+use PhalconRest\Util\Inflector;
 
 // for password and credit card encryption
 use Phalcon\Crypt;

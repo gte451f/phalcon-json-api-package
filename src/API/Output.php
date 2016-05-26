@@ -28,12 +28,6 @@ class Output extends \Phalcon\DI\Injectable
      *
      * @var boolean
      */
-    protected $snake = true;
-
-    /**
-     *
-     * @var boolean
-     */
     protected $envelope = true;
 
     /**
@@ -50,18 +44,13 @@ class Output extends \Phalcon\DI\Injectable
 
     /**
      * format result set for output to web browser
+     * add any final meta data
      *
-     * @param array $records
-     * @param string $error
+     * @param $result
+     * @return $this
      */
     public function send($result)
     {
-
-        // Most devs prefer camelCase to snake_Case in JSON, but this can be overridden here
-//        if ($this->snake) {
-//            $records = $this->arrayKeysToSnake($records);
-//        }
-
         // stop timer and add to meta
         if ($this->di->get('config')['application']['debugApp'] == true) {
             $timer = $this->di->get('stopwatch');
@@ -78,7 +67,8 @@ class Output extends \Phalcon\DI\Injectable
         }
 
         $this->_send($result->outputJSON());
-        return $this;
+        // shouldn't we get out now?
+        exit();
     }
 
     /**
@@ -130,19 +120,6 @@ class Output extends \Phalcon\DI\Injectable
     }
 
     /**
-     * should we convert array keys to snake_case?
-     * otherwise array keys are left untouched
-     *
-     * @param bool $snake
-     * @return object $this
-     */
-    public function convertSnakeCase($snake)
-    {
-        $this->snake = (bool)$snake;
-        return $this; // for method chaining
-    }
-
-    /**
      * include an envelop as part of the response
      *
      * @param bool $envelope
@@ -152,40 +129,6 @@ class Output extends \Phalcon\DI\Injectable
     {
         $this->envelope = (bool)$envelope;
         return $this; // for method chaining
-    }
-
-    /**
-     * In-Place, recursive conversion of array keys in snake_Case to camelCase
-     *
-     * @param array $snakeArray
-     *            Array with snake_keys
-     * @return no return value, array is edited in place
-     */
-    protected function arrayKeysToSnake(array $snakeArray)
-    {
-        foreach ($snakeArray as $k => $v) {
-            if (is_array($v)) {
-                $v = $this->arrayKeysToSnake($v);
-            }
-            $snakeArray[$this->snakeToCamel($k)] = $v;
-            if ($this->snakeToCamel($k) != $k) {
-                unset($snakeArray[$k]);
-            }
-        }
-        return $snakeArray;
-    }
-
-    /**
-     * Replaces underscores with spaces, uppercases the first letters of each word,
-     * lowercases the very first letter, then strips the spaces
-     *
-     * @param string $val
-     *            String to be converted
-     * @return string Converted string
-     */
-    protected function snakeToCamel($val)
-    {
-        return str_replace(' ', '', lcfirst(ucwords(str_replace('_', ' ', $val))));
     }
 
     /**
