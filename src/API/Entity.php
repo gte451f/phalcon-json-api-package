@@ -374,7 +374,6 @@ class Entity extends \Phalcon\DI\Injectable
     public function extractMainRow($baseRecord)
     {
         $class = get_class($baseRecord);
-
         // basically check for parent records and pull them out
         if ($class == 'Phalcon\Mvc\Model\Row') {
             // hold the combined and normalized array of data fields
@@ -383,19 +382,21 @@ class Entity extends \Phalcon\DI\Injectable
 
             foreach ($baseRecord as $record) {
                 $class = get_class($record);
+                $modelName = $record->getModelName('plural');
                 if ($primaryModel === $class) {
-                    $baseArray = array_merge($this->loadAllowedColumns($record), $baseArray);
+                    $primaryArray = $this->loadAllowedColumns($record);
                     continue;
                 }
-
                 foreach ($this->activeRelations as $relation) {
                     $refType = $relation->getType();
-
-                    if ($refType == 1) {
+                    $relationName = $relation->getModelName('plural');
+                    if ($refType == 1 AND $relationName == $modelName) {
                         $baseArray = array_merge($this->loadAllowedColumns($record), $baseArray);
                     }
                 }
             }
+            // put this step in to make sure that primary fields always appear before related fields
+            $baseArray = array_merge($primaryArray, $baseArray);
         } else {
             $baseArray = $this->loadAllowedColumns($baseRecord);
         }
@@ -651,7 +652,7 @@ class Entity extends \Phalcon\DI\Injectable
      * in cases where the related record itself refers to a parent record,
      * write a custom query to load the related record including it's parent
      *
-     * depends on the existance of a primaryKeyValue
+     * depends on the existence of a primaryKeyValue
      *
      * @return \PhalconRest\API\Relation $relation
      */
@@ -844,16 +845,17 @@ class Entity extends \Phalcon\DI\Injectable
             } else {
                 $relationshipName = $relation->getTableName('plural');
             }
-
+            $newInclude = new Data($relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray);
 
             if ($before) {
                 $this->baseRecord->addRelationship($relationshipName, $relatedRecArray['id'], $relation->getTableName('plural'));
+                // $newInclude->addRelationship('accounts', $this->baseRecord->getId());
             } else {
                 // load relationship after baseRecords have been processed
-                $this->result->addRelationship($relationshipName, $relatedRecArray[$relation->getReferencedFields()], $relatedRecArray['id'], $relation->getTableName('plural'));
+                $this->result->addRelationship($relatedRecArray[$relation->getReferencedFields()], $relationshipName, $relatedRecArray['id'], $relation->getTableName('plural'));
+                // $newInclude->addRelationship('accounts', $relatedRecArray[$relation->getReferencedFields()]);
             }
-
-            $this->result->addIncluded(new Data($relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray));
+            $this->result->addIncluded($newInclude);
         }
     }
 
@@ -1144,7 +1146,6 @@ class Entity extends \Phalcon\DI\Injectable
             $modelNameSpace = $config['namespaces']['models'];
             $parentNameSpace = $modelNameSpace . $model::$parentModel;
             $parentModel = new $parentNameSpace();
-            $finalModel = $this->loadParentModel($parentModel, $object);
 
             if ($this->saveMode == 'update') {
                 $primaryKey = $model->getPrimaryKeyName();

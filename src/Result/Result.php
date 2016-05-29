@@ -76,7 +76,7 @@ class Result extends \Phalcon\DI\Injectable
     }
 
     /**
-     * for a supplied primary id and relate id, create a relationship
+     * for a supplied primary id and related id, create a relationship
      * @param $id
      * @param $relationship
      * @param $related_id

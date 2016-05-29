@@ -36,12 +36,12 @@ $config = [
         // how should property names be formatted?
         // possible values are camel, snake, dash and none
         // none means perform no processing on the final output
-        'propertyFormatTo' => 'snake',
+        'propertyFormatTo' => 'dash',
 
         // how are your existing database field name formatted?
         // possible values are camel, snake, dash
         // this value is ignored if property_format_to is set to none
-        'propertyFormatFrom' => 'dash'
+        'propertyFormatFrom' => 'snake'
 
     ],
 
