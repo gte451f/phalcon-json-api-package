@@ -113,27 +113,13 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @var boolean|array
      */
     protected $parentModels = null;
-    
+
     /**
      * auto populate a few key values
      */
     public function initialize()
     {
         $this->loadBlockColumns();
-    }
-
-
-    /**
-     * for a provided model name, return that model's parent
-     *
-     * @param string $name
-     */
-    public static function getParentModel($name)
-    {
-        $config = self::getDI()->get('config');
-        $modelNameSpace = $config['namespaces']['models'];
-        $path = $modelNameSpace . $name;
-        return $path::$parentModel;
     }
 
     /**

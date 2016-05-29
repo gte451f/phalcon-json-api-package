@@ -63,17 +63,21 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
             $attributes = [];
             foreach ($this->attributes as $key => $value) {
                 $attributes[$inflector->normalize($key,
-                    $config['application']['propertyFormatFrom'],
                     $config['application']['propertyFormatTo'])] = $value;
             }
         }
 
-        return [
+        $result = [
             'id' => $this->id,
             'type' => $this->type,
-            'attributes' => $attributes,
-            'relationships' => $this->relationships
+            'attributes' => $attributes
         ];
+
+        if ($this->relationships) {
+            $result['relationships'] = $this->relationships;
+        }
+
+        return $result;
     }
 
     /**
@@ -86,7 +90,28 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         if (!$type) {
             $type = $relationship;
         }
-        $this->relationships[$relationship][] = ['id' => $id, 'type' => $type];
+
+        $config = $this->di->get('config');
+        $inflector = $this->di->get('inflector');
+
+        $relationship = $inflector->normalize($relationship, $config['application']['propertyFormatTo']);
+        $type = $inflector->normalize($type, $config['application']['propertyFormatTo']);
+//        $relationship = str_replace('_', '-', $relationship);
+//        $type = str_replace('_', '-', $type);
+
+        if (isset($this->relationships[$relationship])) {
+            if (isset($this->relationships[$relationship]['data']['id'])) {
+                // this must be a single record
+                $newRelationships = [];
+                $newRelationships[] = $this->relationships[$relationship]['data'];
+                $newRelationships[] = ['id' => $id, 'type' => $type];
+                $this->relationships[$relationship]['data'] = $newRelationships;
+            } else {
+                $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
+            }
+        } else {
+            $this->relationships[$relationship]['data'] = ['id' => $id, 'type' => $type];
+        }
     }
 
     /*

@@ -348,7 +348,7 @@ class QueryBuilder extends \Phalcon\DI\Injectable
 
             // if we made it this far, than a prefix was supplied but it did not match any known hasOne relationship
             if ($matchFound == false) {
-                throw new HTTPException("Unkown table prefix supplied in filter.", 500, array(
+                throw new HTTPException("Unknown table prefix supplied in filter.", 500, array(
                     'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
                     'code' => '891488651361948131461849'
                 ));
@@ -365,6 +365,28 @@ class QueryBuilder extends \Phalcon\DI\Injectable
             }
         }
 
+        // still here?  try the parent model and prepend the parent model alias if the field is detected in that model's column map
+        $config = $this->getDI()->get('config');
+        $modelNameSpace = $config['namespaces']['models'];
+        $modelPath = $modelNameSpace . $this->model->getModelName();
+        $parentModelName = $modelPath::$parentModel;
+        // if not parent name specified, skip this part
+        if ($parentModelName) {
+            $parentPath = $modelNameSpace . $parentModelName;
+            $parentModel = new $parentPath();
+
+            foreach ($this->entity->activeRelations as $relation) {
+                $alias = $relation->getAlias();
+                if ($parentModelName == $alias) {
+                    $colMap = $parentModel->getAllColumns();
+                    foreach ($colMap as $field) {
+                        if ($fieldName == $field) {
+                            return "[$alias].$fieldName";
+                        }
+                    }
+                }
+            }
+        }
         return $fieldName;
     }
 
