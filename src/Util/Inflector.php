@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\Util;
 
-use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Exception\HTTPException;
 
 /**
  * Inflector for pluralize and singularize English nouns.

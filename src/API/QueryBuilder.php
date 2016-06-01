@@ -1,8 +1,8 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
-use \PhalconRest\Util\ValidationException;
+use \PhalconRest\Exception\HTTPException;
+use \PhalconRest\Exception\ValidationException;
 
 
 /**

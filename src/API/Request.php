@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Exception\HTTPException;
 use \PhalconRest\Util\Inflector;
 
 /**
@@ -22,12 +22,13 @@ class Request extends \Phalcon\Http\Request
     public $defaultCaseFormat = false;
 
     /**
-     * pull data from a json supplied POST/PUT
+     * pull data from a JSON API supplied POST/PUT
      * Will either return the whole input as an array otherwise, will return an individual property
      * supports existing case conversion logic
      * TODO: Filter
      *
-     * @param string $name            
+     * @param string $name
+     * @throws HTTPException
      * @return mixed the requested JSON property otherwise false
      */
     public function getJson($name = null)
@@ -36,10 +37,10 @@ class Request extends \Phalcon\Http\Request
         $inflector = new Inflector();
         $name = $inflector->underscore($name);
         // $name = strtolower($name);
-        
+
         // $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
-        
+
         $request = NULL;
         if (is_object($json)) {
             if ($name != NULL) {
@@ -55,7 +56,7 @@ class Request extends \Phalcon\Http\Request
                 }
             } else {
                 // return the entire result set
-                $request = $json;
+                $request = $json->data->attributes;
                 unset($json);
             }
         } else {
@@ -66,19 +67,21 @@ class Request extends \Phalcon\Http\Request
         return $this->convertCase($request);
     }
 
+
+
     /**
      * extend to hook up possible case conversion
      *
-     * @param string $name            
-     * @param string $filters            
-     * @param string $defaultValue            
+     * @param string $name
+     * @param string $filters
+     * @param string $defaultValue
      * @return multiple
      */
     public function getPut($name = NULL, $filters = NULL, $defaultValue = NULL, $notAllowEmpty = NULL, $noRecursive = NULL)
     {
         // perform parent function
         $request = parent::getPut($name, $filters, $defaultValue);
-        
+
         // special handling for array requests, for individual inputs return what is request
         if (is_array($request) and $this->defaultCaseFormat != false) {
             return $this->convertCase($request);
@@ -90,16 +93,16 @@ class Request extends \Phalcon\Http\Request
     /**
      * extend to hook up possible case conversion
      *
-     * @param string $name            
-     * @param string $filters            
-     * @param string $defaultValue            
+     * @param string $name
+     * @param string $filters
+     * @param string $defaultValue
      * @return object
      */
     public function getPost($name = null, $filters = null, $defaultValue = null)
     {
         // perform parent function
         $request = parent::getPost($name, $filters, $defaultValue);
-        
+
         // special handling for array requests, for individual inputs return what is request
         if (is_array($request) and $this->defaultCaseFormat != false) {
             return $this->convertCase($request);
@@ -111,7 +114,7 @@ class Request extends \Phalcon\Http\Request
     /**
      * for a given array of values, convert cases to the defaultCaseFormat
      *
-     * @param array $request            
+     * @param array $request
      * @return array
      */
     private function convertCase($request)
@@ -120,7 +123,7 @@ class Request extends \Phalcon\Http\Request
         if ($this->defaultCaseFormat == FALSE) {
             return $request;
         }
-        
+
         $inflector = new Inflector();
         switch ($this->defaultCaseFormat) {
             // assume camel case and should convert to snake
@@ -130,9 +133,9 @@ class Request extends \Phalcon\Http\Request
                 } elseif (is_array($request)) {
                     $request = $inflector->arrayKeysToSnake($request);
                 }
-                
+
                 break;
-            
+
             // assume snake and should convert to camel
             case "camel":
                 if (is_object($request)) {
@@ -142,11 +145,11 @@ class Request extends \Phalcon\Http\Request
                 }
                 break;
             default:
-                
+
                 // echo "no match";
                 // no matching format found
                 break;
         }
         return $request;
     }
-} 
+}

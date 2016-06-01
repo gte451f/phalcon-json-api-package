@@ -1,13 +1,15 @@
 <?php
-namespace PhalconRest\Util;
+namespace PhalconRest\Exception;
+
+use \PhalconRest\Exception\ErrorStore;
 
 /**
- * where caught HTTP Exceptions go to die
+ * where caught Database Exceptions go to die
  *
  * @author jjenkins
  *        
  */
-class HTTPException extends \Exception
+class DatabaseException extends \Exception
 {
 
     /**
@@ -25,7 +27,7 @@ class HTTPException extends \Exception
     /**
      * hold a valid errorStore object
      *
-     * @var \PhalconRest\Util\ErrorStore
+     * @var \PhalconRest\Exception\ErrorStore
      */
     private $errorStore;
 
@@ -41,7 +43,7 @@ class HTTPException extends \Exception
     public function __construct($title, $code, $errorList)
     {
         // store general error data
-        $this->errorStore = new \PhalconRest\Util\ErrorStore($errorList);
+        $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
         
         // store HTTP specific data

@@ -1,13 +1,14 @@
 <?php
-namespace PhalconRest\Util;
+namespace PhalconRest\Exception;
 
+use \PhalconRest\Exception\ErrorStore;
 /**
- * where caught Database Exceptions go to die
+ * Validation Exception Handler
  *
  * @author jjenkins
- *        
+ *
  */
-class DatabaseException extends \Exception
+class HTTPException extends \Exception
 {
 
     /**
@@ -25,7 +26,7 @@ class DatabaseException extends \Exception
     /**
      * hold a valid errorStore object
      *
-     * @var \PhalconRest\Util\ErrorStore
+     * @var \PhalconRest\Exception\ErrorStore
      */
     private $errorStore;
 
@@ -41,12 +42,12 @@ class DatabaseException extends \Exception
     public function __construct($title, $code, $errorList)
     {
         // store general error data
-        $this->errorStore = new \PhalconRest\Util\ErrorStore($errorList);
+        $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
-        
+
         // store HTTP specific data
         $this->code = $code;
-        
+
         $this->response = $this->getResponseDescription($code);
         $this->di = \Phalcon\DI::getDefault();
     }
@@ -67,17 +68,17 @@ class DatabaseException extends \Exception
      *
      * see also: https://developer.yahoo.com/social/rest_api_guide/http-response-codes.html
      *
-     * @param unknown $code            
+     * @param unknown $code
      * @return string
      */
     protected function getResponseDescription($code)
     {
         $codes = array(
-            
+
             // Informational 1xx
             100 => 'Continue',
             101 => 'Switching Protocols',
-            
+
             // Success 2xx
             200 => 'OK',
             201 => 'Created',
@@ -86,7 +87,7 @@ class DatabaseException extends \Exception
             204 => 'No Content',
             205 => 'Reset Content',
             206 => 'Partial Content',
-            
+
             // Redirection 3xx
             300 => 'Multiple Choices',
             301 => 'Moved Permanently',
@@ -94,10 +95,10 @@ class DatabaseException extends \Exception
             303 => 'See Other',
             304 => 'Not Modified',
             305 => 'Use Proxy',
-            
+
             // 306 is deprecated but reserved
             307 => 'Temporary Redirect',
-            
+
             // Client Error 4xx
             400 => 'Bad Request',
             401 => 'Unauthorized',
@@ -118,7 +119,7 @@ class DatabaseException extends \Exception
             416 => 'Requested Range Not Satisfiable',
             417 => 'Expectation Failed',
             422 => 'Unprocessable Entity',
-            
+
             // Server Error 5xx
             500 => 'Internal Server Error',
             501 => 'Not Implemented',
@@ -128,9 +129,9 @@ class DatabaseException extends \Exception
             505 => 'HTTP Version Not Supported',
             509 => 'Bandwidth Limit Exceeded'
         );
-        
+
         $result = (isset($codes[$code])) ? $codes[$code] : 'Unknown Status Code';
-        
+
         return $result;
     }
 }

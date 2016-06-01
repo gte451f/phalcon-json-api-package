@@ -1,5 +1,5 @@
 <?php
-namespace PhalconRest\Util;
+namespace PhalconRest\Exception;
 
 use Phalcon\Mvc\Model\Message as Message;
 
@@ -8,7 +8,7 @@ use Phalcon\Mvc\Model\Message as Message;
  *
  *
  * @author jjenkins
- *        
+ *
  */
 class ValidationException extends \Exception
 {
@@ -32,9 +32,9 @@ class ValidationException extends \Exception
     public function __construct($title, $errorList, $validationList)
     {
         // store general error data
-        $this->errorStore = new \PhalconRest\Util\ErrorStore($errorList);
+        $this->errorStore = new \PhalconRest\Exception\ErrorStore($errorList);
         $this->errorStore->title = $title;
-        
+
         $mergedValidations = [];
         foreach ($validationList as $key => $validation) {
             // process simple key pair
@@ -46,7 +46,7 @@ class ValidationException extends \Exception
             }
         }
         $this->errorStore->validationList = $mergedValidations;
-        
+
         $this->di = \Phalcon\DI::getDefault();
     }
 
