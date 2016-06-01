@@ -18,10 +18,10 @@ class Result extends \Phalcon\DI\Injectable
     private $included = [];
 
     /**
-     * @var string is the result going to output a standard json payload or some sort of error?
-     * data | error
+     * @var string is the result going to output a single result or an array of results?
+     * single | multiple | error
      */
-    private $outputMode = 'data';
+    public $outputMode = 'error';
 
     public function __construct()
     {
@@ -58,8 +58,17 @@ class Result extends \Phalcon\DI\Injectable
     public function outputJSON()
     {
         $result = new \stdClass();
-        if ($this->outputMode == 'data') {
-            $result->data = $this->data;
+        if ($this->outputMode != 'error') {
+            if ($this->outputMode == 'single') {
+                $result->data = $this->data[0];
+            } elseif ($this->outputMode == 'multiple') {
+                $result->data = $this->data;
+            } else {
+                throw new HTTPException("Error generating output.  Unknown output mode submitted.", 500, array(
+                    'code' => '894684684646846816161'
+                ));
+            }
+
             if (count($this->included) > 0) {
                 $result->included = $this->included;
             }
@@ -92,6 +101,15 @@ class Result extends \Phalcon\DI\Injectable
             return true;
         }
         return false;
+    }
+
+
+    /**
+     * return the number of records stored in the result object
+     */
+    public function countResults()
+    {
+        return count($this->data);
     }
 
 }

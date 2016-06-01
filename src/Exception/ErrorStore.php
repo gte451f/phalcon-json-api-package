@@ -1,5 +1,5 @@
 <?php
-namespace PhalconRest\Util;
+namespace PhalconRest\Exception;
 
 /**
  * class to standardize what properties the API stores in each error

@@ -3,9 +3,10 @@ namespace PhalconRest\API;
 
 use Phalcon\Di;
 use Phalcon\Registry;
-use \PhalconRest\Util\HTTPException;
-use \PhalconRest\Util\ValidationException;
+use \PhalconRest\Exception\HTTPException;
+use \PhalconRest\Exception\ValidationException;
 use \PhalconRest\Result\Data;
+use \PhalconRest\Result\Result;
 
 
 /**
@@ -28,7 +29,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * store the intermediate format of the rest response
      *
-     * @var \PhalconRest\Result\Result
+     * @var Result
      **/
     public $result;
 
@@ -148,16 +149,14 @@ class Entity extends \Phalcon\DI\Injectable
      * for a given search query, perform find + load related records for each!
      *
      * @param null $suppliedParameters
-     * @return bool|mixed|\PhalconRest\Result\Result
-     */
+     * @return Result
+     **/
     public function find($suppliedParameters = null)
     {
-        $baseRecords = $this->runSearch($suppliedParameters);
+        // tell the result object what type of result to generate
+        $this->result->outputMode = 'multiple';
 
-        // if we don't find a record, terminate with false
-        if ($baseRecords === false) {
-            return false;
-        }
+        $baseRecords = $this->runSearch($suppliedParameters);
 
         $foundSet = 0;
         if ($this->di->get('config')['application']['debugApp'] == true) {
@@ -237,13 +236,15 @@ class Entity extends \Phalcon\DI\Injectable
      * @param mixed $id
      *            The PKID for the record
      *
-     * @return mixed $baseRecord
-     *         an array record otherwise false
+     * @return Result
+     *
      */
     public function findFirst($id)
     {
         // store for future reference
         $this->primaryKeyValue = $id;
+        // tell the result object what type of result to generate
+        $this->result->outputMode = 'single';
 
         // prep for a special kind of search
         $this->searchHelper->entityLimit = 1;
@@ -254,9 +255,9 @@ class Entity extends \Phalcon\DI\Injectable
 
         $baseRecords = $this->runSearch();
 
-        // if we don't find a record, terminate with false
+        // if we don't find a record, terminate with an empty result set
         if ($baseRecords === false) {
-            return false;
+            return $this->result;
         }
 
         $foundSet = 0;
@@ -278,21 +279,15 @@ class Entity extends \Phalcon\DI\Injectable
             $this->afterProcessRelationships($baseResult);
 
             // $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
-            $this->result->addData($this->baseRecord['id'], $this->model->getTableName('plural'), $this->baseRecord);
+            $this->result->addData($this->baseRecord);
             $foundSet++;
         }
 
         if (isset($timer)) {
             $timer->lap('Formatting Output');
         }
-        // no records found on a findFirst?
-        // json api calls for a 404
-        if ($foundSet == 0) {
-            return false;
-        }
 
         $this->appendMeta($foundSet);
-
         return $this->result;
     }
 

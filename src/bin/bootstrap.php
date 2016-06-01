@@ -1,5 +1,7 @@
 <?php
+
 use Phalcon\Mvc\Micro\Collection;
+use \PhalconRest\Exception\HTTPException;
 
 /**
  * Our application is a Micro application, so we must explicitly define all the routes.
@@ -94,7 +96,7 @@ $app->after(function () use ($app) {
  * We set a 404 here unless there's a suppress error codes.
  */
 $app->notFound(function () use ($app) {
-    throw new \PhalconRest\Util\HTTPException('Not Found.', 404, array(
+    throw new HTTPException('Not Found.', 404, array(
         'dev' => 'That route was not found on the server.',
         'code' => '4',
         'more' => 'Check route for misspellings.'

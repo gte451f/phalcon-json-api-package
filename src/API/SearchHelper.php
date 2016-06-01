@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Exception\HTTPException;
 
 /**
  * Assist Entity to query database and shape the response object

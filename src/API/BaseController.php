@@ -3,7 +3,10 @@ namespace PhalconRest\API;
 
 use Phalcon\DI;
 use Phalcon\DI\Injectable;
-use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Exception\HTTPException;
+use PhalconRest\API\BaseModel;
+use PhalconRest\API\Entity;
+use \PhalconRest\Result\Result;
 
 /**
  * \Phalcon\Mvc\Controller has a final __construct() method, so we can't
@@ -20,14 +23,14 @@ class BaseController extends Injectable
     /**
      * Store the default entity here
      *
-     * @var \PhalconRest\API\Entity
+     * @var Entity
      */
     protected $entity = FALSE;
 
     /**
      * Store the default model here
      *
-     * @var \PhalconRest\API\BaseModel
+     * @var BaseModel
      */
     protected $model = FALSE;
 
@@ -136,7 +139,7 @@ class BaseController extends Injectable
     /**
      * catches incoming requests for groups of records
      *
-     * @return array Results formated by respond()
+     * @return array Results formmated by respond()
      */
     public function get()
     {
@@ -147,21 +150,24 @@ class BaseController extends Injectable
      * run a limited query for one record
      * bypass nearly all normal search params and just search by the primary key
      *
+     * special handling if no matching results are found
+     *
      * @param int $id
      * @return array
      * @throws HTTPException
+     * @return Result
      */
     public function getOne($id)
     {
-        $search_result = $this->entity->findFirst($id);
-        if ($search_result == false) {
+        $result = $this->entity->findFirst($id);
+        if ($result->countResults() == 0) {
             // This is bad. Throw a 500. Responses should always be objects.
             throw new HTTPException('Resource not available.', 404, array(
                 'dev' => 'The resource you requested is not available.',
                 'code' => '43758093745021'
             ));
         } else {
-            return $search_result;
+            return $result;
         }
     }
 
@@ -169,13 +175,21 @@ class BaseController extends Injectable
      * Attempt to save a record from POST
      * This should be saving a new record
      *
+     * @throws HTTPException
      * @return mixed return valid Apache code, could be an error, maybe not
      * @throws HTTPException
      */
     public function post()
     {
         $request = $this->getDI()->get('request');
-        $post = $request->getJson($this->getControllerName('singular'));
+        $post = $request->getJson();
+
+        if (!$post) {
+            throw new HTTPException("There was an error adding new record.", 500, array(
+                'dev' => "Invalid data posted to the server",
+                'code' => '568136818916816'
+            ));
+        }
 
         // filter out any block columns from the posted data
         $blockFields = $this->model->getBlockColumns();
@@ -189,16 +203,17 @@ class BaseController extends Injectable
         $this->afterSave($post, $id);
 
         // now fetch the record so we can return it
-        $search_result = $this->entity->findFirst($id);
+        $result = $this->entity->findFirst($id);
 
-        if ($search_result == false) {
+        if ($result->countResults() == 0) {
             // This is bad. Throw a 500. Responses should always be objects.
-            throw new HTTPException('There was an error retrieving the newly created record.', 500, array(
+            throw new HTTPException("There was an error retrieving the newly created record.", 500, array(
                 'dev' => 'The resource you requested is not available after it was just created',
                 'code' => '1238510381861'
             ));
         } else {
-            return $this->respond($search_result);
+            // return $this->respond($search_result);
+            return $result;
         }
     }
 
@@ -220,20 +235,14 @@ class BaseController extends Injectable
      * read in a resource and update it
      *
      * @param int $id
-     * @return array
      * @throws HTTPException
+     * @return multitype:string
      */
     public function put($id)
     {
         $request = $this->getDI()->get('request');
         // load up the expected object based on the controller name
-        $put = $request->getJson($this->getControllerName('singular'));
-
-        // filter out any block columns from the posted data
-        $blockFields = $this->model->getBlockColumns();
-        foreach ($blockFields as $key => $value) {
-            unset($put->$value);
-        }
+        $put = $request->getJson();
 
         if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
@@ -241,20 +250,29 @@ class BaseController extends Injectable
                 'code' => '568136818916816'
             ));
         }
+
+        // filter out any block columns from the posted data
+        $blockFields = $this->model->getBlockColumns();
+        foreach ($blockFields as $key => $value) {
+            unset($put->$value);
+        }
+
         $put = $this->beforeSave($put, $id);
         $id = $this->entity->save($put, $id);
         $this->afterSave($put, $id);
 
         // reload record so we can return it
-        $search_result = $this->entity->findFirst($id);
-        if ($search_result == false) {
+        $result = $this->entity->findFirst($id);
+
+        if ($result->countResults() == 0) {
             // This is bad. Throw a 500. Responses should always be objects.
-            throw new HTTPException("Could not find newly updated record.", 500, array(
-                'dev' => 'The resource you requested is not available.',
-                'code' => '6816168161681'
+            throw new HTTPException("There was an error retrieving the newly created record.", 500, array(
+                'dev' => 'The resource you requested is not available after it was just created',
+                'code' => '1238510381861'
             ));
         } else {
-            return $this->respond($search_result);
+            // return $this->respond($search_result);
+            return $result;
         }
     }
 
@@ -262,9 +280,11 @@ class BaseController extends Injectable
      * hook to be run before a controller calls it's save action
      * make it easier to extend default save logic
      *
-     * @param mixed $object the data submitted to the server
-     * @param int|null $id the pkid of the record to be updated, otherwise null on inserts
-     * @return mixed
+     * @param object $object the
+     *            data submitted to the server
+     * @param int|null $id
+     *            the pkid of the record to be updated, otherwise null on inserts
+     * @return object $object
      */
     public function beforeSave($object, $id = null)
     {
@@ -276,8 +296,9 @@ class BaseController extends Injectable
      * hook to be run after a controller completes it's save logic
      * make it easier to extend default save logic
      *
-     * @param mixed $object the data submitted to the server (not a model)
-     * @param int|null $id the pkid of the record to be updated or inserted
+     * @param object $object the data submitted to the server (not a model)
+     * @param int|null $id
+     *            the pkid of the record to be updated or inserted
      */
     public function afterSave($object, $id)
     {
@@ -308,14 +329,13 @@ class BaseController extends Injectable
 
     /**
      *
-     * @param int $id
-     * @return array
+     * @param mixed $id
+     * @return Result
      */
     public function patch($id)
     {
-        return array(
-            'Patch / stub'
-        );
+        // route though PUT logic
+        return $this->put($id);
     }
 
     /**
@@ -364,10 +384,10 @@ class BaseController extends Injectable
      * not sure how to infer the controllers name from there maybe check
      * in bootstrap... $app->after() to see if you can access the current controller?
      *
-     * @param array $recordsResult records to format as return output
-     * @return array If there are records (even 1), every record will
-     *                be an array ex: array(array('id'=>1),array('id'=>2))
+     * @param array $recordsResult
+     *            records to format as return output
      * @throws HTTPException
+     * @return array Output array. If there are records (even 1), every record will be an array ex: array(array('id'=>1),array('id'=>2))
      */
     protected function respond($recordsResult)
     {

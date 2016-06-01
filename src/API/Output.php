@@ -20,7 +20,7 @@ class Output extends \Phalcon\DI\Injectable
     /**
      * hold a valid errorStore object
      *
-     * @var \PhalconRest\Util\ErrorStore
+     * @var \PhalconRest\Exception\ErrorStore
      */
     public $errorStore = false;
 
@@ -73,29 +73,42 @@ class Output extends \Phalcon\DI\Injectable
 
     /**
      * process an errorStore into a simple message
+     * an errorStore contains a single error message so the single error is wrapped up into an array
+     * in order to conform to JSON API spec
      *
-     * @param \PhalconRest\Util\ErrorStore $errorStore
+     * @param \PhalconRest\Exception\ErrorStore $errorStore
      * @return \PhalconRest\API\Output
      */
-    public function sendError(\PhalconRest\Util\ErrorStore $errorStore)
+    public function sendError(\PhalconRest\Exception\ErrorStore $errorStore)
     {
-        $message = array();
-        $message['errors']['title'] = $errorStore->title;
-        $message['errors']['code'] = $errorStore->code;
-        $message['errors']['detail'] = $errorStore->more;
-        $message['errors']['status'] = $this->httpCode;
-
-        $config = $this->di->get('config');
-        if ($config['application']['debugApp'] == true and isset($errorStore->dev)) {
-            $message['errors']['meta']['developer_message'] = $errorStore->dev;
-        }
+        // TODO deal with validation
         if (count($errorStore->validationList) > 0) {
+            $result = ['errors' => []];
+            $inflector = $this->di->get('inflector');
+
             foreach ($errorStore->validationList as $validation) {
-                $message['errors'][$validation->getField()] = $validation->getMessage();
+                $source = new \stdClass;
+
+                $fieldName = $inflector->normalize($validation->getField(), $this->di->get('config')['application']['propertyFormatTo']);
+
+                $source->pointer = "data/atttributes/$fieldName";
+                $result['errors'][] = ['detail' => $validation->getMessage(), 'source' => $source, 'status' => $this->httpCode];
             }
+        } else {
+            $singleError['title'] = $errorStore->title;
+            $singleError['code'] = $errorStore->code;
+            $singleError['detail'] = $errorStore->more;
+            $singleError['status'] = $this->httpCode;
+            $config = $this->di->get('config');
+            if ($config['application']['debugApp'] == true and isset($errorStore->dev)) {
+                $singleError['meta']['developer_message'] = $errorStore->dev;
+            }
+
+            // wrap single error into array key'd by "errors"
+            $result = ['errors' => [$singleError]];
         }
 
-        $this->_send($message);
+        $this->_send($result);
         return $this;
     }
 
@@ -104,7 +117,8 @@ class Output extends \Phalcon\DI\Injectable
      *
      * @param string $message
      */
-    private function _send($message)
+    private
+    function _send($message)
     {
         // Error's come from HTTPException. This helps set the proper envelope data
         $response = $this->di->get('response');
@@ -125,7 +139,8 @@ class Output extends \Phalcon\DI\Injectable
      * @param bool $envelope
      * @return object $this
      */
-    public function useEnvelope($envelope)
+    public
+    function useEnvelope($envelope)
     {
         $this->envelope = (bool)$envelope;
         return $this; // for method chaining
@@ -137,7 +152,8 @@ class Output extends \Phalcon\DI\Injectable
      * @param int $code
      * @param string $message
      */
-    public function setStatusCode($code, $message)
+    public
+    function setStatusCode($code, $message)
     {
         $this->httpCode = $code;
         $this->httpMessage = $message;

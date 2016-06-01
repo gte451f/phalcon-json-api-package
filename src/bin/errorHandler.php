@@ -11,20 +11,18 @@ use PhalconRest\Util\ValidationException;
  * TODO: Kept here due to dependency on $app
  */
 set_exception_handler(function ($exception) use ($app, $config) {
-    // $config = $di->get('config');
-
-    // those exceptions's send method provides the correct response headers and body
-    if ($exception instanceof HTTPException || $exception instanceof ValidationException) {
-        $exception->send();
-        error_log($exception);
-        // end early to make sure nothing else gets in the way of delivering response
-        return;
-    }
-
-    // seems like this is only run when an unexpected exception occurs
-    if ($config['application']['debugApp'] == true) {
-        //FIXME: Kint should be a project dependency, if it's really needed
-        Kint::dump($exception);
+    switch (get_class($exception)) {
+        case "PhalconRest\\Exception\\HTTPException":
+        case 'PhalconRest\Exception\HTTPException':
+        case "PhalconRest\\Exception\\ValidationException":
+        case 'PhalconRest\Exception\ValidationException':
+            error_log($exception);
+            $exception->send();
+            break;
+        default:
+            // wow an unexpected exception
+            print_r($exception);
+            break;
     }
 });
 
