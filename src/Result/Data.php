@@ -96,8 +96,6 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
 
         $relationship = $inflector->normalize($relationship, $config['application']['propertyFormatTo']);
         $type = $inflector->normalize($type, $config['application']['propertyFormatTo']);
-//        $relationship = str_replace('_', '-', $relationship);
-//        $type = str_replace('_', '-', $type);
 
         if (isset($this->relationships[$relationship])) {
             if (isset($this->relationships[$relationship]['data']['id'])) {
@@ -110,7 +108,8 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
                 $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
             }
         } else {
-            $this->relationships[$relationship]['data'] = ['id' => $id, 'type' => $type];
+            $this->relationships[$relationship]['data'] = [];
+            $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
         }
     }
 

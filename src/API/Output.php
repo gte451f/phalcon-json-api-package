@@ -49,7 +49,7 @@ class Output extends \Phalcon\DI\Injectable
      * @param $result
      * @return $this
      */
-    public function send($result)
+    public function send(\PhalconRest\Result\Result $result)
     {
         // stop timer and add to meta
         if ($this->di->get('config')['application']['debugApp'] == true) {
