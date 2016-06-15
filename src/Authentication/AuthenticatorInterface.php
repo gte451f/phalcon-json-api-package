@@ -6,12 +6,12 @@ namespace PhalconRest\Authentication;
  * deals with common functions the authentication system will used in the course of working with a user
  *
  * @author jjenkins
- *        
+ *
  */
 interface AuthenticatorInterface
 {
     // persist to cache or session?
-    
+
     /**
      * is the current user logged in?
      *
