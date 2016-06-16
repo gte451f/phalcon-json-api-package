@@ -2,6 +2,7 @@
 namespace PhalconRest\API;
 
 use Phalcon\Di;
+use Phalcon\Registry;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 use \PhalconRest\Util\Inflector;
@@ -195,7 +196,7 @@ class Entity extends \Phalcon\DI\Injectable
     public function processDelayedRelationships()
     {
         $config = $this->getDI()->get('config');
-        if (!$config['feature_flags']['fastHasMany']) {
+        if (isset($config['feature_flags']) && !$config['feature_flags']['fastHasMany']) {
             // feature flag is disabled, nothing to do
             return;
         }
@@ -325,8 +326,12 @@ class Entity extends \Phalcon\DI\Injectable
             $config = $this->getDI()->get('config');
             if ($config['application']['debugApp']) {
                 $registry = $this->getDI()->get('registry');
-                $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
-                $this->restResponse['meta']['database_query_timer'] = $registry->dbTimer . ' ms';
+                if (isset($registry->dbCount)) {
+                    $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
+                }
+                if (isset($registry->dbTimer)) {
+                    $this->restResponse['meta']['database_query_timer'] = $registry->dbTimer . ' ms';
+                }
             }
         }
     }
