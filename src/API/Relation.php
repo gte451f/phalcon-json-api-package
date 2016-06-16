@@ -1,5 +1,6 @@
 <?php
 namespace PhalconRest\API;
+use Phalcon\Mvc\Model\ManagerInterface;
 
 /**
  * decorate a relation with additional properties and methods
@@ -96,9 +97,9 @@ class Relation
      * inject dependencies
      *
      * @param \Phalcon\Mvc\Model\Relation $relation            
-     * @param \Phalcon\Mvc\Model\Manager $modelManager            
+     * @param ManagerInterface $modelManager
      */
-    function __construct(\Phalcon\Mvc\Model\Relation $relation, \Phalcon\Mvc\Model\Manager $modelManager)
+    function __construct(\Phalcon\Mvc\Model\Relation $relation, ManagerInterface $modelManager)
     {
         $this->relation = $relation;
         $this->modelManager = $modelManager;
@@ -117,6 +118,8 @@ class Relation
 
     /**
      * get the table name by passing this along to the underlying model
+     * @param string $type
+     * @return
      */
     public function getTableName($type = 'plural')
     {
@@ -131,6 +134,7 @@ class Relation
     /**
      * Get the singular/plural model name for a relationship
      *
+     * @param string $type
      * @return string
      */
     public function getModelName($type = 'plural')

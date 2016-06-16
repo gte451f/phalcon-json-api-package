@@ -1,4 +1,6 @@
 <?php
+/** @var array $config defined outside (probably at bin/config.php) */
+
 // Factory Default loads all services by default....
 use Phalcon\DI\FactoryDefault as DefaultDI;
 use Phalcon\Loader;
@@ -11,8 +13,9 @@ use PhalconRest\API\Inflector;
 // for password and credit card encryption
 use Phalcon\Crypt;
 use Phalcon\Security;
+use PHPBenchTime\Timer;
 
-$T = new \PHPBenchTime\Timer();
+$T = new Timer();
 $T->start('Booting App');
 
 /**

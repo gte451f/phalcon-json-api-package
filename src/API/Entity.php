@@ -1,6 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
+use Phalcon\Di;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 use \PhalconRest\Util\Inflector;
@@ -61,7 +62,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * a searchHelper object used for when queries originate from HTTP requests
      *
-     * @var \PhalconRest\API\SearchHelper
+     * @var SearchHelper
      */
     public $searchHelper = null;
 
@@ -106,11 +107,12 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * process injected model
      *
-     * @param \PhalconRest\API\BaseModel $model
+     * @param BaseModel $model
+     * @param SearchHelper $searchHelper
      */
-    function __construct(\PhalconRest\API\BaseModel $model, \PhalconRest\API\SearchHelper $searchHelper)
+    function __construct(BaseModel $model, SearchHelper $searchHelper)
     {
-        $di = \Phalcon\Di::getDefault();
+        $di = Di::getDefault();
         $this->setDI($di);
 
         $this->queryBuilder = $di->get('queryBuilder', [$model, $searchHelper, $this]);
@@ -140,6 +142,8 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * for a given search query, perform find + load related records for each!
+     * @param mixed $suppliedParameters
+     * @return array
      */
     public function find($suppliedParameters = null)
     {
@@ -177,7 +181,7 @@ class Entity extends \Phalcon\DI\Injectable
 
         $this->processDelayedRelationships();
 
-        if ($this->di->get('config')['application']['debugApp'] == true) {
+        if (isset($timer)) {
             $timer->lap('Formatting Output');
         }
         // TODO single DB query for records related to main query
@@ -285,7 +289,7 @@ class Entity extends \Phalcon\DI\Injectable
 
         $this->processDelayedRelationships();
 
-        if ($this->di->get('config')['application']['debugApp'] == true) {
+        if (isset($timer)) {
             $timer->lap('Formatting Output');
         }
 
@@ -452,7 +456,7 @@ class Entity extends \Phalcon\DI\Injectable
      * build an intermediate list of related records
      * then normalize them for inclusion in the final response
      *
-     * @param object $relation
+     * @param Relation $relation
      * @param array $baseRecord
      * @throws HTTPException
      * @return mixed
@@ -598,7 +602,7 @@ class Entity extends \Phalcon\DI\Injectable
      * originally written to process a series of where IN records and attach to their parents via hasMany
      *
      * @param $relatedRecords
-     * @param $relation
+     * @param Relation $relation
      */
     private function updateBaseRecords($relatedRecords, $relation)
     {
@@ -655,7 +659,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * extract only approved fields from a resultset
      *
-     * @param \PhalconRest\API\Model $resultSet
+     * @param \PhalconRest\API\BaseModel $resultSet
      * @return array
      */
     protected function loadAllowedColumns($resultSet)
@@ -680,9 +684,10 @@ class Entity extends \Phalcon\DI\Injectable
      *
      * depends on the existance of a primaryKeyValue
      *
-     * @return \PhalconRest\API\Relation $relation
+     * @param Relation $relation
+     * @return array
      */
-    protected function getHasManyRecords(\PhalconRest\API\Relation $relation)
+    protected function getHasManyRecords(Relation $relation)
     {
         $query = $this->buildRelationQuery($relation);
 
@@ -712,7 +717,7 @@ class Entity extends \Phalcon\DI\Injectable
      * store away a request for a record in a child table
      * @param Relation $relation
      */
-    protected function registerHasManyRequest(\PhalconRest\API\Relation $relation)
+    protected function registerHasManyRequest(Relation $relation)
     {
         // determine the key to search against
         $field = $relation->getFields();
@@ -730,10 +735,10 @@ class Entity extends \Phalcon\DI\Injectable
      * in cases where the related record itself refers to a parent record,
      * write a custom query to load the related record including it's parent
      *
-     * @param \PhalconRest\API\Relation $relation
-     * @return multitype:array
+     * @param Relation $relation
+     * @return array
      */
-    private function getBelongsToRecord(\PhalconRest\API\Relation $relation)
+    private function getBelongsToRecord(Relation $relation)
     {
         $query = $this->buildRelationQuery($relation);
         $referencedField = $relation->getReferencedFields();
@@ -771,8 +776,8 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * load the query object for a hasManyToMany relationship
      *
-     * @param \PhalconRest\API\Relation $relation
-     * @return multitype:array
+     * @param Relation $relation
+     * @return array
      */
     protected function getHasManyToManyRecords($relation)
     {
@@ -820,10 +825,10 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
      *
-     * @param \PhalconRest\API\Relation $relation
+     * @param Relation $relation
      * @return object
      */
-    private function buildRelationQuery(\PhalconRest\API\Relation $relation)
+    private function buildRelationQuery(Relation $relation)
     {
         $refModelNameSpace = $relation->getReferencedModel();
         $mm = $this->getDI()->get('modelsManager');
@@ -851,9 +856,10 @@ class Entity extends \Phalcon\DI\Injectable
      * one or more individual record arrays in a larger array
      *
      * @param array $result
+     * @param Relation $relation
      * @return array
      */
-    protected function loadRelationRecords($result, \PhalconRest\API\Relation $relation)
+    protected function loadRelationRecords($result, Relation $relation)
     {
         $relatedRecords = array(); // store all related records
         foreach ($result as $relatedRecord) {
@@ -895,7 +901,7 @@ class Entity extends \Phalcon\DI\Injectable
      * all = load all possible relationships
      * csv,list = load only these relationships
      *
-     * @return void
+     * @return bool
      */
     final public function loadActiveRelationships()
     {
@@ -1018,8 +1024,7 @@ class Entity extends \Phalcon\DI\Injectable
      * hook to be run before an entity is deleted
      * make it easier to extend default delete logic
      *
-     * @param $model the
-     *            record to be deleted
+     * @param mixed $model the record to be deleted
      */
     public function beforeDelete($model)
     {
@@ -1030,8 +1035,7 @@ class Entity extends \Phalcon\DI\Injectable
      * hook to be run after an entity is deleted
      * make it easier to extend default delete logic
      *
-     * @param $model the
-     *            record that was just removed
+     * @param mixed $model the record that was just removed
      */
     public function afterDelete($model)
     {
@@ -1055,10 +1059,8 @@ class Entity extends \Phalcon\DI\Injectable
      * hook to be run after an entity is saved
      * make it easier to extend default save logic
      *
-     * @param $object the
-     *            data submitted to the server
-     * @param int|null $id
-     *            the pkid of the record to be updated or inserted
+     * @param mixed $object the data submitted to the server
+     * @param int|null $id the pkid of the record to be updated or inserted
      */
     public function afterSave($object, $id)
     {
@@ -1069,10 +1071,8 @@ class Entity extends \Phalcon\DI\Injectable
      * hook to be run after an entity is saved
      * and relationships have been processed
      *
-     * @param $object the
-     *            data submitted to the server
-     * @param int|null $id
-     *            the pkid of the record to be updated or inserted
+     * @param mixed $object the data submitted to the server
+     * @param int|null $id the pkid of the record to be updated or inserted
      */
     public function afterSaveRelations($object, $id)
     {
@@ -1084,10 +1084,8 @@ class Entity extends \Phalcon\DI\Injectable
      * watch $id to determine if update or insert
      * built to accommodate saving records w/ parent tables (hasOne)
      *
-     * @param $formData the
-     *            data submitted to the server
-     * @param int $id
-     *            the pkid of the record to be updated, otherwise null on inserts
+     * @param mixed $formData the data submitted to the server
+     * @param int $id the pkid of the record to be updated, otherwise null on inserts
      * @return int the PKID of the record in question
      */
     public function save($formData, $id = NULL)
@@ -1153,7 +1151,7 @@ class Entity extends \Phalcon\DI\Injectable
      * along with loading client submitted data into each model
      *
      *
-     * @param object $model
+     * @param BaseModel $model
      * @param object $object
      * @return object $model
      */
@@ -1170,7 +1168,7 @@ class Entity extends \Phalcon\DI\Injectable
             $modelNameSpace = $config['namespaces']['models'];
             $parentNameSpace = $modelNameSpace . $model::$parentModel;
             $parentModel = new $parentNameSpace();
-            $finalModel = $this->loadParentModel($parentModel, $object);
+            $finalModel = $this->loadParentModel($parentModel, $object); //FIXME: sounds useless?
 
             if ($this->saveMode == 'update') {
                 $primaryKey = $model->getPrimaryKeyName();
@@ -1196,10 +1194,10 @@ class Entity extends \Phalcon\DI\Injectable
      * only include specific known fields
      * will also include block fields since it expects there to be blocked at the controller
      *
-     * @param \PhalconRest\API\BaseModel $model
+     * @param BaseModel $model
      * @param object $formData
      *
-     * @return a model loaded with all relevant data from the object
+     * @return BaseModel a model loaded with all relevant data from the object
      */
     public function loadModelValues($model, $formData)
     {
@@ -1228,7 +1226,7 @@ class Entity extends \Phalcon\DI\Injectable
      * save a model and collect any error messages that may be returned
      * return the model PKID whether insert or update
      *
-     * @param \PhalconRest\API\BaseModel $model
+     * @param BaseModel $model
      * @throws ValidationException
      * @return int
      */

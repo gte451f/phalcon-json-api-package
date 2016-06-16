@@ -1,8 +1,6 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
-
 /**
  * placeholder for future work
  *
@@ -253,6 +251,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * return all configured relations for a given model
      * use the supplied Relation library
+     * @return Relation[]
      */
     public function getRelations()
     {
@@ -269,7 +268,7 @@ class BaseModel extends \Phalcon\Mvc\Model
 
             foreach ($relationships as $relation) {
                 // todo load custom relationship
-                $this->relationships[] = new \PhalconRest\API\Relation($relation, $mm);
+                $this->relationships[] = new Relation($relation, $mm);
             }
         }
         return $this->relationships;
