@@ -909,9 +909,15 @@ class Entity extends \Phalcon\DI\Injectable
 
         // load all active relationships as defined by searchHelper
         foreach ($modelRelationships as $relation) {
+            // register each relationship in the data object so the correct data object can be created
+
+
+
             $tableName = $relation->getTableName();
             $modelName = $relation->getModelName();
             $aliasName = $relation->getAlias();
+
+            $this->result->registerRelationshipDefinitions($relation, $relation->getType());
 
             // make sure the relationship is approved either as the table name, model name or ALL
             // table names because end point resources = table names

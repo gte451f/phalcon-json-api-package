@@ -1,5 +1,6 @@
 <?php
 namespace PhalconRest\Result;
+use PhalconRest\Exception\HTTPException;
 
 /**
  * Basic object to store a single Data object, one or more data objects are strung together for
@@ -81,6 +82,10 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
     }
 
     /**
+     * add related record to an existing data object
+     * this function assumes a list of relations are registered with the result object
+     * 
+     * @throws HTTPException
      * @param $relationship string the singular/plural to match the defined relationship
      * @param $id integer the value this data relates to
      * @param bool $type mixed seems to always be the plural version
@@ -93,23 +98,30 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
 
         $config = $this->di->get('config');
         $inflector = $this->di->get('inflector');
+        $result = $this->di->get('result');
+
+        // this value tells data whether to store related values as array or single object
+        $relationshipDefinition = $result->getRelationshipDefinition($relationship);
 
         $relationship = $inflector->normalize($relationship, $config['application']['propertyFormatTo']);
         $type = $inflector->normalize($type, $config['application']['propertyFormatTo']);
 
         if (isset($this->relationships[$relationship])) {
-            if (isset($this->relationships[$relationship]['data']['id'])) {
-                // this must be a single record
-                $newRelationships = [];
-                $newRelationships[] = $this->relationships[$relationship]['data'];
-                $newRelationships[] = ['id' => $id, 'type' => $type];
-                $this->relationships[$relationship]['data'] = $newRelationships;
+            if ($relationshipDefinition == 'belongsTo' OR $relationshipDefinition == 'hasOne') {
+                // this is a problem, attempting to load multiple records into a relationship designed for one record
+                throw new HTTPException("Attempting to load multiple records into a relationships defined for a single record!", 500, array(
+                    'code' => '3894646846313546467974974'
+                ));
+            }
+            $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
+        } else {
+            if ($relationshipDefinition == 'belongsTo' OR $relationshipDefinition == 'hasOne') {
+                $this->relationships[$relationship]['data'] = ['id' => $id, 'type' => $type];
             } else {
+                // process for multiple records
+                $this->relationships[$relationship]['data'] = [];
                 $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
             }
-        } else {
-            $this->relationships[$relationship]['data'] = [];
-            $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
         }
     }
 
