@@ -1,4 +1,8 @@
 <?php
+use PhalconRest\Util\HTTPException;
+use PhalconRest\Util\ValidationException;
+
+/** @var array $config */
 
 /**
  * If the application throws an HTTPException, send it on to the client as json.
@@ -7,26 +11,19 @@
  * TODO: Kept here due to dependency on $app
  */
 set_exception_handler(function ($exception) use ($app, $config) {
-// $config = $di->get('config');
+    // $config = $di->get('config');
 
-// HTTPException's send method provides the correct response headers and body
-    if (is_a($exception, 'PhalconRest\\Util\\HTTPException')) {
+    // those exceptions's send method provides the correct response headers and body
+    if ($exception instanceof HTTPException || $exception instanceof ValidationException) {
         $exception->send();
         error_log($exception);
-// end early to make sure nothing else gets in the way of delivering response
+        // end early to make sure nothing else gets in the way of delivering response
         return;
     }
 
-// HTTPException's send method provides the correct response headers and body
-    if (is_a($exception, 'PhalconRest\\Util\\ValidationException')) {
-        $exception->send();
-        error_log($exception);
-// end early to make sure nothing else gets in the way of delivering response
-        return;
-    }
-
-// seems like this is only run when an unexpected exception occurs
+    // seems like this is only run when an unexpected exception occurs
     if ($config['application']['debugApp'] == true) {
+        //FIXME: Kint should be a project dependency, if it's really needed
         Kint::dump($exception);
     }
 });
@@ -38,20 +35,23 @@ set_exception_handler(function ($exception) use ($app, $config) {
  * @param $errstr
  * @param $errfile
  * @param $errline
+ * @param mixed $context
+ * @param string $title
  */
-function customErrorHandler($errno, $errstr, $errfile, $errline)
+function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null, $title = 'Fatal Error Occurred')
 {
     // clean any pre-existing error text output to the screen
     ob_clean();
 
-
     $errorReport = new stdClass();
-    $errorReport->id = '28374987239482793472';
+    $errorReport->id = 'root API package error handler';
     $errorReport->code = $errno;
-    $errorReport->title = "Fatal Error Occurred";
+    $errorReport->title = is_string($title)? $title : 'Fatal Error Occurred and bad $title given';
     $errorReport->detail = $errstr;
+    $errorReport->context = $context;
 
     // generate a simplified backtrace
+    //FIXME: shouldn't backtrace be shown only in debug mode?
     $backTrace = debug_backtrace(true, 5);
     $backTraceLog = [];
     foreach ($backTrace as $record) {
@@ -90,7 +90,52 @@ function customErrorHandler($errno, $errstr, $errfile, $errline)
 function shutDownFunction()
 {
     $error = error_get_last();
-    if ($error) customErrorHandler($error["type"], $error["message"], $error["file"], $error["line"]);
+    if ($error) {
+        customErrorHandler($error['type'], $error['message'], $error['file'], $error['line'], null, errorTypeStr($error['type']));
+    }
+}
+
+/**
+ * Translates PHP's bit error codes into actual human text
+ * @param int $code
+ * @return int|string
+ */
+function errorTypeStr($code)
+{
+    switch ($code) {
+        case E_ERROR:
+            return 'ERROR';
+        case E_WARNING:
+            return 'WARNING';
+        case E_PARSE:
+            return 'PARSE';
+        case E_NOTICE:
+            return 'NOTICE';
+        case E_CORE_ERROR:
+            return 'CORE ERROR';
+        case E_CORE_WARNING:
+            return 'CORE WARNING';
+        case E_COMPILE_ERROR:
+            return 'COMPILE ERROR';
+        case E_COMPILE_WARNING:
+            return 'COMPILE WARNING';
+        case E_USER_ERROR:
+            return 'USER ERROR';
+        case E_USER_WARNING:
+            return 'USER WARNING';
+        case E_USER_NOTICE:
+            return 'USER NOTICE';
+        case E_STRICT:
+            return 'STRICT';
+        case E_RECOVERABLE_ERROR:
+            return 'RECOVERABLE ERROR';
+        case E_DEPRECATED:
+            return 'DEPRECATED';
+        case E_USER_DEPRECATED:
+            return 'USER DEPRECATED';
+        default:
+            return $code;
+    }
 }
 
 // set to the user defined error handler

@@ -2,6 +2,7 @@
 namespace PhalconRest\Authentication;
 
 use Phalcon\DI\Injectable;
+use Phalcon\Text;
 
 /**
  * provide a standard user object fed into the authenticator
@@ -9,9 +10,9 @@ use Phalcon\DI\Injectable;
  * thus providing applications with a way to inject their own behavior
  *
  * @author jjenkins
- *        
+ *
  */
-class UserProfile extends \Phalcon\DI\Injectable
+class UserProfile extends Injectable
 {
 
     public $userName;
@@ -25,18 +26,17 @@ class UserProfile extends \Phalcon\DI\Injectable
     /**
      * create a fresh token each time a new user profile is created
      */
-    function __construct()
-    {}
+    function __construct() {}
 
     /**
      * issue a generic token
      * replace with your own logic
      *
-     * @return multitype:boolean NULL
+     * @return string
      */
     public function generateToken()
     {
-        return \Phalcon\Text::random(\Phalcon\Text::RANDOM_ALNUM, 64);
+        return Text::random(Text::RANDOM_ALNUM, 64);
     }
 
     /**
@@ -53,8 +53,7 @@ class UserProfile extends \Phalcon\DI\Injectable
     /**
      * load a full userProfile object based on a provided token
      *
-     * @param array $search
-     *            $key=>$value pairs
+     * @param array $search $key=>$value pairs
      * @return boolean Was profile loaded?
      */
     public function loadProfile($search)
@@ -64,9 +63,7 @@ class UserProfile extends \Phalcon\DI\Injectable
     }
 
     /**
-     * persist the profile to local storage
-     * ie.
-     * session, database, memcache etc
+     * persist the profile to local storage, ie. session, database, memcache etc
      *
      * @return boolean
      */
@@ -74,5 +71,12 @@ class UserProfile extends \Phalcon\DI\Injectable
     {
         // replace with application specific logic
         return true;
+    }
+
+    public function toArray()
+    {
+        $fields = (array)$this;
+        //this filters out any private or protected properties. object>array cast adds a null byte before those
+        return array_filter($fields, function($key) { return $key[0] !== "\0"; }, ARRAY_FILTER_USE_KEY);
     }
 }

@@ -1,11 +1,12 @@
 <?php
 namespace PhalconRest\Util;
+use Phalcon\DI;
+use PhalconRest\API\Output;
 
 /**
  * where caught HTTP Exceptions go to die
  *
  * @author jjenkins
- *        
  */
 class HTTPException extends \Exception
 {
@@ -16,39 +17,40 @@ class HTTPException extends \Exception
     private $di;
 
     /**
-     * http response code
-     *
+     * HTTP response code
      * @var int
      */
     protected $code;
 
     /**
+     * HTTP response description
+     * @var string
+     */
+    protected $response;
+
+    /**
      * hold a valid errorStore object
-     *
-     * @var \PhalconRest\Util\ErrorStore
+     * @var ErrorStore
      */
     private $errorStore;
 
     /**
      *
-     * @param string $message
-     *            required user friendly message to return to the requestor
-     * @param string $code
-     *            required HTTP response code
-     * @param array $errorArray
-     *            list of optional properites to set on the error object
+     * @param string $title required user friendly message to return to the requestor
+     * @param int $code required HTTP response code
+     * @param array $errorList list of optional properites to set on the error object
      */
     public function __construct($title, $code, $errorList)
     {
         // store general error data
-        $this->errorStore = new \PhalconRest\Util\ErrorStore($errorList);
+        $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
         
         // store HTTP specific data
         $this->code = $code;
         
         $this->response = $this->getResponseDescription($code);
-        $this->di = \Phalcon\DI::getDefault();
+        $this->di = Di::getDefault();
     }
 
     /**
@@ -57,17 +59,15 @@ class HTTPException extends \Exception
      */
     public function send()
     {
-        $output = new \PhalconRest\API\Output();
+        $output = new Output();
         $output->setStatusCode($this->code, $this->response);
         $output->sendError($this->errorStore);
         return true;
     }
 
     /**
-     *
-     * see also: https://developer.yahoo.com/social/rest_api_guide/http-response-codes.html
-     *
-     * @param unknown $code            
+     * @see https://developer.yahoo.com/social/rest_api_guide/http-response-codes.html
+     * @param int $code
      * @return string
      */
     protected function getResponseDescription($code)
