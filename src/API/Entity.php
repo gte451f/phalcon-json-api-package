@@ -634,7 +634,8 @@ class Entity extends \Phalcon\DI\Injectable
 
         $i = 0;
         foreach ($this->restResponse[$this->model->getTableName()] as $parentRecord) {
-            $parentRecord[$name . $suffix] = $intermediateRows[$parentRecord['id']];
+            $parentRecord[$name . $suffix] = array_key_exists($parentRecord['id'], $intermediateRows)?
+                $intermediateRows[$parentRecord['id']] : [];
             $this->restResponse[$this->model->getTableName()][$i] = $parentRecord;
             $i++;
         }
