@@ -141,8 +141,7 @@ class QueryBuilder extends \Phalcon\DI\Injectable
 
             // process feature flag for belongsTo
             // attempt to join in side loaded belongsTo records
-            if ($config['feature_flags']['fastBelongsTo']) {
-
+            if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                 // add all parent AND hasOne joins to the column list
                 if ($relation->getType() == 0) {
                     $columns[] = "[$alias].*";

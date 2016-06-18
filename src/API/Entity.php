@@ -196,7 +196,7 @@ class Entity extends \Phalcon\DI\Injectable
     public function processDelayedRelationships()
     {
         $config = $this->getDI()->get('config');
-        if (isset($config['feature_flags']) && !$config['feature_flags']['fastHasMany']) {
+        if (array_deep_key($config, 'feature_flags.fastHasMany')) {
             // feature flag is disabled, nothing to do
             return;
         }
@@ -495,7 +495,7 @@ class Entity extends \Phalcon\DI\Injectable
             // harmonize relatedRecords
             if ($refType == 0) {
                 // extract belongsTo record differently if it's already present in the original query
-                if (!$config['feature_flags']['fastBelongsTo']) {
+                if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                     $relatedRecords = $this->getBelongsToRecord($relation);
                 } else {
                     //pluck the related record out of base record since we know its in there
@@ -508,7 +508,7 @@ class Entity extends \Phalcon\DI\Injectable
             } elseif ($refType == 4) {
                 $relatedRecords = $this->getHasManyToManyRecords($relation);
             } else {
-                if (!$config['feature_flags']['fastHasMany']) {
+                if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
                     $relatedRecords = $this->getHasManyRecords($relation);
                 } else {
                     // register a future record request to be processed later
@@ -697,7 +697,7 @@ class Entity extends \Phalcon\DI\Injectable
         $query = $this->buildRelationQuery($relation);
 
         $config = $this->getDI()->get('config');
-        if (!$config['feature_flags']['fastHasMany']) {
+        if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
             // feature flag is disabled, only looking for one parent record
             // determine the key to search against
             $field = $relation->getFields();
