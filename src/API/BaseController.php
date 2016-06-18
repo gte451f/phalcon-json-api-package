@@ -153,7 +153,6 @@ class BaseController extends Injectable
      * special handling if no matching results are found
      *
      * @param int $id
-     * @return array
      * @throws HTTPException
      * @return Result
      */
