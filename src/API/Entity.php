@@ -2,10 +2,9 @@
 namespace PhalconRest\API;
 
 use Phalcon\Di;
-use Phalcon\Registry;
+use Phalcon\DI\Injectable;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
-use \PhalconRest\Util\Inflector;
 
 /**
  * Pulls together one or more models to represent the REST resource(s)
@@ -13,7 +12,7 @@ use \PhalconRest\Util\Inflector;
  * Loosely follows the Phalcon Model api...that is when entity performs a function
  * similar to a model, it attempts to mimic the function name and signatures
  */
-class Entity extends \Phalcon\DI\Injectable
+class Entity extends Injectable
 {
 
     /**
@@ -241,11 +240,9 @@ class Entity extends \Phalcon\DI\Injectable
      * for a given ID, load a record including any related tables
      * such as employee+user, user addresses and user phones
      *
-     * @param mixed $id
-     *            The PKID for the record
+     * @param mixed $id The PKID for the record
      *
-     * @return mixed $baseRecord
-     *         an array record otherwise false
+     * @return array|false an array record, otherwise false
      */
     public function findFirst($id)
     {
@@ -418,11 +415,8 @@ class Entity extends \Phalcon\DI\Injectable
      * for a given record, load any related values
      * called from both find and findFirst
      *
-     *
-     * @param array $baseRecord
-     *            the base record to decorate
-     * @return array $baseRecord
-     *         the base record, but decorated
+     * @param array|\Phalcon\Mvc\Model\Row $baseRecord the base record to decorate
+     * @return array $baseRecord the base record, but decorated
      */
     public function processRelationships($baseRecord)
     {
