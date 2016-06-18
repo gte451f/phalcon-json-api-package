@@ -913,7 +913,6 @@ class Entity extends \Phalcon\DI\Injectable
             // register each relationship in the data object so the correct data object can be created
 
 
-
             $tableName = $relation->getTableName();
             $modelName = $relation->getModelName();
             $aliasName = $relation->getAlias();

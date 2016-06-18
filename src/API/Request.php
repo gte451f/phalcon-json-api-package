@@ -68,7 +68,6 @@ class Request extends \Phalcon\Http\Request
     }
 
 
-
     /**
      * extend to hook up possible case conversion
      *

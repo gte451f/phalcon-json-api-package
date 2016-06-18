@@ -1,5 +1,6 @@
 <?php
 namespace PhalconRest\API;
+
 use Phalcon\Mvc\Model\ManagerInterface;
 
 /**
@@ -102,7 +103,7 @@ class Relation
     /**
      * inject dependencies
      *
-     * @param \Phalcon\Mvc\Model\Relation $relation            
+     * @param \Phalcon\Mvc\Model\Relation $relation
      * @param ManagerInterface $modelManager
      */
     function __construct(\Phalcon\Mvc\Model\Relation $relation, ManagerInterface $modelManager)
@@ -174,7 +175,7 @@ class Relation
      */
     public function getAlias()
     {
-        if (! isset($this->alias)) {
+        if (!isset($this->alias)) {
             $options = $this->getOptions();
             if (isset($options['alias'])) {
                 $this->alias = $options['alias'];

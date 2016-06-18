@@ -1,5 +1,6 @@
 <?php
 namespace PhalconRest\Result;
+
 use PhalconRest\Exception\HTTPException;
 
 /**
@@ -84,7 +85,7 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
     /**
      * add related record to an existing data object
      * this function assumes a list of relations are registered with the result object
-     * 
+     *
      * @throws HTTPException
      * @param $relationship string the singular/plural to match the defined relationship
      * @param $id integer the value this data relates to

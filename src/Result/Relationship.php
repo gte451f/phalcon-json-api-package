@@ -15,6 +15,7 @@ class Relationships extends \Phalcon\DI\Injectable
      * @var string
      */
     private $type;
+
     /**
      * @var array
      */

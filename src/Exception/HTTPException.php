@@ -2,6 +2,7 @@
 namespace PhalconRest\Exception;
 
 use \PhalconRest\Exception\ErrorStore;
+
 /**
  * Validation Exception Handler
  *

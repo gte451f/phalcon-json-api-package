@@ -44,7 +44,7 @@ function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null
     $errorReport = new stdClass();
     $errorReport->id = 'root API package error handler';
     $errorReport->code = $errno;
-    $errorReport->title = is_string($title)? $title : 'Fatal Error Occurred and bad $title given';
+    $errorReport->title = is_string($title) ? $title : 'Fatal Error Occurred and bad $title given';
     $errorReport->detail = $errstr;
     $errorReport->context = $context;
 
