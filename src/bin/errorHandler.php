@@ -23,8 +23,7 @@ set_exception_handler(function ($exception) use ($app, $config) {
 
     // seems like this is only run when an unexpected exception occurs
     if ($config['application']['debugApp'] == true) {
-        //FIXME: Kint should be a project dependency, if it's really needed
-        Kint::dump($exception);
+        \Kint::dump($exception);
     }
 });
 
