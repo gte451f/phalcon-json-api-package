@@ -392,7 +392,7 @@ class BaseController extends Injectable
     {
         if (!is_array($recordsResult)) {
             // This is bad. Throw a 500. Responses should always be objects.
-            throw new HTTPException("An error occurred while retrieving records.", 500, array(
+            throw new HTTPException("An error occurred while retrieving records.", 500, [
                 'dev' => 'The records returned were malformed.',
                 'code' => '861681684364'
             ]);
