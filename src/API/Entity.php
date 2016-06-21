@@ -90,7 +90,7 @@ class Entity extends Injectable
     /**
      * store the query builder object used by the entity to pull data from the database
      *
-     * @var object
+     * @var QueryBuilder
      */
     private $queryBuilder;
 
@@ -583,11 +583,10 @@ class Entity extends Injectable
         // belongsTo and hasOne are already in place, yes?
         if ($relatedRecordIds !== null) {
             if ($refType == 2 || $refType == 4) {
-                $suffix = '_ids';
                 // populate the linked property or merge in additional records
                 // attempt to store the name similar to the table name
-                $name = $relation->getTableName('singular');
-                $this->baseRecord[$name . $suffix] = $relatedRecordIds;
+                $name = $relation->getTableName('singular') . '_ids';
+                $this->baseRecord[$name] = $relatedRecordIds;
             }
         }
 
@@ -610,9 +609,7 @@ class Entity extends Injectable
 
         // store a copy of all related record (PKIDs)
         // this must be attached w/ the parent records for joining purposes
-        $relatedRecordIds = null;
-        $refModel = new $refModelNameSpace();
-        $primaryKeyName = $refModel->getPrimaryKeyName();
+        $primaryKeyName = (new $refModelNameSpace())->getPrimaryKeyName();
         $foreignKeyName = $relation->getReferencedFields();
 
         // store a more friendly list of records by foreign_key
@@ -621,17 +618,13 @@ class Entity extends Injectable
             $intermediateRows[$child[$foreignKeyName]][] = $child[$primaryKeyName];
         }
 
-        $suffix = '_ids';
         // populate the linked property or merge in additional records
         // attempt to store the name similar to the table name
-        $name = $relation->getTableName('singular');
-
-        $i = 0;
-        foreach ($this->restResponse[$this->model->getTableName()] as $parentRecord) {
-            $parentRecord[$name . $suffix] = array_key_exists($parentRecord['id'], $intermediateRows)?
-                $intermediateRows[$parentRecord['id']] : [];
-            $this->restResponse[$this->model->getTableName()][$i] = $parentRecord;
-            $i++;
+        $name       = $relation->getTableName('singular') . '_ids';
+        $modelTable = $this->model->getTableName();
+        $restKey    = isset($this->restResponse[$modelTable])? $modelTable : $this->model->getTableName('singular');
+        foreach ($this->restResponse[$restKey] as &$record) {
+            $record[$name] = isset($intermediateRows[$record['id']])? $intermediateRows[$record['id']] : [];
         }
     }
 

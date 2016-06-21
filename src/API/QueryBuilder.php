@@ -1,6 +1,9 @@
 <?php
 namespace PhalconRest\API;
 
+use Phalcon\Di;
+use Phalcon\DI\Injectable;
+use Phalcon\Mvc\Model\Query\BuilderInterface;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 
@@ -11,7 +14,7 @@ use \PhalconRest\Util\ValidationException;
  * Class QueryBuilder
  * @package PhalconRest\API
  */
-class QueryBuilder extends \Phalcon\DI\Injectable
+class QueryBuilder extends Injectable
 {
 
     private $model;
@@ -21,11 +24,13 @@ class QueryBuilder extends \Phalcon\DI\Injectable
     /**
      * process injected model
      *
-     * @param \PhalconRest\API\BaseModel $model
+     * @param BaseModel $model
+     * @param SearchHelper $searchHelper
+     * @param Entity $entity
      */
-    function __construct(\PhalconRest\API\BaseModel $model, \PhalconRest\API\SearchHelper $searchHelper, \PhalconRest\API\Entity $entity)
+    function __construct(BaseModel $model, SearchHelper $searchHelper, Entity $entity)
     {
-        $di = \Phalcon\DI::getDefault();
+        $di = Di::getDefault();
         $this->setDI($di);
 
         // the primary model associated with with entity
@@ -43,8 +48,7 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * build a PHQL based query to be executed by the runSearch method
      * broken up into helpers so extending this function duplicates less code
      *
-     * @param boolean $count
-     *            should we only gather a count of the query?
+     * @param boolean $count should we only gather a count of the query?
      */
     public function build($count = false)
     {
@@ -106,10 +110,10 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * apply join conditions and return query object
      *
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface
+     * @param BuilderInterface $query
+     * @return BuilderInterface
      */
-    public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function queryJoinHelper(BuilderInterface $query)
     {
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
@@ -158,11 +162,11 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      *
      * @param $fieldName string the name of the field to be added to the processedSearchFields array
      * @param $fieldValue mixed the value to the query
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query *In case we need to join other tables
+     * @param BuilderInterface $query *In case we need to join other tables
      *
      * @return array | false
      */
-    public function processFilterField($fieldName, $fieldValue, \Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function processFilterField($fieldName, $fieldValue, BuilderInterface $query)
     {
         $processedFieldName = $this->processSearchFields($fieldName);
         $processedFieldValue = $this->processSearchFields($fieldValue);
@@ -178,10 +182,10 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * help $this->queryBuilder to construct a PHQL object
      * apply search rules based on the searchHelper conditions and return query
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @param BuilderInterface $query
+     * @return BuilderInterface $query
      */
-    public function querySearcheHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function querySearcheHelper(BuilderInterface $query)
     {
 
         $searchFields = $this->searchHelper->getSearchFields();
@@ -477,11 +481,11 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * help $this->queryBuilder to construct a PHQL object
      * apply specified limit condition and return query object
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @param BuilderInterface $query
      * @throws HTTPException
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @return BuilderInterface $query
      */
-    public function queryLimitHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function queryLimitHelper(BuilderInterface $query)
     {
         // only apply limit if we are NOT checking the count
         $limit = $this->searchHelper->getLimit();
@@ -505,10 +509,10 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * help $this->queryBuilder to construct a PHQL object
      * apply sort params and return query object
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @param BuilderInterface $query
+     * @return BuilderInterface $query
      */
-    public function querySortHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function querySortHelper(BuilderInterface $query)
     {
         // process sort
         $rawSort = $this->searchHelper->getSort('sql');
