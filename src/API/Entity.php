@@ -3,6 +3,7 @@ namespace PhalconRest\API;
 
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
+use Phalcon\Mvc\Model\Relation as PhalconRelation;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 
@@ -19,7 +20,7 @@ class Entity extends Injectable
      * store a list of all active relationships
      * not just a list of all possible relationships
      *
-     * @var array
+     * @var Relation[]
      */
     public $activeRelations = null;
 
@@ -55,7 +56,6 @@ class Entity extends Injectable
      * store Phalcon lib for use throughout the class
      *
      * @var \Phalcon\Mvc\Model\MetaData\Memory
-     *
      */
     protected $metaData;
 
@@ -305,8 +305,7 @@ class Entity extends Injectable
     /**
      * add a few extra metrics as enabled by the system
      *
-     * @param int $foundSet
-     *            a count of the records matching api request
+     * @param int $foundSet a count of the records matching api request
      */
     protected function appendMeta($foundSet)
     {
@@ -487,7 +486,7 @@ class Entity extends Injectable
 
             $config = $this->getDI()->get('config');
             // harmonize relatedRecords
-            if ($refType == 0) {
+            if ($refType == PhalconRelation::BELONGS_TO) {
                 // extract belongsTo record differently if it's already present in the original query
                 if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                     $relatedRecords = $this->getBelongsToRecord($relation);
@@ -495,11 +494,11 @@ class Entity extends Injectable
                     //pluck the related record out of base record since we know its in there
                     $relatedRecords = $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
                 }
-            } elseif ($refType == 1) {
+            } elseif ($refType == PhalconRelation::HAS_ONE) {
                 // ignore hasOne since they are processed like a parent relation
                 // this means current logic will not merge in a parent's record for a hasOne relationship
                 // it's an edge case but should be supported in the future
-            } elseif ($refType == 4) {
+            } elseif ($refType == PhalconRelation::HAS_MANY_THROUGH) {
                 $relatedRecords = $this->getHasManyToManyRecords($relation);
             } else {
                 if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
@@ -544,17 +543,15 @@ class Entity extends Injectable
             // 1 = hasOne 0 = belongsTo 2 = hasMany
             switch ($refType) {
                 // process hasOne records as well
-                case 1:
+                case PhalconRelation::HAS_ONE:
                     // do nothin w/ hasOne since these are auto merged into the main record
                     break;
-                case 0:
+                case PhalconRelation::BELONGS_TO:
                     // this doesn't seem right, why are they occasionally showing up inside an array?
                     if (isset($relatedRecords[$primaryKeyName])) {
                         $relatedRecordIds = $relatedRecords[$primaryKeyName];
                         // wrap in array so we can store multiple hasOnes from many different main records
-                        $relatedRecords = array(
-                            $relatedRecords
-                        );
+                        $relatedRecords = array($relatedRecords);
                     } else {
                         $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
                     }
@@ -582,7 +579,7 @@ class Entity extends Injectable
         // does this only run when working with hasMany?
         // belongsTo and hasOne are already in place, yes?
         if ($relatedRecordIds !== null) {
-            if ($refType == 2 || $refType == 4) {
+            if ($refType == PhalconRelation::HAS_MANY || $refType == PhalconRelation::HAS_MANY_THROUGH) {
                 // populate the linked property or merge in additional records
                 // attempt to store the name similar to the table name
                 $name = $relation->getTableName('singular') . '_ids';
@@ -632,10 +629,8 @@ class Entity extends Injectable
     /**
      * load an array of records into the restResponse
      *
-     * @param string $table
-     *            the table name where the records originated
-     * @param array $records
-     *            usually related records, but could side load just about any records to an api response
+     * @param string $table the table name where the records originated
+     * @param array $records usually related records, but could side load just about any records to an api response
      * @return void
      */
     protected function updateRestResponse($table, $records)

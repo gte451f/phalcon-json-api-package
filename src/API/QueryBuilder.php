@@ -4,6 +4,7 @@ namespace PhalconRest\API;
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Query\BuilderInterface;
+use Phalcon\Mvc\Model\Relation;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 
@@ -130,24 +131,42 @@ class QueryBuilder extends Injectable
             }
 
             // structure to always join in belongsTo just in case the query filters by a related field
-            if ($relation->getType() == 1 || $relation->getType() == 0) {
-                // create both sides of the join
-                $left = "[$alias]" . '.' . $relation->getReferencedFields();
-                $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
-                // create and alias join
-                $query->leftJoin($referencedModel, "$left = $right", $alias);
-            }
+            $type = $relation->getType();
+            switch ($type) {
+                case Relation::BELONGS_TO:
+                case Relation::HAS_ONE:
+                    // create both sides of the join
+                    $left = "[$alias]." . $relation->getReferencedFields();
+                    $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    // create and alias join
+                    $query->leftJoin($referencedModel, "$left = $right", $alias);
 
-            // add all parent AND hasOne joins to the column list
-            if ($relation->getType() == 1) {
-                $columns[] = "[$alias].*";
+                    // add all parent AND hasOne joins to the column list
+                    if ($type == Relation::HAS_ONE) {
+                        $columns[] = "[$alias].*";
+                    }
+                    break;
+
+                case Relation::HAS_MANY_THROUGH:
+                    $alias2 = $alias.'_intermediate';
+                    $left1  = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    $right1 = "[$alias2]." . $relation->getIntermediateFields();
+                    $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
+
+                    $left2  = "[$alias2]." . $relation->getIntermediateReferencedFields();
+                    $right2 = "[$alias]." . $relation->getReferencedFields();
+                    $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
+                    break;
+
+                default:
+                    $this->di->get('logger')->warning("Relationship was ignored during join: {$this->model->getModelName()}.$alias, type #$type");
             }
 
             // process feature flag for belongsTo
             // attempt to join in side loaded belongsTo records
             if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                 // add all parent AND hasOne joins to the column list
-                if ($relation->getType() == 0) {
+                if ($type == Relation::BELONGS_TO) {
                     $columns[] = "[$alias].*";
                 }
             }
@@ -351,10 +370,10 @@ class QueryBuilder extends Injectable
 
             // if we made it this far, than a prefix was supplied but it did not match any known hasOne relationship
             if ($matchFound == false) {
-                throw new HTTPException("Unkown table prefix supplied in filter.", 500, array(
-                    'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
+                throw new HTTPException('Unknown table prefix supplied in filter.', 500, [
+                    'dev' => 'Encountered a table prefix that did not match any known hasOne relationships in the model.',
                     'code' => '891488651361948131461849'
-                ));
+                ]);
             }
         } else {
             $alias = $this->model->getModelNameSpace();
