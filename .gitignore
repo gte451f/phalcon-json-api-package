@@ -5,6 +5,9 @@
 /composer.lock
 /dummy.php
 
+#phpstorm
+/.idea
+
 # Octocat's Idea's on what to ignore
 # Compiled source #
 ###################
