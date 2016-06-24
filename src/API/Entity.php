@@ -2,10 +2,10 @@
 namespace PhalconRest\API;
 
 use Phalcon\Di;
-use Phalcon\Registry;
+use Phalcon\DI\Injectable;
+use Phalcon\Mvc\Model\Relation as PhalconRelation;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
-use \PhalconRest\Util\Inflector;
 
 /**
  * Pulls together one or more models to represent the REST resource(s)
@@ -13,14 +13,14 @@ use \PhalconRest\Util\Inflector;
  * Loosely follows the Phalcon Model api...that is when entity performs a function
  * similar to a model, it attempts to mimic the function name and signatures
  */
-class Entity extends \Phalcon\DI\Injectable
+class Entity extends Injectable
 {
 
     /**
      * store a list of all active relationships
      * not just a list of all possible relationships
      *
-     * @var array
+     * @var Relation[]
      */
     public $activeRelations = null;
 
@@ -56,7 +56,6 @@ class Entity extends \Phalcon\DI\Injectable
      * store Phalcon lib for use throughout the class
      *
      * @var \Phalcon\Mvc\Model\MetaData\Memory
-     *
      */
     protected $metaData;
 
@@ -91,7 +90,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * store the query builder object used by the entity to pull data from the database
      *
-     * @var object
+     * @var QueryBuilder
      */
     private $queryBuilder;
 
@@ -196,7 +195,7 @@ class Entity extends \Phalcon\DI\Injectable
     public function processDelayedRelationships()
     {
         $config = $this->getDI()->get('config');
-        if (isset($config['feature_flags']) && !$config['feature_flags']['fastHasMany']) {
+        if (array_deep_key($config, 'feature_flags.fastHasMany')) {
             // feature flag is disabled, nothing to do
             return;
         }
@@ -241,11 +240,9 @@ class Entity extends \Phalcon\DI\Injectable
      * for a given ID, load a record including any related tables
      * such as employee+user, user addresses and user phones
      *
-     * @param mixed $id
-     *            The PKID for the record
+     * @param mixed $id The PKID for the record
      *
-     * @return mixed $baseRecord
-     *         an array record otherwise false
+     * @return array|false an array record, otherwise false
      */
     public function findFirst($id)
     {
@@ -308,8 +305,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * add a few extra metrics as enabled by the system
      *
-     * @param int $foundSet
-     *            a count of the records matching api request
+     * @param int $foundSet a count of the records matching api request
      */
     protected function appendMeta($foundSet)
     {
@@ -418,11 +414,8 @@ class Entity extends \Phalcon\DI\Injectable
      * for a given record, load any related values
      * called from both find and findFirst
      *
-     *
-     * @param array $baseRecord
-     *            the base record to decorate
-     * @return array $baseRecord
-     *         the base record, but decorated
+     * @param array|\Phalcon\Mvc\Model\Row $baseRecord the base record to decorate
+     * @return array $baseRecord the base record, but decorated
      */
     public function processRelationships($baseRecord)
     {
@@ -493,22 +486,22 @@ class Entity extends \Phalcon\DI\Injectable
 
             $config = $this->getDI()->get('config');
             // harmonize relatedRecords
-            if ($refType == 0) {
+            if ($refType == PhalconRelation::BELONGS_TO) {
                 // extract belongsTo record differently if it's already present in the original query
-                if (!$config['feature_flags']['fastBelongsTo']) {
+                if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                     $relatedRecords = $this->getBelongsToRecord($relation);
                 } else {
                     //pluck the related record out of base record since we know its in there
                     $relatedRecords = $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
                 }
-            } elseif ($refType == 1) {
+            } elseif ($refType == PhalconRelation::HAS_ONE) {
                 // ignore hasOne since they are processed like a parent relation
                 // this means current logic will not merge in a parent's record for a hasOne relationship
                 // it's an edge case but should be supported in the future
-            } elseif ($refType == 4) {
+            } elseif ($refType == PhalconRelation::HAS_MANY_THROUGH) {
                 $relatedRecords = $this->getHasManyToManyRecords($relation);
             } else {
-                if (!$config['feature_flags']['fastHasMany']) {
+                if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
                     $relatedRecords = $this->getHasManyRecords($relation);
                 } else {
                     // register a future record request to be processed later
@@ -550,17 +543,15 @@ class Entity extends \Phalcon\DI\Injectable
             // 1 = hasOne 0 = belongsTo 2 = hasMany
             switch ($refType) {
                 // process hasOne records as well
-                case 1:
+                case PhalconRelation::HAS_ONE:
                     // do nothin w/ hasOne since these are auto merged into the main record
                     break;
-                case 0:
+                case PhalconRelation::BELONGS_TO:
                     // this doesn't seem right, why are they occasionally showing up inside an array?
                     if (isset($relatedRecords[$primaryKeyName])) {
                         $relatedRecordIds = $relatedRecords[$primaryKeyName];
                         // wrap in array so we can store multiple hasOnes from many different main records
-                        $relatedRecords = array(
-                            $relatedRecords
-                        );
+                        $relatedRecords = array($relatedRecords);
                     } else {
                         $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
                     }
@@ -588,12 +579,11 @@ class Entity extends \Phalcon\DI\Injectable
         // does this only run when working with hasMany?
         // belongsTo and hasOne are already in place, yes?
         if ($relatedRecordIds !== null) {
-            if ($refType == 2 || $refType == 4) {
-                $suffix = '_ids';
+            if ($refType == PhalconRelation::HAS_MANY || $refType == PhalconRelation::HAS_MANY_THROUGH) {
                 // populate the linked property or merge in additional records
                 // attempt to store the name similar to the table name
-                $name = $relation->getTableName('singular');
-                $this->baseRecord[$name . $suffix] = $relatedRecordIds;
+                $name = $relation->getTableName('singular') . '_ids';
+                $this->baseRecord[$name] = $relatedRecordIds;
             }
         }
 
@@ -616,9 +606,7 @@ class Entity extends \Phalcon\DI\Injectable
 
         // store a copy of all related record (PKIDs)
         // this must be attached w/ the parent records for joining purposes
-        $relatedRecordIds = null;
-        $refModel = new $refModelNameSpace();
-        $primaryKeyName = $refModel->getPrimaryKeyName();
+        $primaryKeyName = (new $refModelNameSpace())->getPrimaryKeyName();
         $foreignKeyName = $relation->getReferencedFields();
 
         // store a more friendly list of records by foreign_key
@@ -627,16 +615,13 @@ class Entity extends \Phalcon\DI\Injectable
             $intermediateRows[$child[$foreignKeyName]][] = $child[$primaryKeyName];
         }
 
-        $suffix = '_ids';
         // populate the linked property or merge in additional records
         // attempt to store the name similar to the table name
-        $name = $relation->getTableName('singular');
-
-        $i = 0;
-        foreach ($this->restResponse[$this->model->getTableName()] as $parentRecord) {
-            $parentRecord[$name . $suffix] = $intermediateRows[$parentRecord['id']];
-            $this->restResponse[$this->model->getTableName()][$i] = $parentRecord;
-            $i++;
+        $name       = $relation->getTableName('singular') . '_ids';
+        $modelTable = $this->model->getTableName();
+        $restKey    = isset($this->restResponse[$modelTable])? $modelTable : $this->model->getTableName('singular');
+        foreach ($this->restResponse[$restKey] as &$record) {
+            $record[$name] = isset($intermediateRows[$record['id']])? $intermediateRows[$record['id']] : [];
         }
     }
 
@@ -644,10 +629,8 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * load an array of records into the restResponse
      *
-     * @param string $table
-     *            the table name where the records originated
-     * @param array $records
-     *            usually related records, but could side load just about any records to an api response
+     * @param string $table the table name where the records originated
+     * @param array $records usually related records, but could side load just about any records to an api response
      * @return void
      */
     protected function updateRestResponse($table, $records)
@@ -697,7 +680,7 @@ class Entity extends \Phalcon\DI\Injectable
         $query = $this->buildRelationQuery($relation);
 
         $config = $this->getDI()->get('config');
-        if (!$config['feature_flags']['fastHasMany']) {
+        if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
             // feature flag is disabled, only looking for one parent record
             // determine the key to search against
             $field = $relation->getFields();

@@ -1,6 +1,10 @@
 <?php
 namespace PhalconRest\API;
 
+use Phalcon\Di;
+use Phalcon\DI\Injectable;
+use Phalcon\Mvc\Model\Query\BuilderInterface;
+use Phalcon\Mvc\Model\Relation;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 
@@ -11,7 +15,7 @@ use \PhalconRest\Util\ValidationException;
  * Class QueryBuilder
  * @package PhalconRest\API
  */
-class QueryBuilder extends \Phalcon\DI\Injectable
+class QueryBuilder extends Injectable
 {
 
     private $model;
@@ -21,11 +25,13 @@ class QueryBuilder extends \Phalcon\DI\Injectable
     /**
      * process injected model
      *
-     * @param \PhalconRest\API\BaseModel $model
+     * @param BaseModel $model
+     * @param SearchHelper $searchHelper
+     * @param Entity $entity
      */
-    function __construct(\PhalconRest\API\BaseModel $model, \PhalconRest\API\SearchHelper $searchHelper, \PhalconRest\API\Entity $entity)
+    function __construct(BaseModel $model, SearchHelper $searchHelper, Entity $entity)
     {
-        $di = \Phalcon\DI::getDefault();
+        $di = Di::getDefault();
         $this->setDI($di);
 
         // the primary model associated with with entity
@@ -43,8 +49,7 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * build a PHQL based query to be executed by the runSearch method
      * broken up into helpers so extending this function duplicates less code
      *
-     * @param boolean $count
-     *            should we only gather a count of the query?
+     * @param boolean $count should we only gather a count of the query?
      */
     public function build($count = false)
     {
@@ -106,10 +111,10 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * apply join conditions and return query object
      *
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface
+     * @param BuilderInterface $query
+     * @return BuilderInterface
      */
-    public function queryJoinHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function queryJoinHelper(BuilderInterface $query)
     {
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
@@ -126,25 +131,42 @@ class QueryBuilder extends \Phalcon\DI\Injectable
             }
 
             // structure to always join in belongsTo just in case the query filters by a related field
-            if ($relation->getType() == 1 || $relation->getType() == 0) {
-                // create both sides of the join
-                $left = "[$alias]" . '.' . $relation->getReferencedFields();
-                $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
-                // create and alias join
-                $query->leftJoin($referencedModel, "$left = $right", $alias);
-            }
+            $type = $relation->getType();
+            switch ($type) {
+                case Relation::BELONGS_TO:
+                case Relation::HAS_ONE:
+                    // create both sides of the join
+                    $left = "[$alias]." . $relation->getReferencedFields();
+                    $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    // create and alias join
+                    $query->leftJoin($referencedModel, "$left = $right", $alias);
 
-            // add all parent AND hasOne joins to the column list
-            if ($relation->getType() == 1) {
-                $columns[] = "[$alias].*";
+                    // add all parent AND hasOne joins to the column list
+                    if ($type == Relation::HAS_ONE) {
+                        $columns[] = "[$alias].*";
+                    }
+                    break;
+
+                case Relation::HAS_MANY_THROUGH:
+                    $alias2 = $alias.'_intermediate';
+                    $left1  = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    $right1 = "[$alias2]." . $relation->getIntermediateFields();
+                    $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
+
+                    $left2  = "[$alias2]." . $relation->getIntermediateReferencedFields();
+                    $right2 = "[$alias]." . $relation->getReferencedFields();
+                    $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
+                    break;
+
+                default:
+                    $this->di->get('logger')->warning("Relationship was ignored during join: {$this->model->getModelName()}.$alias, type #$type");
             }
 
             // process feature flag for belongsTo
             // attempt to join in side loaded belongsTo records
-            if ($config['feature_flags']['fastBelongsTo']) {
-
+            if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                 // add all parent AND hasOne joins to the column list
-                if ($relation->getType() == 0) {
+                if ($type == Relation::BELONGS_TO) {
                     $columns[] = "[$alias].*";
                 }
             }
@@ -159,11 +181,11 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      *
      * @param $fieldName string the name of the field to be added to the processedSearchFields array
      * @param $fieldValue mixed the value to the query
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query *In case we need to join other tables
+     * @param BuilderInterface $query *In case we need to join other tables
      *
      * @return array | false
      */
-    public function processFilterField($fieldName, $fieldValue, \Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function processFilterField($fieldName, $fieldValue, BuilderInterface $query)
     {
         $processedFieldName = $this->processSearchFields($fieldName);
         $processedFieldValue = $this->processSearchFields($fieldValue);
@@ -179,10 +201,10 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * help $this->queryBuilder to construct a PHQL object
      * apply search rules based on the searchHelper conditions and return query
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @param BuilderInterface $query
+     * @return BuilderInterface $query
      */
-    public function querySearcheHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function querySearcheHelper(BuilderInterface $query)
     {
 
         $searchFields = $this->searchHelper->getSearchFields();
@@ -348,10 +370,10 @@ class QueryBuilder extends \Phalcon\DI\Injectable
 
             // if we made it this far, than a prefix was supplied but it did not match any known hasOne relationship
             if ($matchFound == false) {
-                throw new HTTPException("Unkown table prefix supplied in filter.", 500, array(
-                    'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
+                throw new HTTPException('Unknown table prefix supplied in filter.', 500, [
+                    'dev' => 'Encountered a table prefix that did not match any known hasOne relationships in the model.',
                     'code' => '891488651361948131461849'
-                ));
+                ]);
             }
         } else {
             $alias = $this->model->getModelNameSpace();
@@ -478,11 +500,11 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * help $this->queryBuilder to construct a PHQL object
      * apply specified limit condition and return query object
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @param BuilderInterface $query
      * @throws HTTPException
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @return BuilderInterface $query
      */
-    public function queryLimitHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function queryLimitHelper(BuilderInterface $query)
     {
         // only apply limit if we are NOT checking the count
         $limit = $this->searchHelper->getLimit();
@@ -506,10 +528,10 @@ class QueryBuilder extends \Phalcon\DI\Injectable
      * help $this->queryBuilder to construct a PHQL object
      * apply sort params and return query object
      *
-     * @param \Phalcon\Mvc\Model\Query\BuilderInterface $query
-     * @return \Phalcon\Mvc\Model\Query\BuilderInterface $query
+     * @param BuilderInterface $query
+     * @return BuilderInterface $query
      */
-    public function querySortHelper(\Phalcon\Mvc\Model\Query\BuilderInterface $query)
+    public function querySortHelper(BuilderInterface $query)
     {
         // process sort
         $rawSort = $this->searchHelper->getSort('sql');

@@ -85,6 +85,15 @@ class BaseController extends Injectable
     }
 
     /**
+     * Load an empty SearchHelper instance. Useful place to override its behavior.
+     * @return SearchHelper
+     */
+    public function getSearchHelper()
+    {
+        return new SearchHelper();
+    }
+
+    /**
      * Load a default entity unless one is already in place
      * return the currentlyloaded entity
      *
@@ -95,7 +104,7 @@ class BaseController extends Injectable
         if ($this->entity == false) {
             $config = $this->getDI()->get('config');
             $model = $this->getModel();
-            $searchHelper = new SearchHelper();
+            $searchHelper = $this->getSearchHelper();
             $entity = $config['namespaces']['entities'] . $this->getControllerName('singular') . 'Entity';
             $this->entity = new $entity($model, $searchHelper);
         }

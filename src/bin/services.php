@@ -14,6 +14,7 @@ use PhalconRest\API\Inflector;
 use Phalcon\Crypt;
 use Phalcon\Security;
 use PHPBenchTime\Timer;
+use Phalcon\Logger\Adapter\File as FileLogger;
 
 $T = new Timer();
 $T->start('Booting App');
@@ -38,6 +39,10 @@ $di->setShared('request', function () {
 // stopwatch service to track
 $di->setShared('stopwatch', function () use ($T) {
     return $T;
+});
+
+$di->setShared('logger', function () use ($config) {
+    return new FileLogger($config['application']['loggingDir'] . date('d_m_y') . '-api.log');
 });
 
 /**
