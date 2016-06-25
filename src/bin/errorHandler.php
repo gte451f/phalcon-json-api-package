@@ -24,6 +24,11 @@ set_exception_handler(function ($exception) use ($app, $config) {
             print_r($exception);
             break;
     }
+
+    // seems like this is only run when an unexpected exception occurs
+    if ($config['application']['debugApp'] == true) {
+        \Kint::dump($exception);
+    }
 });
 
 /**

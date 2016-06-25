@@ -13,6 +13,7 @@ class SecureController extends BaseController
     public function __construct($parseQueryString = true)
     {
         $config = $this->getDI()->get('config');
+        $auth = $this->getDI()->get('auth');
 
         switch ($config['security']) {
             case true:
@@ -44,9 +45,8 @@ class SecureController extends BaseController
                         'code' => '0273497957'
                     ));
                 }
-
                 // check for a valid session
-                if ($this->auth->isLoggedIn($token)) {
+                if ($auth->isLoggedIn($token)) {
                     // get the security service object
                     $securityService = $this->getDI()->get('securityService');
                     // run security check
@@ -64,7 +64,7 @@ class SecureController extends BaseController
                 // if security is off, then create a fake user profile
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
-                if ($this->auth->isLoggedIn('HACKYHACKERSON')) {
+                if ($auth->isLoggedIn('HACKYHACKERSON')) {
                     // get the security service object
                     $securityService = $this->getDI()->get('securityService');
                     // run security check

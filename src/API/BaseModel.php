@@ -263,6 +263,28 @@ class BaseModel extends \Phalcon\Mvc\Model
     }
 
     /**
+     * get a particular relationship configured for this model
+     *
+     * @param $name
+     * @return mixed either a relationship object or false
+     */
+    public function getRelation($name)
+    {
+        if (!isset($this->relationships)) {
+            $relations = $this->getRelations();
+        } else {
+            $relations = $this->relationships;
+        }
+
+        foreach ($relations as $relation) {
+            if ($relation->getAlias() == $name) {
+                return $relation;
+            }
+        }
+        return false;
+    }
+
+    /**
      * a hook to be run when initializing a model
      * write logic here to block columns
      *

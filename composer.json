@@ -1,15 +1,26 @@
-{
-  "name": "gte451f/phalcon-json-api-package",
-  "description": "A set of tools designed for use in a Phalcon application to make a RESTish API",
-  "keywords": [
-    "gte451f phalcon json api rest"
-  ],
-  "license": "GNU GPL v3",
-  "authors": [
-    {
-      "name": "Jim",
-      "email": "jim.jenkins.iv@gmail.com",
-      "role": "Creator"
+{   
+    "name": "gte451f/phalcon-json-api-package",
+    "description": "A set of tools designed for use in a Phalcon application to make a RESTish API",
+    "keywords": ["phalcon","json-api","json","api","rest","restful"],
+    "license": "GNU GPL v3",
+    "authors": [
+        {
+            "name": "Jim",
+            "email": "jim.jenkins.iv@gmail.com",
+            "role": "Creator"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0",
+        "jsanc623/phpbenchtime": "dev-master"
+    },
+    "require-dev": {
+        "raveren/kint": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PhalconRest\\": "src/"
+        }
     }
   ],
   "require": {

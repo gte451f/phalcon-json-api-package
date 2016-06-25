@@ -2,11 +2,10 @@
 namespace PhalconRest\API;
 
 use Phalcon\Di;
-use Phalcon\Registry;
-use \PhalconRest\Exception\HTTPException;
-use \PhalconRest\Exception\ValidationException;
-use \PhalconRest\Result\Data;
-use \PhalconRest\Result\Result;
+use Phalcon\DI\Injectable;
+use Phalcon\Mvc\Model\Relation as PhalconRelation;
+use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Util\ValidationException;
 
 
 /**
@@ -15,14 +14,14 @@ use \PhalconRest\Result\Result;
  * Loosely follows the Phalcon Model api...that is when entity performs a function
  * similar to a model, it attempts to mimic the function name and signatures
  */
-class Entity extends \Phalcon\DI\Injectable
+class Entity extends Injectable
 {
 
     /**
      * store a list of all active relationships
      * not just a list of all possible relationships
      *
-     * @var array
+     * @var Relation[]
      */
     public $activeRelations = null;
 
@@ -60,7 +59,6 @@ class Entity extends \Phalcon\DI\Injectable
      * store Phalcon lib for use throughout the class
      *
      * @var \Phalcon\Mvc\Model\MetaData\Memory
-     *
      */
     protected $metaData;
 
@@ -95,7 +93,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * store the query builder object used by the entity to pull data from the database
      *
-     * @var object
+     * @var QueryBuilder
      */
     private $queryBuilder;
 
@@ -233,8 +231,7 @@ class Entity extends \Phalcon\DI\Injectable
      * for a given ID, load a record including any related tables
      * such as employee+user, user addresses and user phones
      *
-     * @param mixed $id
-     *            The PKID for the record
+     * @param mixed $id The PKID for the record
      *
      * @return Result
      *
@@ -294,8 +291,7 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * add a few extra metrics as enabled by the system
      *
-     * @param int $foundSet
-     *            a count of the records matching api request
+     * @param int $foundSet a count of the records matching api request
      */
     protected function appendMeta($foundSet)
     {
@@ -403,11 +399,8 @@ class Entity extends \Phalcon\DI\Injectable
      * for a given record, load any related values
      * called from both find and findFirst
      *
-     *
-     * @param array $baseRecord
-     *            the base record to decorate
-     * @return array $baseRecord
-     *         the base record, but decorated
+     * @param array|\Phalcon\Mvc\Model\Row $baseRecord the base record to decorate
+     * @return array $baseRecord the base record, but decorated
      */
     public function processRelationships($baseRecord)
     {
@@ -515,17 +508,15 @@ class Entity extends \Phalcon\DI\Injectable
             // 1 = hasOne 0 = belongsTo 2 = hasMany
             switch ($refType) {
                 // process hasOne records as well
-                case 1:
+                case PhalconRelation::HAS_ONE:
                     // do nothin w/ hasOne since these are auto merged into the main record
                     break;
-                case 0:
+                case PhalconRelation::BELONGS_TO:
                     // this doesn't seem right, why are they occasionally showing up inside an array?
                     if (isset($relatedRecords[$primaryKeyName])) {
                         $relatedRecordIds = $relatedRecords[$primaryKeyName];
                         // wrap in array so we can store multiple hasOnes from many different main records
-                        $relatedRecords = array(
-                            $relatedRecords
-                        );
+                        $relatedRecords = array($relatedRecords);
                     } else {
                         $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
                     }
@@ -553,12 +544,11 @@ class Entity extends \Phalcon\DI\Injectable
         // does this only run when working with hasMany?
         // belongsTo and hasOne are already in place, yes?
         if ($relatedRecordIds !== null) {
-            if ($refType == 2 || $refType == 4) {
-                $suffix = '_ids';
+            if ($refType == PhalconRelation::HAS_MANY || $refType == PhalconRelation::HAS_MANY_THROUGH) {
                 // populate the linked property or merge in additional records
                 // attempt to store the name similar to the table name
-                $name = $relation->getTableName('singular');
-                $this->baseRecord[$name . $suffix] = $relatedRecordIds;
+                $name = $relation->getTableName('singular') . '_ids';
+                $this->baseRecord[$name] = $relatedRecordIds;
             }
         }
 
@@ -581,9 +571,7 @@ class Entity extends \Phalcon\DI\Injectable
 
         // store a copy of all related record (PKIDs)
         // this must be attached w/ the parent records for joining purposes
-        $relatedRecordIds = null;
-        $refModel = new $refModelNameSpace();
-        $primaryKeyName = $refModel->getPrimaryKeyName();
+        $primaryKeyName = (new $refModelNameSpace())->getPrimaryKeyName();
         $foreignKeyName = $relation->getReferencedFields();
 
         // store a more friendly list of records by foreign_key
@@ -592,16 +580,13 @@ class Entity extends \Phalcon\DI\Injectable
             $intermediateRows[$child[$foreignKeyName]][] = $child[$primaryKeyName];
         }
 
-        $suffix = '_ids';
         // populate the linked property or merge in additional records
         // attempt to store the name similar to the table name
-        $name = $relation->getTableName('singular');
-
-        $i = 0;
-        foreach ($this->restResponse[$this->model->getTableName()] as $parentRecord) {
-            $parentRecord[$name . $suffix] = $intermediateRows[$parentRecord['id']];
-            $this->restResponse[$this->model->getTableName()][$i] = $parentRecord;
-            $i++;
+        $name = $relation->getTableName('singular') . '_ids';
+        $modelTable = $this->model->getTableName();
+        $restKey = isset($this->restResponse[$modelTable]) ? $modelTable : $this->model->getTableName('singular');
+        foreach ($this->restResponse[$restKey] as &$record) {
+            $record[$name] = isset($intermediateRows[$record['id']]) ? $intermediateRows[$record['id']] : [];
         }
     }
 
@@ -609,10 +594,8 @@ class Entity extends \Phalcon\DI\Injectable
     /**
      * load an array of records into the restResponse
      *
-     * @param string $table
-     *            the table name where the records originated
-     * @param array $records
-     *            usually related records, but could side load just about any records to an api response
+     * @param string $table the table name where the records originated
+     * @param array $records usually related records, but could side load just about any records to an api response
      * @return void
      */
     protected function updateRestResponse($table, $records)
@@ -727,6 +710,8 @@ class Entity extends \Phalcon\DI\Injectable
 
     /**
      * load the query object for a hasManyToMany relationship
+     * build most of the joins manually since by reference relationship in the model isn't working so well
+     * this support joins to distant tables with parent models
      *
      * @param Relation $relation
      * @return array
@@ -739,6 +724,8 @@ class Entity extends \Phalcon\DI\Injectable
 
         // determine the key to search against
         $field = $relation->getFields();
+        $referencedField = $relation->getReferencedFields();
+        $intermediateFields = $relation->getIntermediateReferencedFields();
 
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
@@ -746,16 +733,23 @@ class Entity extends \Phalcon\DI\Injectable
 
         $query = $mm->createBuilder()
             ->from($intermediateModelNameSpace)
-            ->join($refModelNameSpace);
+            ->join($refModelNameSpace, $refModelNameSpace . ".$referencedField = " . $intermediateModelNameSpace . ".$intermediateFields");
 
         $columns = array();
 
         // join in parent record if one is detected
         $parentName = $relation->getParent();
         if ($parentName) {
-            $columns[] = "$parentName.*";
-            $intField = $relation->getIntermediateReferencedFields();
-            $query->join($modelNameSpace . $parentName, "$parentName.$field = $refModelNameSpace.$intField", $parentName);
+            // load parent model
+            $parentModelNameSpace = $modelNameSpace . $parentName;
+            $parentModel = new $refModelNameSpace();
+            // load reference relationship
+            $parentRelationship = $parentModel->getRelation($parentName);
+
+            $columns[] = "$parentModelNameSpace.*";
+            $query->join($parentModelNameSpace,
+                "$parentModelNameSpace." . $parentRelationship->getReferencedFields() . " = $refModelNameSpace." . $parentRelationship->getFields(),
+                $parentModelNameSpace);
         }
 
         // Load the main record field at the end, so they are not overwritten
@@ -908,28 +902,68 @@ class Entity extends \Phalcon\DI\Injectable
                 break;
         }
 
-        // load all active relationships as defined by searchHelper
-        foreach ($modelRelationships as $relation) {
-            // register each relationship in the data object so the correct data object can be created
+        if ($all) {
+            // load all defined relationships regardless of what was requested
+            foreach ($modelRelationships as $relation) {
+                $modelName = $relation->getModelName();
+                $aliasName = $relation->getAlias();
 
-
-            $tableName = $relation->getTableName();
-            $modelName = $relation->getModelName();
-            $aliasName = $relation->getAlias();
-
-            $this->result->registerRelationshipDefinitions($relation, $relation->getType());
-
-            // make sure the relationship is approved either as the table name, model name or ALL
-            // table names because end point resources = table names
-            // model name because some auto generated relationships use this name instead
-            // alias is used to STORE the active relationship in case multiple relationships point to the same model
-            // but it is not a valid way for a client to request data
-            if ($all or in_array($tableName, $requestedRelationships) or in_array($modelName, $requestedRelationships)) {
                 // figure out if we have a preferred alias
                 if ($aliasName) {
                     $this->activeRelations[$aliasName] = $relation;
                 } else {
                     $this->activeRelations[$modelName] = $relation;
+                }
+            }
+        } else {
+            //
+            foreach ($requestedRelationships as $requestedRelationship) {
+                $matchFound = false;
+                foreach ($modelRelationships as $relation) {
+                    $tableName = $relation->getTableName();
+                    $modelName = $relation->getModelName();
+                    $aliasName = $relation->getAlias();
+
+                    // make sure the relationship is approved either as the table name, model name or ALL
+                    // table names because end point resources = table names
+                    // model name because some auto generated relationships use this name instead
+                    // alias is used to STORE the active relationship in case multiple relationships point to the same model
+                    // but it is not a valid way for a client to request data
+                    if ($requestedRelationship == $aliasName) {
+                        $matchFound = true;
+                        // figure out if we have a preferred alias
+                        if ($aliasName) {
+                            $this->activeRelations[$aliasName] = $relation;
+                        } else {
+                            $this->activeRelations[$modelName] = $relation;
+                        }
+                        break;
+                    }
+                }
+                if (!$matchFound) {
+                    foreach ($modelRelationships as $relation) {
+                        $tableName = $relation->getTableName();
+                        $modelName = $relation->getModelName();
+                        $aliasName = $relation->getAlias();
+
+                        if ($requestedRelationship == $tableName) {
+                            $matchFound = true;
+                            // figure out if we have a preferred alias
+                            if ($aliasName) {
+                                $this->activeRelations[$aliasName] = $relation;
+                            } else {
+                                $this->activeRelations[$modelName] = $relation;
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    continue;
+                }
+
+                if (!$matchFound) {
+                    // if you are still here, then you have a problem!
+                    // a relation ship was requested that doesn't actually exist
                 }
             }
         }

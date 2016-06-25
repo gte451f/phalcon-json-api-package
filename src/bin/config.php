@@ -47,10 +47,10 @@ $config = [
 
     // location to various code sources
     'namespaces' => [
-        'models' => "PhalconRest\\Models\\",
-        'controllers' => "PhalconRest\\Controllers\\",
-        'libraries' => "PhalconRest\\Libraries\\",
-        'entities' => "PhalconRest\\Entities\\"
+        'models' => 'PhalconRest\Models\\',
+        'controllers' => 'PhalconRest\Controllers\\',
+        'libraries' => 'PhalconRest\Libraries\\',
+        'entities' => 'PhalconRest\Entities\\'
     ],
 
     // is security enabled for this app?

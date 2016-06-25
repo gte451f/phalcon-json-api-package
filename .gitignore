@@ -23,6 +23,9 @@
 # ignore gedit temp files
 *.*~
 
+#phpstorm
+/.idea
+
 # Octocat's Idea's on what to ignore
 # Compiled source #
 ###################
