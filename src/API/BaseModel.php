@@ -113,7 +113,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @var boolean|array
      */
     protected $parentModels = null;
-    
+
     /**
      * auto populate a few key values
      */
@@ -272,6 +272,28 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
         }
         return $this->relationships;
+    }
+
+    /**
+     * get a particular relationship configured for this model
+     *
+     * @param $name
+     * @return mixed either a relationship object or false
+     */
+    public function getRelation($name)
+    {
+        if (!isset($this->relationships)) {
+            $relations = $this->getRelations();
+        } else {
+            $relations = $this->relationships;
+        }
+
+        foreach ($relations as $relation) {
+            if ($relation->getAlias() == $name) {
+                return $relation;
+            }
+        }
+        return false;
     }
 
     /**

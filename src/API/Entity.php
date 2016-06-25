@@ -617,11 +617,11 @@ class Entity extends Injectable
 
         // populate the linked property or merge in additional records
         // attempt to store the name similar to the table name
-        $name       = $relation->getTableName('singular') . '_ids';
+        $name = $relation->getTableName('singular') . '_ids';
         $modelTable = $this->model->getTableName();
-        $restKey    = isset($this->restResponse[$modelTable])? $modelTable : $this->model->getTableName('singular');
+        $restKey = isset($this->restResponse[$modelTable]) ? $modelTable : $this->model->getTableName('singular');
         foreach ($this->restResponse[$restKey] as &$record) {
-            $record[$name] = isset($intermediateRows[$record['id']])? $intermediateRows[$record['id']] : [];
+            $record[$name] = isset($intermediateRows[$record['id']]) ? $intermediateRows[$record['id']] : [];
         }
     }
 
@@ -763,6 +763,8 @@ class Entity extends Injectable
 
     /**
      * load the query object for a hasManyToMany relationship
+     * build most of the joins manually since by reference relationship in the model isn't working so well
+     * this support joins to distant tables with parent models
      *
      * @param Relation $relation
      * @return array
@@ -774,6 +776,8 @@ class Entity extends Injectable
 
         // determine the key to search against
         $field = $relation->getFields();
+        $referencedField = $relation->getReferencedFields();
+        $intermediateFields = $relation->getIntermediateReferencedFields();
 
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
@@ -781,16 +785,23 @@ class Entity extends Injectable
 
         $query = $mm->createBuilder()
             ->from($intermediateModelNameSpace)
-            ->join($refModelNameSpace);
+            ->join($refModelNameSpace, $refModelNameSpace . ".$referencedField = " . $intermediateModelNameSpace . ".$intermediateFields");
 
         $columns = array();
 
         // join in parent record if one is detected
         $parentName = $relation->getParent();
         if ($parentName) {
-            $columns[] = "$parentName.*";
-            $intField = $relation->getIntermediateReferencedFields();
-            $query->join($modelNameSpace . $parentName, "$parentName.$field = $refModelNameSpace.$intField", $parentName);
+            // load parent model
+            $parentModelNameSpace = $modelNameSpace . $parentName;
+            $parentModel = new $refModelNameSpace();
+            // load reference relationship
+            $parentRelationship = $parentModel->getRelation($parentName);
+
+            $columns[] = "$parentModelNameSpace.*";
+            $query->join($parentModelNameSpace,
+                "$parentModelNameSpace." . $parentRelationship->getReferencedFields() . " = $refModelNameSpace." . $parentRelationship->getFields(),
+                $parentModelNameSpace);
         }
 
         // Load the main record field at the end, so they are not overwritten
@@ -931,23 +942,68 @@ class Entity extends Injectable
                 break;
         }
 
-        // load all active relationships as defined by searchHelper
-        foreach ($modelRelationships as $relation) {
-            $tableName = $relation->getTableName();
-            $modelName = $relation->getModelName();
-            $aliasName = $relation->getAlias();
+        if ($all) {
+            // load all defined relationships regardless of what was requested
+            foreach ($modelRelationships as $relation) {
+                $modelName = $relation->getModelName();
+                $aliasName = $relation->getAlias();
 
-            // make sure the relationship is approved either as the table name, model name or ALL
-            // table names because end point resources = table names
-            // model name because some auto generated relationships use this name instead
-            // alias is used to STORE the active relationship in case multiple relationships point to the same model
-            // but it is not a valid way for a client to request data
-            if ($all or in_array($tableName, $requestedRelationships) or in_array($modelName, $requestedRelationships)) {
                 // figure out if we have a preferred alias
                 if ($aliasName) {
                     $this->activeRelations[$aliasName] = $relation;
                 } else {
                     $this->activeRelations[$modelName] = $relation;
+                }
+            }
+        } else {
+            //
+            foreach ($requestedRelationships as $requestedRelationship) {
+                $matchFound = false;
+                foreach ($modelRelationships as $relation) {
+                    $tableName = $relation->getTableName();
+                    $modelName = $relation->getModelName();
+                    $aliasName = $relation->getAlias();
+
+                    // make sure the relationship is approved either as the table name, model name or ALL
+                    // table names because end point resources = table names
+                    // model name because some auto generated relationships use this name instead
+                    // alias is used to STORE the active relationship in case multiple relationships point to the same model
+                    // but it is not a valid way for a client to request data
+                    if ($requestedRelationship == $aliasName) {
+                        $matchFound = true;
+                        // figure out if we have a preferred alias
+                        if ($aliasName) {
+                            $this->activeRelations[$aliasName] = $relation;
+                        } else {
+                            $this->activeRelations[$modelName] = $relation;
+                        }
+                        break;
+                    }
+                }
+                if (!$matchFound) {
+                    foreach ($modelRelationships as $relation) {
+                        $tableName = $relation->getTableName();
+                        $modelName = $relation->getModelName();
+                        $aliasName = $relation->getAlias();
+
+                        if ($requestedRelationship == $tableName) {
+                            $matchFound = true;
+                            // figure out if we have a preferred alias
+                            if ($aliasName) {
+                                $this->activeRelations[$aliasName] = $relation;
+                            } else {
+                                $this->activeRelations[$modelName] = $relation;
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    continue;
+                }
+
+                if (!$matchFound) {
+                    // if you are still here, then you have a problem!
+                    // a relation ship was requested that doesn't actually exist
                 }
             }
         }
