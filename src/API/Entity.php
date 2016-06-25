@@ -2,10 +2,13 @@
 namespace PhalconRest\API;
 
 use Phalcon\Di;
+use Phalcon\Registry;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
-use \PhalconRest\Util\HTTPException;
-use \PhalconRest\Util\ValidationException;
+use PhalconRest\Util\HTTPException;
+use PhalconRest\Util\ValidationException;
+use PhalconRest\Result\Data;
+use PhalconRest\Result\Result;
 
 
 /**
@@ -307,10 +310,10 @@ class Entity extends Injectable
             if ($config['application']['debugApp']) {
                 $registry = $this->getDI()->get('registry');
                 if (isset($registry->dbCount)) {
-                    $this->restResponse['meta']['database_query_count'] = $registry->dbCount;
+                    $this->result->addMeta('database_query_count', $registry->dbCount);
                 }
                 if (isset($registry->dbTimer)) {
-                    $this->restResponse['meta']['database_query_timer'] = $registry->dbTimer . ' ms';
+                    $this->result->addMeta('database_query_timer', $registry->dbTimer . ' ms');
                 }
             }
         }
@@ -563,6 +566,7 @@ class Entity extends Injectable
      *
      * @param $relatedRecords
      * @param Relation $relation
+     * @wtf remove this function?
      */
     private function updateBaseRecords($relatedRecords, $relation)
     {
@@ -770,7 +774,7 @@ class Entity extends Injectable
     }
 
     /**
-     * utility shared between getBelongsToRecord and getHasManyRecords
+     * utility for getHasManyRecords()
      *
      * @param Relation $relation
      * @return object
@@ -798,7 +802,7 @@ class Entity extends Injectable
     }
 
     /**
-     * utility shared between getBelongsToRecord and getHasManyRecords
+     * utility for getHasManyRecords()
      * will process a related record result set update the result and current baseRecord objects
      *
      * @param array $relatedRecords
@@ -812,7 +816,8 @@ class Entity extends Injectable
             $relatedRecArray = array();
             // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
-            if ($parent or get_class($relatedRecord) == 'Phalcon\Mvc\Model\Row') {
+            $classType = get_class($relatedRecord);
+            if (($parent AND $classType == 'Phalcon\Mvc\Model\Row') or $classType == 'Phalcon\Mvc\Model\Row') {
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
                     // filter manyHasMany differently than other relationships

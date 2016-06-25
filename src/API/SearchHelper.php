@@ -84,6 +84,7 @@ class SearchHelper
     // this only applies to GET requests
     private $reservedWords = array(
         'with',
+        'include',
         'sort',
         'sortField',
         'offset',
@@ -324,8 +325,11 @@ class SearchHelper
 
         // simple stuff first
         $with = $request->get('with', "string", null);
+        $include = $request->get('include', "string", null);
         if (!is_null($with)) {
             $this->suppliedWith = $with;
+        } elseif (!is_null($include)) {
+            $this->suppliedWith = $include;
         }
 
         // load possible sort values in the following order

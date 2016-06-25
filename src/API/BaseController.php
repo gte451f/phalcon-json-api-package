@@ -3,10 +3,10 @@ namespace PhalconRest\API;
 
 use Phalcon\DI;
 use Phalcon\DI\Injectable;
-use \PhalconRest\Exception\HTTPException;
+use PhalconRest\Exception\HTTPException;
 use PhalconRest\API\BaseModel;
 use PhalconRest\API\Entity;
-use \PhalconRest\Result\Result;
+use PhalconRest\Result\Result;
 
 /**
  * \Phalcon\Mvc\Controller has a final __construct() method, so we can't

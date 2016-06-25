@@ -93,7 +93,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $blockColumns = null;
 
     /**
-     * The table this model depends on for it's existance
+     * The table this model depends on for it's existence
      * A give away is when the PKID for this model references the parent PKID
      * in the parent model
      *
@@ -288,23 +288,28 @@ class BaseModel extends \Phalcon\Mvc\Model
      * a hook to be run when initializing a model
      * write logic here to block columns
      *
+     * loadBlockColumns is aware of parent models by default
+     *
      * could be a static list or something more dynamic
+     * @param bool $withParents
      */
-    public function loadBlockColumns()
+    public function loadBlockColumns($withParents = true)
     {
         $blockColumns = [];
-        $class = get_class($this);
-        $parentModelName = $class::$parentModel;
+        if ($withParents) {
+            $class = get_class($this);
+            $parentModelName = $class::$parentModel;
 
-        if ($parentModelName) {
-            $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
-            $parentModel = new $parentModelNameSpace();
-            $blockColumns = $parentModel->getBlockColumns();
+            if ($parentModelName) {
+                $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
+                $parentModel = new $parentModelNameSpace();
+                $blockColumns = $parentModel->getBlockColumns();
 
-            // the parent model may return null, let's catch and change to an empty array
-            // thus indicated that block columns have been "loaded" even if they are blank
-            if ($blockColumns == null) {
-                $blockColumns = [];
+                // the parent model may return null, let's catch and change to an empty array
+                // thus indicated that block columns have been "loaded" even if they are blank
+                if ($blockColumns == null) {
+                    $blockColumns = [];
+                }
             }
         }
         $this->setBlockColumns($blockColumns, true);
@@ -358,12 +363,13 @@ class BaseModel extends \Phalcon\Mvc\Model
      * - return fields to be included when building a resource
      * - to be used from an entity
      * - works when side loading!
-     * - will exclude any fields listed in $this->blockFields
+     * - will exclude any fields listed in $this->blockFields (including parent colums)
+     * - will include parent columns...? is this a good idea?
      *
      * @param boolean $nameSpace should the resulting array have a nameSpace prefix?
      * @return array
      */
-    public function getAllowedColumns($nameSpace = true)
+    public function getAllowedColumns($nameSpace = true, $withParents = false)
     {
         if ($this->allowColumns == NULL) {
             // load block columns if uninitialized
@@ -380,7 +386,7 @@ class BaseModel extends \Phalcon\Mvc\Model
 
             $allowColumns = array();
 
-            $colMap = $this->getAllColumns();
+            $colMap = $this->getAllColumns($withParents);
 
             foreach ($colMap as $key => $value) {
                 if (array_search($value, $this->blockColumns) === false) {
@@ -395,8 +401,12 @@ class BaseModel extends \Phalcon\Mvc\Model
 
     /**
      * return what should be a full set of columns for the model
+     *
+     * @param $withParents - should fields from parent models?
+     *
+     * @return array
      */
-    public function getAllColumns()
+    public function getAllColumns($withParents = false)
     {
         // build a list of columns for this model
         $metaData = $this->getDI()->get('memory');
@@ -404,6 +414,24 @@ class BaseModel extends \Phalcon\Mvc\Model
         if (is_null($colMap)) {
             // but if it isn't present, fall back to attributes
             $colMap = $metaData->getAttributes($this);
+        }
+
+        // include parent fields?
+        if ($withParents) {
+            $parentModels = $this->getParentModels(true);
+            if ($parentModels) {
+                foreach ($parentModels as $parentModelNameSpace) {
+                    $parentModel = new $parentModelNameSpace();
+                    $parentColumns = $parentModel->getAllColumns();
+
+                    // the parent model may return null, let's catch and change to an empty array
+                    // thus indicated that block columns have been "loaded" even if they are blank
+                    if ($parentColumns == null) {
+                        $parentColumns = [];
+                    }
+                    $colMap = array_merge($colMap, $parentColumns);
+                }
+            }
         }
         return $colMap;
     }
@@ -415,7 +443,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @param bool $nameSpace
      * should the parent names be formatted as a full namespace?
      *
-     * @return array $parents
+     * @return array|boolean list of parent models or false
      */
     public function getParentModels($nameSpace = false)
     {
@@ -445,7 +473,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             $modelNameSpace = null;
         }
 
-        $parents = array();
+        $parents = [];
         foreach ($this->parentModels as $parent) {
             $parents[] = $modelNameSpace . $parent;
         }
