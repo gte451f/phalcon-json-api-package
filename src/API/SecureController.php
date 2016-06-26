@@ -45,6 +45,7 @@ class SecureController extends BaseController
                         'code' => '0273497957'
                     ));
                 }
+
                 // check for a valid session
                 if ($auth->isLoggedIn($token)) {
                     // get the security service object

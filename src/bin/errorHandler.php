@@ -12,9 +12,8 @@ use PhalconRest\Util\ValidationException;
  */
 set_exception_handler(function ($exception) use ($app, $config) {
     switch (get_class($exception)) {
-        case "PhalconRest\\Exception\\HTTPException":
         case 'PhalconRest\Exception\HTTPException':
-        case "PhalconRest\\Exception\\ValidationException":
+        case 'PhalconRest\Exception\DatabaseException':
         case 'PhalconRest\Exception\ValidationException':
             error_log($exception);
             $exception->send();

@@ -62,6 +62,7 @@ class Entity extends Injectable
      * store Phalcon lib for use throughout the class
      *
      * @var \Phalcon\Mvc\Model\MetaData\Memory
+     *
      */
     protected $metaData;
 
@@ -615,7 +616,7 @@ class Entity extends Injectable
      * @param \PhalconRest\API\BaseModel $resultSet
      * @return array
      */
-    protected function loadAllowedColumns($resultSet)
+    protected function loadAllowedColumns(BaseModel $resultSet)
     {
         $record = array();
         $allowedFields = $resultSet->getAllowedColumns(false);
@@ -774,7 +775,7 @@ class Entity extends Injectable
     }
 
     /**
-     * utility for getHasManyRecords()
+     * utility shared between getBelongsToRecord and getHasManyRecords
      *
      * @param Relation $relation
      * @return object
@@ -802,7 +803,7 @@ class Entity extends Injectable
     }
 
     /**
-     * utility for getHasManyRecords()
+     * utility shared between getBelongsToRecord and getHasManyRecords
      * will process a related record result set update the result and current baseRecord objects
      *
      * @param array $relatedRecords

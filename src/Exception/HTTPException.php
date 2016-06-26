@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\Exception;
 
-use \PhalconRest\Exception\ErrorStore;
+use PhalconRest\Exception\ErrorStore;
 
 /**
  * Validation Exception Handler
@@ -29,16 +29,16 @@ class HTTPException extends \Exception
      *
      * @var \PhalconRest\Exception\ErrorStore
      */
-    private $errorStore;
+    protected $errorStore;
 
     /**
      *
-     * @param string $message
+     * @param string title
      *            required user friendly message to return to the requestor
      * @param string $code
      *            required HTTP response code
-     * @param array $errorArray
-     *            list of optional properites to set on the error object
+     * @param array $errorList
+     *            list of optional properties to set on the error object
      */
     public function __construct($title, $code, $errorList)
     {

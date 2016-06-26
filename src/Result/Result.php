@@ -43,7 +43,7 @@ class Result extends \Phalcon\DI\Injectable
      * // 1 = hasOne 0 = belongsTo 2 = hasMany
      *
      * @throws HTTPException
-     * @param $name
+     * @param $relation
      * @param $type
      */
     public function registerRelationshipDefinitions($relation, $type)

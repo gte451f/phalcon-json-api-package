@@ -335,6 +335,8 @@ class QueryBuilder extends Injectable
      *
      * A rather obscure feature of this implementation is that providing no table prefix often works correctly
      *
+     * this function now checks parent models if not matching column is found in the primary table
+     *
      *
      * @param string $fieldName
      * @throws HTTPException
@@ -370,14 +372,14 @@ class QueryBuilder extends Injectable
 
             // if we made it this far, than a prefix was supplied but it did not match any known hasOne relationship
             if ($matchFound == false) {
-                throw new HTTPException('Unknown table prefix supplied in filter.', 500, [
-                    'dev' => 'Encountered a table prefix that did not match any known hasOne relationships in the model.',
+                throw new HTTPException("Unknown table prefix supplied in filter.", 500, array(
+                    'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
                     'code' => '891488651361948131461849'
-                ]);
+                ));
             }
         } else {
             $alias = $this->model->getModelNameSpace();
-            $colMap = $this->model->getAllColumns();
+            $colMap = $this->model->getAllColumns(false);
         }
 
         // prepend modelNameSpace if the field is detected in the selected model's column map
@@ -388,25 +390,27 @@ class QueryBuilder extends Injectable
         }
 
         // still here?  try the parent model and prepend the parent model alias if the field is detected in that model's column map
-        $config = $this->getDI()->get('config');
-        $modelNameSpace = $config['namespaces']['models'];
-        $modelPath = $modelNameSpace . $this->model->getModelName();
-        $parentModelName = $modelPath::$parentModel;
-        // if not parent name specified, skip this part
-        if ($parentModelName) {
-            $parentPath = $modelNameSpace . $parentModelName;
-            $parentModel = new $parentPath();
-
-            foreach ($this->entity->activeRelations as $relation) {
-                $alias = $relation->getAlias();
-                if ($parentModelName == $alias) {
-                    $colMap = $parentModel->getAllColumns();
-                    foreach ($colMap as $field) {
-                        if ($fieldName == $field) {
-                            return "[$alias].$fieldName";
+        $currentModel = $this->model;
+        while ($currentModel) {
+            $parentModelName = $currentModel->getParentModel(true);
+            // if not parent name specified, skip this part
+            if ($parentModelName) {
+                $parentModel = new $parentModelName();
+                // loop through all relationships to reference this one by its alias
+                foreach ($this->entity->activeRelations as $relation) {
+                    $alias = $relation->getAlias();
+                    if ($parentModelName == $alias) {
+                        $colMap = $parentModel->getAllColumns(false);
+                        foreach ($colMap as $field) {
+                            if ($fieldName == $field) {
+                                return "[$alias].$fieldName";
+                            }
                         }
                     }
                 }
+                $currentModel = $parentModel;
+            } else {
+                $currentModel = false;
             }
         }
         return $fieldName;
