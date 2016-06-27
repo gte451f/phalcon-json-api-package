@@ -56,7 +56,7 @@ class Request extends \Phalcon\Http\Request
                 }
             } else {
                 // return the entire result set
-                $request = $json->data->attributes;
+                $request = $json->data;
                 unset($json);
             }
         } else {

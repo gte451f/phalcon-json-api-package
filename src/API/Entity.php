@@ -5,8 +5,8 @@ use Phalcon\Di;
 use Phalcon\Registry;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
-use PhalconRest\Util\HTTPException;
-use PhalconRest\Util\ValidationException;
+use PhalconRest\Exception\HTTPException;
+use PhalconRest\Exception\ValidationException;
 use PhalconRest\Result\Data;
 use PhalconRest\Result\Result;
 

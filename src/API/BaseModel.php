@@ -331,9 +331,10 @@ class BaseModel extends \Phalcon\Mvc\Model
         // load columns if they haven't been loaded yet
         if ($this->blockColumns === null) {
             $this->loadBlockColumns();
-        } else {
-            $blockColumns = $this->blockColumns;
+
         }
+        $blockColumns = $this->blockColumns;
+        
 
         // also load parent(s) columns if requested
         if ($includeParent) {

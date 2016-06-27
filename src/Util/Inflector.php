@@ -467,6 +467,10 @@ class Inflector
             // e.g. - $root->parent->$child = $value
             if (in_array($key, array_keys($obj_vars)) && ($parent_key !== "root")) {
                 foreach ($value->{$key} as $vk => $vv) {
+                    // check that the parent key has been created on the snake object first
+                    if (!isset($snakeObject->$parent_key)) {
+                        $snakeObject->$parent_key = new \stdClass();
+                    }
                     if (!property_exists($snakeObject->$parent_key, $this->underscore($key))) {
                         $snakeObject->$parent_key->{$this->underscore($key)} = new \stdClass();
                     }

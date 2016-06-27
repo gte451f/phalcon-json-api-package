@@ -1,6 +1,4 @@
 <?php
-use PhalconRest\Util\HTTPException;
-use PhalconRest\Util\ValidationException;
 
 /** @var array $config */
 
@@ -22,11 +20,6 @@ set_exception_handler(function ($exception) use ($app, $config) {
             // wow an unexpected exception
             print_r($exception);
             break;
-    }
-
-    // seems like this is only run when an unexpected exception occurs
-    if ($config['application']['debugApp'] == true) {
-        \Kint::dump($exception);
     }
 });
 

@@ -7,6 +7,7 @@ use PhalconRest\Exception\HTTPException;
 use PhalconRest\API\BaseModel;
 use PhalconRest\API\Entity;
 use PhalconRest\Result\Result;
+use Phalcon\Mvc\Model\Relation as PhalconRelation;
 
 /**
  * \Phalcon\Mvc\Controller has a final __construct() method, so we can't
@@ -190,7 +191,8 @@ class BaseController extends Injectable
     public function post()
     {
         $request = $this->getDI()->get('request');
-        $post = $request->getJson();
+        $post = $this->mungeSubmittedData($request->getJson());
+
 
         if (!$post) {
             throw new HTTPException("There was an error adding new record.", 500, array(
@@ -250,7 +252,7 @@ class BaseController extends Injectable
     {
         $request = $this->getDI()->get('request');
         // load up the expected object based on the controller name
-        $put = $request->getJson();
+        $put = $this->mungeSubmittedData($request->getJson());
 
         if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
@@ -282,6 +284,58 @@ class BaseController extends Injectable
             // return $this->respond($search_result);
             return $result;
         }
+    }
+
+
+    /**
+     * will disentangle the mess JSON API submits down to something our API can work with
+     *
+     * @param $post
+     * @return object
+     */
+    public function mungeSubmittedData($post)
+    {
+
+        // munge a bit so it works for internal data handling
+        if (!isset($post->attributes)) {
+            // error here, all posts require an attributes tage
+        } else {
+            $data = $post->attributes;
+        }
+
+        if (isset($post->id)) {
+            $data->id = $post->id;
+        }
+
+        // pull out relationships and convert to simple FKs
+        if (isset($post->relationships)) {
+            // go through model relationships and look for foreign keys
+            $modelRelations = $this->model->getRelations();
+            foreach ($modelRelations as $relation) {
+
+                switch ($relation->getType()) {
+                    case PhalconRelation::HAS_ONE:
+                    case PhalconRelation::BELONGS_TO:
+                        // pull from singular
+                        $name = $relation->getTableName('singular');
+                        if (isset($post->relationships->$name)) {
+                            $fk = $relation->getFields();
+                            $data->$fk = $post->relationships->$name->data->id;
+                        }
+                        break;
+
+                    case PhalconRelation::HAS_MANY:
+                        // pull plural?
+
+                        break;
+                    default:
+
+                        break;
+                }
+            }
+        }
+
+        return $data;
     }
 
     /**

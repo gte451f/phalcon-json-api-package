@@ -5,8 +5,7 @@ use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Query\BuilderInterface;
 use Phalcon\Mvc\Model\Relation;
-use \PhalconRest\Util\HTTPException;
-use \PhalconRest\Util\ValidationException;
+use PhalconRest\Exception\HTTPException;
 
 
 /**

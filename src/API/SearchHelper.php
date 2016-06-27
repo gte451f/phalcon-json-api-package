@@ -1,8 +1,6 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Exception\HTTPException;
-
 /**
  * Assist Entity to query database and shape the response object
  * Will sit at the intersection of Entity field filters & URL supplied values
