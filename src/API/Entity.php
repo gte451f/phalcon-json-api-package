@@ -195,7 +195,7 @@ class Entity extends Injectable
     public function processDelayedRelationships()
     {
         $config = $this->getDI()->get('config');
-        if (array_deep_key($config, 'feature_flags.fastHasMany')) {
+        if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
             // feature flag is disabled, nothing to do
             return;
         }
@@ -691,11 +691,14 @@ class Entity extends Injectable
                 // fall back to using the primaryKeyValue
                 $fieldValue = $this->primaryKeyValue;
             }
-            $query->where("{$relation->getReferencedFields()} = \"$fieldValue\"");
+            $fieldName = $relation->getReferencedModel().'.'.$relation->getReferencedFields();
+            $query->where("$fieldName = \"$fieldValue\"");
         } else {
-            // feature flag is enable, pulling from register instead
+            // feature flag is enabled, pulling from register instead
             $foreign_keys = array_unique($this->hasManyRegistry[$relation->getReferencedModel()]);
-            $query->inWhere($relation->getReferencedFields(), $foreign_keys);
+            //name space the referenced field otherwise you might get ambigious errors
+
+            $query->inWhere($relation->getReferencedModel().'.'.$relation->getReferencedFields(), $foreign_keys);
         }
 
         $result = $query->getQuery()->execute();
