@@ -509,7 +509,8 @@ class Entity extends Injectable
                 }
             }
 
-            if (isset($relatedRecords) && $relatedRecords) {
+            // only normalize when some sort of resultset is returned, even an empty array
+            if (isset($relatedRecords) && is_array($relatedRecords)) {
                 return $this->normalizeRelatedRecords($baseRecord, $relatedRecords, $relation);
             }
 
