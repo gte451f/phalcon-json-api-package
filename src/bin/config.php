@@ -1,8 +1,4 @@
 <?php
-// define security roles
-define("PORTAL_USER", "Portal - User");
-define("ADMIN_USER", "System - Administrator");
-
 /**
  * load low level helper here so it also works when used in conjunction with phalcon devtools
  */
@@ -66,4 +62,4 @@ if (file_exists($overridePath)) {
     ));
 }
 
-return new \Phalcon\Config($config);
+return $config;
