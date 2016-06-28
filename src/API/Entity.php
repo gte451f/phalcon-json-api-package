@@ -651,7 +651,7 @@ class Entity extends Injectable
      * @param \PhalconRest\API\BaseModel $resultSet
      * @return array
      */
-    protected function loadAllowedColumns($resultSet)
+    protected function loadAllowedColumns(BaseModel $resultSet)
     {
         $record = array();
         $allowedFields = $resultSet->getAllowedColumns(false);
@@ -867,8 +867,8 @@ class Entity extends Injectable
             $relatedRecArray = array();
             // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
-
-            if ($parent or get_class($relatedRecord) == 'Phalcon\Mvc\Model\Row') {
+            $classType = get_class($relatedRecord);
+            if (($parent AND $classType == 'Phalcon\Mvc\Model\Row') or $classType == 'Phalcon\Mvc\Model\Row') {
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
                     // filter manyHasMany differently than other relationships
