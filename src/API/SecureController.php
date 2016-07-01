@@ -13,38 +13,28 @@ class SecureController extends BaseController
     public function __construct($parseQueryString = true)
     {
         $config = $this->getDI()->get('config');
-        
+
         switch ($config['security']) {
             case true:
-                $headerToken = $this->request->getHeader("X_AUTHORIZATION");
-                $queryParamToken = $this->getDI()
-                    ->get('request')
-                    ->getQuery("token");
-                
-                $postedParamToken = $this->getDI()
-                    ->get('request')
-                    ->getPost("token");
-                
                 // try to read in from header first, otherwise attempt to read in from query param
-                if ($headerToken !== "") {
+                if ($headerToken = $this->request->getHeader('X_AUTHORIZATION')) {
                     $token = $headerToken;
-                } elseif (! is_null($queryParamToken)) {
+                } elseif ($queryParamToken = $this->request->getQuery('token')) {
                     $token = $queryParamToken;
-                } elseif (! is_null($postedParamToken)) {
+                } elseif ($postedParamToken = $this->request->getPost('token')) {
                     $token = $postedParamToken;
-                    unset($_POST["token"]);
+                    unset($_POST['token']);
                 } else {
-                    $token = "";
+                    $token = '';
                 }
-                
-                $token = trim(str_ireplace("Token: ", '', $token));
+
+                $token = trim(str_ireplace('Token: ', '', $token));
                 if (strlen($token) < 30) {
-                    throw new HTTPException("Bad token supplied", 401, array(
-                        'dev' => 'Supplied Token: ' . $token,
-                        'code' => '0273497957'
-                    ));
+                    throw new HTTPException('Bad token supplied', 401, [
+                        'dev'  => 'Supplied Token: ' . $token,
+                        'code' => '0273497957',
+                    ]);
                 }
-                
                 // check for a valid session
                 if ($this->auth->isLoggedIn($token)) {
                     // get the security service object
@@ -53,13 +43,13 @@ class SecureController extends BaseController
                     $this->securityCheck($securityService);
                     parent::__construct($parseQueryString);
                 } else {
-                    throw new HTTPException("Unauthorized, please authenticate first.", 401, array(
-                        'dev' => "Must be authenticated to access.",
-                        'code' => '30945680384502037'
-                    ));
+                    throw new HTTPException('Unauthorized, please authenticate first.', 401, [
+                        'dev'  => 'Must be authenticated to access.',
+                        'code' => '30945680384502037',
+                    ]);
                 }
                 break;
-            
+
             case false:
                 // if security is off, then create a fake user profile
                 // todo figure out a way to do this w/o this assumption
@@ -71,17 +61,15 @@ class SecureController extends BaseController
                     $this->securityCheck($securityService);
                     parent::__construct($parseQueryString);
                 } else {
-                    throw new HTTPException("Security False is not loading a valid user.", 401, array(
-                        'dev' => "The authenticator isn't loading a valid user.",
+                    throw new HTTPException('Security False is not loading a valid user.', 401, [
+                        'dev'  => 'The authenticator isn\'t loading a valid user.',
                         'code' => '23749873490704'
-                    ));
+                    ]);
                 }
                 break;
-            
+
             default:
-                throw new HTTPException("Bad security value supplied", 500, array(
-                    'code' => '280273409724075'
-                ));
+                throw new HTTPException('Bad security value supplied', 500, ['code' => '280273409724075']);
                 break;
         }
     }
@@ -89,7 +77,7 @@ class SecureController extends BaseController
     /**
      * This is a method that is to be defined in classes that extend \PhalconRest\API\SecureController
      *
-     * @param object $securityService            
+     * @param object $securityService
      * @return boolean
      */
     protected function securityCheck($securityService)

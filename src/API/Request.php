@@ -23,26 +23,26 @@ class Request extends \Phalcon\Http\Request
 
     /**
      * pull data from a json supplied POST/PUT
-     * Will either return the whole input as an array otherwise, will return an individual property
-     * supports existing case conversion logic
+     * Will either return the whole input as an array otherwise, will return an individual property.
+     * Supports existing case conversion logic.
      * TODO: Filter
+     * TODO: inconsistent behaviour: returns false with invalid json, but an exception is sent with non-existent key?
      *
-     * @param string $name            
-     * @return mixed the requested JSON property otherwise false
+     * @param string $name
+     * @return mixed the requested JSON property, or false in case of errors
+     * @throws HTTPException
      */
     public function getJson($name = null)
     {
         // normalize name to all lower case
-        $inflector = new Inflector();
-        $name = $inflector->underscore($name);
+        $name = (new Inflector())->underscore($name);
         // $name = strtolower($name);
         
         // $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
         
-        $request = NULL;
         if (is_object($json)) {
-            if ($name != NULL) {
+            if ($name != null) {
                 if (isset($json->$name)) {
                     $request = $json->$name;
                 } else {
@@ -51,7 +51,6 @@ class Request extends \Phalcon\Http\Request
                         'dev' => json_encode($json),
                         'code' => '112928308402707'
                     ));
-                    return false;
                 }
             } else {
                 // return the entire result set
