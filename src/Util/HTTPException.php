@@ -1,11 +1,12 @@
 <?php
 namespace PhalconRest\Util;
+use Phalcon\DI;
+use PhalconRest\API\Output;
 
 /**
  * where caught HTTP Exceptions go to die
  *
  * @author jjenkins
- *        
  */
 class HTTPException extends \Exception
 {
@@ -16,39 +17,40 @@ class HTTPException extends \Exception
     private $di;
 
     /**
-     * http response code
-     *
+     * HTTP response code
      * @var int
      */
     protected $code;
 
     /**
+     * HTTP response description
+     * @var string
+     */
+    protected $response;
+
+    /**
      * hold a valid errorStore object
-     *
-     * @var \PhalconRest\Util\ErrorStore
+     * @var ErrorStore
      */
     private $errorStore;
 
     /**
      *
-     * @param string $message
-     *            required user friendly message to return to the requestor
-     * @param string $code
-     *            required HTTP response code
-     * @param array $errorArray
-     *            list of optional properites to set on the error object
+     * @param string $title     required user friendly message to return to the requestor
+     * @param int    $code      required HTTP response code
+     * @param array  $errorList list of optional properites to set on the error object
+     * @param null   $previous
      */
-    public function __construct($title, $code, $errorList)
+    public function __construct($title, $code, $errorList, $previous = null)
     {
+        parent::__construct($title, $code, $previous);
+
         // store general error data
-        $this->errorStore = new \PhalconRest\Util\ErrorStore($errorList);
+        $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
-        
-        // store HTTP specific data
-        $this->code = $code;
-        
+
         $this->response = $this->getResponseDescription($code);
-        $this->di = \Phalcon\DI::getDefault();
+        $this->di = Di::getDefault();
     }
 
     /**
@@ -57,27 +59,25 @@ class HTTPException extends \Exception
      */
     public function send()
     {
-        $output = new \PhalconRest\API\Output();
-        $output->setStatusCode($this->code, $this->response);
+        $output = new Output();
+        $output->setStatusCode($this->getCode(), $this->response);
         $output->sendError($this->errorStore);
         return true;
     }
 
     /**
-     *
-     * see also: https://developer.yahoo.com/social/rest_api_guide/http-response-codes.html
-     *
-     * @param unknown $code            
+     * @see https://developer.yahoo.com/social/rest_api_guide/http-response-codes.html
+     * @param int $code
      * @return string
      */
     protected function getResponseDescription($code)
     {
-        $codes = array(
-            
+        $codes = [
+
             // Informational 1xx
             100 => 'Continue',
             101 => 'Switching Protocols',
-            
+
             // Success 2xx
             200 => 'OK',
             201 => 'Created',
@@ -86,7 +86,7 @@ class HTTPException extends \Exception
             204 => 'No Content',
             205 => 'Reset Content',
             206 => 'Partial Content',
-            
+
             // Redirection 3xx
             300 => 'Multiple Choices',
             301 => 'Moved Permanently',
@@ -94,10 +94,10 @@ class HTTPException extends \Exception
             303 => 'See Other',
             304 => 'Not Modified',
             305 => 'Use Proxy',
-            
+
             // 306 is deprecated but reserved
             307 => 'Temporary Redirect',
-            
+
             // Client Error 4xx
             400 => 'Bad Request',
             401 => 'Unauthorized',
@@ -118,7 +118,7 @@ class HTTPException extends \Exception
             416 => 'Requested Range Not Satisfiable',
             417 => 'Expectation Failed',
             422 => 'Unprocessable Entity',
-            
+
             // Server Error 5xx
             500 => 'Internal Server Error',
             501 => 'Not Implemented',
@@ -127,10 +127,10 @@ class HTTPException extends \Exception
             504 => 'Gateway Timeout',
             505 => 'HTTP Version Not Supported',
             509 => 'Bandwidth Limit Exceeded'
-        );
-        
+        ];
+
         $result = (isset($codes[$code])) ? $codes[$code] : 'Unknown Status Code';
-        
+
         return $result;
     }
 }
