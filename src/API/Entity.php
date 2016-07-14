@@ -6,6 +6,7 @@ use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
+use Symfony\Component\Config\Definition\Exception\Exception;
 
 /**
  * Pulls together one or more models to represent the REST resource(s)
@@ -634,7 +635,7 @@ class Entity extends Injectable
      * @param array $records usually related records, but could side load just about any records to an api response
      * @return void
      */
-    protected function updateRestResponse($table, $records)
+    protected function updateRestResponse($table, array $records)
     {
         if (!isset($this->restResponse[$table])) {
             $this->restResponse[$table] = $records;
@@ -653,20 +654,26 @@ class Entity extends Injectable
      * @param array $newRecord usually related records, but could side load just about any records to an api response
      * @return void
      */
-    protected function pushRestResponse($table, $newRecord)
+    protected function pushRestResponse($table, array $newRecord)
     {
         if (!isset($this->restResponse[$table])) {
-            $this->restResponse[$table] = $newRecord;
+            $this->restResponse[$table][] = $newRecord;
         } else {
             // check that this array doesn't already exist, otherwise push it into the stack
             foreach ($this->restResponse[$table] as $record) {
                 // if the number of keys differ...it's different
                 if (count($record) === count($newRecord)) {
-                    // try the built in check against two arrays
-                    if (empty(array_diff($record, $newRecord))) {
-                        // match found, no need to insert this record
-                        return;
-                    };
+                    // try two different ways to compare records when checking for duplicates
+                    foreach (array_keys($newRecord) as $key) {
+                        if ($newRecord[$key] !== $record[$key]) {
+                            $this->restResponse[$table][] = $newRecord;
+                            return;
+                        }
+                    }
+                    // this appears to be slower
+                    //  if (serialize($newRecord) === serialize($record)) {
+                    //      return;
+                    //  }
                 }
             }
             $this->restResponse[$table][] = $newRecord;
@@ -895,12 +902,11 @@ class Entity extends Injectable
     {
         $relatedRecords = array(); // store all related records
         foreach ($result as $relatedRecord) {
-            // reset for each run
-            $relatedRecArray = false;
             // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
             $classType = get_class($relatedRecord);
             if (($parent AND $classType == 'Phalcon\Mvc\Model\Row') or $classType == 'Phalcon\Mvc\Model\Row') {
+                $relatedRecArray = [];
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
                     // filter manyHasMany differently than other relationships
@@ -914,6 +920,9 @@ class Entity extends Injectable
                     $relatedRecArray = array_merge($relatedRecArray, $this->loadAllowedColumns($rec));
                 }
             } else {
+                // reset for each run
+                $relatedRecArray = false;
+
                 // let's inspect this for basic validity and ignore out empty records
                 // think of a join on optional table
                 $primaryKeyName = $relatedRecord->getPrimaryKeyName();
