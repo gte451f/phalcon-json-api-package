@@ -175,7 +175,7 @@ class Entity extends Injectable
             // hook for manipulating the base record after processing relationships
             $this->afterProcessRelationships($baseResult);
 
-            $this->restResponse[$this->model->getTableName()][] = $this->baseRecord;
+            $this->pushRestResponse($this->model->getTableName(), $this->baseRecord);
             $foundSet++;
         }
 
@@ -281,7 +281,7 @@ class Entity extends Injectable
             // hook for manipulating the base record after processing relationships
             $this->afterProcessRelationships($baseResult);
 
-            $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
+            $this->pushRestResponse($this->model->getTableName('singular'), $this->baseRecord);
             $foundSet++;
         }
 
@@ -639,11 +639,40 @@ class Entity extends Injectable
         if (!isset($this->restResponse[$table])) {
             $this->restResponse[$table] = $records;
         } else {
-            $a = $this->restResponse[$table];
-            $b = array_merge($a, $records);
-            $this->restResponse[$table] = $b;
+            foreach ($records as $newRecord) {
+                $this->pushRestResponse($table, $newRecord);
+            }
         }
     }
+
+    /**
+     * push a single record into the rest response
+     * check for duplicates
+     *
+     * @param string $table the table name where the records originated
+     * @param array $newRecord usually related records, but could side load just about any records to an api response
+     * @return void
+     */
+    protected function pushRestResponse($table, $newRecord)
+    {
+        if (!isset($this->restResponse[$table])) {
+            $this->restResponse[$table] = $newRecord;
+        } else {
+            // check that this array doesn't already exist, otherwise push it into the stack
+            foreach ($this->restResponse[$table] as $record) {
+                // if the number of keys differ...it's different
+                if (count($record) === count($newRecord)) {
+                    // try the built in check against two arrays
+                    if (empty(array_diff($record, $newRecord))) {
+                        // match found, no need to insert this record
+                        return;
+                    };
+                }
+            }
+            $this->restResponse[$table][] = $newRecord;
+        }
+    }
+
 
     /**
      * extract only approved fields from a resultset
@@ -691,14 +720,14 @@ class Entity extends Injectable
                 // fall back to using the primaryKeyValue
                 $fieldValue = $this->primaryKeyValue;
             }
-            $fieldName = $relation->getReferencedModel().'.'.$relation->getReferencedFields();
+            $fieldName = $relation->getReferencedModel() . '.' . $relation->getReferencedFields();
             $query->where("$fieldName = \"$fieldValue\"");
         } else {
             // feature flag is enabled, pulling from register instead
             $foreign_keys = array_unique($this->hasManyRegistry[$relation->getReferencedModel()]);
             //name space the referenced field otherwise you might get ambigious errors
 
-            $query->inWhere($relation->getReferencedModel().'.'.$relation->getReferencedFields(), $foreign_keys);
+            $query->inWhere($relation->getReferencedModel() . '.' . $relation->getReferencedFields(), $foreign_keys);
         }
 
         $result = $query->getQuery()->execute();
@@ -867,7 +896,7 @@ class Entity extends Injectable
         $relatedRecords = array(); // store all related records
         foreach ($result as $relatedRecord) {
             // reset for each run
-            $relatedRecArray = array();
+            $relatedRecArray = false;
             // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
             $classType = get_class($relatedRecord);
@@ -885,9 +914,17 @@ class Entity extends Injectable
                     $relatedRecArray = array_merge($relatedRecArray, $this->loadAllowedColumns($rec));
                 }
             } else {
-                $relatedRecArray = $this->loadAllowedColumns($relatedRecord);
+                // let's inspect this for basic validity and ignore out empty records
+                // think of a join on optional table
+                $primaryKeyName = $relatedRecord->getPrimaryKeyName();
+                if (isset($relatedRecord->$primaryKeyName) AND $relatedRecord->$primaryKeyName != null) {
+                    $relatedRecArray = $this->loadAllowedColumns($relatedRecord);
+                }
             }
-            $relatedRecords[] = $relatedRecArray;
+            // push if a valid record is found
+            if ($relatedRecArray) {
+                $relatedRecords[] = $relatedRecArray;
+            }
         }
         return $relatedRecords;
     }
