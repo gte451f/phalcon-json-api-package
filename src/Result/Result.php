@@ -2,6 +2,7 @@
 namespace PhalconRest\Result;
 
 use \PhalconRest\Exception\HTTPException;
+use Phalcon\Mvc\Model\Relation as PhalconRelation;
 use PhalconRest\Result\Data;
 
 /**
@@ -44,27 +45,17 @@ class Result extends \Phalcon\DI\Injectable
      *
      * @throws HTTPException
      * @param $relation
-     * @param $type
      */
-    public function registerRelationshipDefinitions($relation, $type)
+    public function registerRelationshipDefinitions($relation)
     {
         //convert to something that makes sense :)
-        switch ($type) {
-            case 0:
-                $type = 'hasOne';
+        switch ($relation->getType()) {
+            case PhalconRelation::HAS_ONE:
+            case PhalconRelation::BELONGS_TO:
                 $name = $relation->getTableName('singular');
                 break;
-            case 1:
-                $type = 'belongsTo';
-                $name = $relation->getTableName('singular');
-                break;
-            case 2:
-                $type = 'hasMany';
-                $name = $relation->getTableName('plural');
-                break;
-            case 3:
-                // not sure about this one
-                $type = 'hasManyToMany';
+            case PhalconRelation::HAS_MANY:
+            case PhalconRelation::HAS_MANY_THROUGH:
                 $name = $relation->getTableName('plural');
                 break;
             default:
@@ -74,7 +65,7 @@ class Result extends \Phalcon\DI\Injectable
                 ));
                 break;
         }
-        $this->relationshipRegistry[strtolower($name)] = $type;
+        $this->relationshipRegistry[strtolower($name)] = $relation;
     }
 
     /**

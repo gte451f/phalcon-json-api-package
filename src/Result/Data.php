@@ -2,6 +2,7 @@
 namespace PhalconRest\Result;
 
 use PhalconRest\Exception\HTTPException;
+use Phalcon\Mvc\Model\Relation as PhalconRelation;
 
 /**
  * Basic object to store a single Data object, one or more data objects are strung together for
@@ -29,6 +30,8 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
     /**
      * store a list of related records by their table name (which may also be their type)
      * $relationships[TABLENAME] = [ID=>#, TYPE=>''];
+     * or
+     * $relationships[TABLENAME] = [ [ID=>#, TYPE=>''] ];
      *
      * @var array
      */
@@ -87,14 +90,14 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      * this function assumes a list of relations are registered with the result object
      *
      * @throws HTTPException
-     * @param $relationship string the singular/plural to match the defined relationship
+     * @param $relationshipName string the singular/plural to match the defined relationship
      * @param $id integer the value this data relates to
-     * @param bool $type mixed seems to always be the plural version
+     * @param bool $type string that maps to the required json api property (seems to always be the plural version of the resource)
      */
-    public function addRelationship($relationship, $id, $type = false)
+    public function addRelationship($relationshipName, $id, $type = false)
     {
         if (!$type) {
-            $type = $relationship;
+            $type = $relationshipName;
         }
 
         $config = $this->di->get('config');
@@ -102,26 +105,26 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         $result = $this->di->get('result');
 
         // this value tells data whether to store related values as array or single object
-        $relationshipDefinition = $result->getRelationshipDefinition($relationship);
+        $relationship = $result->getRelationshipDefinition($relationshipName);
 
-        $relationship = $inflector->normalize($relationship, $config['application']['propertyFormatTo']);
+        $relationshipName = $inflector->normalize($relationshipName, $config['application']['propertyFormatTo']);
         $type = $inflector->normalize($type, $config['application']['propertyFormatTo']);
 
-        if (isset($this->relationships[$relationship])) {
-            if ($relationshipDefinition == 'belongsTo' OR $relationshipDefinition == 'hasOne') {
+        if (isset($this->relationships[$relationshipName])) {
+            if ($relationship->getType() == PhalconRelation::HAS_ONE OR $relationship->getType() == PhalconRelation::BELONGS_TO) {
                 // this is a problem, attempting to load multiple records into a relationship designed for one record
                 throw new HTTPException("Attempting to load multiple records into a relationships defined for a single record!", 500, array(
                     'code' => '3894646846313546467974974'
                 ));
             }
-            $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
+            $this->relationships[$relationshipName]['data'][] = ['id' => $id, 'type' => $type];
         } else {
-            if ($relationshipDefinition == 'belongsTo' OR $relationshipDefinition == 'hasOne') {
-                $this->relationships[$relationship]['data'] = ['id' => $id, 'type' => $type];
+            if ($relationship->getType() == PhalconRelation::HAS_ONE OR $relationship->getType() == PhalconRelation::BELONGS_TO) {
+                $this->relationships[$relationshipName]['data'] = ['id' => $id, 'type' => $type];
             } else {
                 // process for multiple records
-                $this->relationships[$relationship]['data'] = [];
-                $this->relationships[$relationship]['data'][] = ['id' => $id, 'type' => $type];
+                $this->relationships[$relationshipName]['data'] = [];
+                $this->relationships[$relationshipName]['data'][] = ['id' => $id, 'type' => $type];
             }
         }
     }

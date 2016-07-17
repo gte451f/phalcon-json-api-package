@@ -147,12 +147,12 @@ class QueryBuilder extends Injectable
                     break;
 
                 case Relation::HAS_MANY_THROUGH:
-                    $alias2 = $alias.'_intermediate';
-                    $left1  = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    $alias2 = $alias . '_intermediate';
+                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
                     $right1 = "[$alias2]." . $relation->getIntermediateFields();
                     $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
 
-                    $left2  = "[$alias2]." . $relation->getIntermediateReferencedFields();
+                    $left2 = "[$alias2]." . $relation->getIntermediateReferencedFields();
                     $right2 = "[$alias]." . $relation->getReferencedFields();
                     $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
                     break;
@@ -279,7 +279,7 @@ class QueryBuilder extends Injectable
     }
 
     /**
-     * This method looks for the existence of syntax extentions to the api and attempts to
+     * This method looks for the existence of syntax extensions to the api and attempts to
      * adjust search inputs before subjecting them to the queryBuilder
      *
      * The 'or' operator || explodes the given parameter on that operator if found
@@ -347,7 +347,7 @@ class QueryBuilder extends Injectable
 
         // if a related table is referenced, then search related model column maps instead of the primary model
         if (count($searchBits) == 2) {
-            // build fieldname from 2nd value
+            // build field name from 2nd value
             $fieldName = $searchBits[1];
             // start search for a related model
             $matchFound = false;
@@ -391,14 +391,17 @@ class QueryBuilder extends Injectable
         // still here?  try the parent model and prepend the parent model alias if the field is detected in that model's column map
         $currentModel = $this->model;
         while ($currentModel) {
-            $parentModelName = $currentModel->getParentModel(true);
+            $parentModelNameSpace = $currentModel->getParentModel(true);
+            $parentModelName = $currentModel->getParentModel(false);
             // if not parent name specified, skip this part
             if ($parentModelName) {
-                $parentModel = new $parentModelName();
+                $parentModel = new $parentModelNameSpace();
                 // loop through all relationships to reference this one by its alias
                 foreach ($this->entity->activeRelations as $relation) {
                     $alias = $relation->getAlias();
-                    if ($parentModelName == $alias) {
+                    $test = $relation->getModelName();
+                    // to detect the parent model we'll compare against either the alias or the full model name
+                    if ($parentModelName == $alias || $parentModelName == $relation->getModelName()) {
                         $colMap = $parentModel->getAllColumns(false);
                         foreach ($colMap as $field) {
                             if ($fieldName == $field) {

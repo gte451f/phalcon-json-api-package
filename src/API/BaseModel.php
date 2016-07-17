@@ -334,7 +334,7 @@ class BaseModel extends \Phalcon\Mvc\Model
 
         }
         $blockColumns = $this->blockColumns;
-        
+
 
         // also load parent(s) columns if requested
         if ($includeParent) {
@@ -392,7 +392,7 @@ class BaseModel extends \Phalcon\Mvc\Model
 
             $allowColumns = array();
 
-            $colMap = $this->getAllColumns();
+            $colMap = $this->getAllColumns($includeParent);
 
             foreach ($colMap as $key => $value) {
                 if (array_search($value, $this->blockColumns) === false) {

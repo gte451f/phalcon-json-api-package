@@ -298,7 +298,7 @@ class BaseController extends Injectable
 
         // munge a bit so it works for internal data handling
         if (!isset($post->attributes)) {
-            // error here, all posts require an attributes tage
+            // error here, all posts require an attributes tag
         } else {
             $data = $post->attributes;
         }

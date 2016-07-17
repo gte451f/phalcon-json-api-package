@@ -103,7 +103,7 @@ class Entity extends Injectable
 
 
     /**
-     * hold a list of all related records that are to be fetched form the database and
+     * hold a list of all related records that are to be fetched from the database and
      * related to their parent record
      *
      * takes the form of [ReferenceModelNameSpace'=>[various, requested, foreign_keys];
@@ -185,6 +185,10 @@ class Entity extends Injectable
             $this->result->addData($this->baseRecord);
             $foundSet++;
         }
+
+        // pull in related records that are to be processed as seperate & batched queries
+        $this->processDelayedRelationships();
+
         if (isset($timer)) {
             $timer->lap('Formatting Output');
         }
@@ -200,7 +204,7 @@ class Entity extends Injectable
     {
         foreach ($this->activeRelations as $relation) {
             $refType = $relation->getType();
-            if ($refType == 2) {
+            if ($refType == PhalconRelation::HAS_MANY) {
                 // finally process a combined call for child records
                 $this->getHasManyRecords($relation);
             }
@@ -283,6 +287,9 @@ class Entity extends Injectable
             $this->result->addData($this->baseRecord);
             $foundSet++;
         }
+
+        // pull in related records that are to be processed as seperate & batched queries
+        $this->processDelayedRelationships();
 
         if (isset($timer)) {
             $timer->lap('Formatting Output');
@@ -380,21 +387,21 @@ class Entity extends Injectable
                 $class = get_class($record);
                 $modelName = $record->getModelName('plural');
                 if ($primaryModel === $class) {
-                    $primaryArray = $this->loadAllowedColumns($record);
+                    $primaryArray = $this->loadAllowedColumns($record, false, false);
                     continue;
                 }
                 foreach ($this->activeRelations as $relation) {
                     $refType = $relation->getType();
                     $relationName = $relation->getModelName('plural');
-                    if ($refType == 1 AND $relationName == $modelName) {
-                        $baseArray = array_merge($this->loadAllowedColumns($record), $baseArray);
+                    if ($refType == PhalconRelation::HAS_ONE AND $relationName == $modelName) {
+                        $baseArray = array_merge($this->loadAllowedColumns($record, false, false), $baseArray);
                     }
                 }
             }
             // put this step in to make sure that primary fields always appear before related fields
             $baseArray = array_merge($primaryArray, $baseArray);
         } else {
-            $baseArray = $this->loadAllowedColumns($baseRecord);
+            $baseArray = $this->loadAllowedColumns($baseRecord, false, false);
         }
         $this->baseRecord = new Data($baseArray['id'], $this->model->getTableName('plural'), $baseArray);
     }
@@ -466,16 +473,16 @@ class Entity extends Injectable
 
             // harmonize relatedRecords
             switch ($relation->getType()) {
-                case 0:
+                case PhalconRelation::BELONGS_TO:
                     //pluck the related record out of base record since we know its in there
                     $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
                     break;
-                case 1:
+                case PhalconRelation::HAS_ONE:
                     // ignore hasOne since they are processed like a parent relation
                     // this means current logic will not merge in a parent's record for a hasOne relationship
                     // it's an edge case but should be supported in the future
                     break;
-                case 4:
+                case PhalconRelation::HAS_MANY_THROUGH:
                     $this->getHasManyToManyRecords($relation);
                     break;
                 default:
@@ -509,7 +516,6 @@ class Entity extends Injectable
 
         // save the PKID for each record returned
         if (count($relatedRecords) > 0) {
-            // 1 = hasOne 0 = belongsTo 2 = hasMany
             switch ($refType) {
                 // process hasOne records as well
                 case PhalconRelation::HAS_ONE:
@@ -612,19 +618,24 @@ class Entity extends Injectable
 
     /**
      * extract only approved fields from a resultset
+     * this works with each resultset's model to get a list of allowed columns
+     * hence the similar method signature
      *
      * @param \PhalconRest\API\BaseModel $resultSet
+     * @param bool $nameSpace
+     * @param bool $includeParent
      * @return array
      */
-    protected function loadAllowedColumns(BaseModel $resultSet)
+    protected function loadAllowedColumns(BaseModel $resultSet, $nameSpace = true, $includeParent = true)
     {
         $record = array();
-        $allowedFields = $resultSet->getAllowedColumns(false);
+        $allowedFields = $resultSet->getAllowedColumns($nameSpace, $includeParent);
         foreach ($allowedFields as $field) {
             if (isset($resultSet->$field)) {
                 $record[$field] = $resultSet->$field;
             } else {
                 // error, field doesn't exist on resultSet!
+                // don't set to null, just leave it alone
                 $record[$field] = null;
             }
         }
@@ -655,6 +666,7 @@ class Entity extends Injectable
 
     /**
      * store away a request for a record in a child table
+     * this registry is later processed to side load found records
      * @param Relation $relation
      */
     protected function registerHasManyRequest(Relation $relation)
@@ -804,7 +816,7 @@ class Entity extends Injectable
 
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
-     * will process a related record result set update the result and current baseRecord objects
+     * will process a related record result and then update the result and current baseRecord objects
      *
      * @param array $relatedRecords
      * @param Relation $relation
@@ -822,20 +834,32 @@ class Entity extends Injectable
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
                     // filter manyHasMany differently than other relationships
-                    if ($relation->getType() == 4) {
+                    if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
                         // only interested in the "end" relationship, not the intermediate
                         $intermediateModelNameSpace = $relation->getIntermediateModel();
                         if ($intermediateModelNameSpace == get_class($rec)) {
                             continue;
                         }
                     }
-                    $relatedRecArray = array_merge($relatedRecArray, $this->loadAllowedColumns($rec));
+                    $relatedRecArray = array_merge($this->loadAllowedColumns($rec, false, false), $relatedRecArray);
                 }
             } else {
-                $relatedRecArray = $this->loadAllowedColumns($relatedRecord);
+                // reset for each run
+                $relatedRecArray = false;
+                // let's inspect this for basic validity and ignore out empty records
+                // think of a join on optional table
+                $primaryKeyName = $relatedRecord->getPrimaryKeyName();
+                if (isset($relatedRecord->$primaryKeyName) AND $relatedRecord->$primaryKeyName != null) {
+                    $relatedRecArray = $this->loadAllowedColumns($relatedRecord, false, false);
+                }
             }
 
-            if ($relation->getType() == 0) {
+            // if record appears to be invalid, skip
+            if (!$relatedRecArray) {
+                continue;
+            }
+
+            if ($relation->getType() == PhalconRelation::BELONGS_TO) {
                 $relationshipName = $relation->getTableName('singular');
             } else {
                 $relationshipName = $relation->getTableName('plural');
@@ -914,6 +938,9 @@ class Entity extends Injectable
                 $modelName = $relation->getModelName();
                 $aliasName = $relation->getAlias();
 
+                //register in result object as well
+                $this->result->registerRelationshipDefinitions($relation);
+
                 // figure out if we have a preferred alias
                 if ($aliasName) {
                     $this->activeRelations[$aliasName] = $relation;
@@ -951,6 +978,9 @@ class Entity extends Injectable
                         $tableName = $relation->getTableName();
                         $modelName = $relation->getModelName();
                         $aliasName = $relation->getAlias();
+
+                        //register in result object as well
+                        $this->result->registerRelationshipDefinitions($relation);
 
                         if ($requestedRelationship == $tableName) {
                             $matchFound = true;
