@@ -320,7 +320,15 @@ class BaseController extends Injectable
                         $name = $relation->getTableName('singular');
                         if (isset($post->relationships->$name)) {
                             $fk = $relation->getFields();
-                            $data->$fk = $post->relationships->$name->data->id;
+                            if (isset($post->relationships->$name->data->id)) {
+                                $data->$fk = $post->relationships->$name->data->id;
+                            } else {
+                                // A bad or incomplete relationship record was submitted
+                                throw new HTTPException("An error occurred saving this record.", 500, [
+                                    'dev' => 'Bad or incomplete relationship record posted to the api.',
+                                    'code' => '4894681316189'
+                                ]);
+                            }
                         }
                         break;
 
