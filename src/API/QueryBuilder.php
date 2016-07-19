@@ -148,12 +148,12 @@ class QueryBuilder extends Injectable
                     break;
 
                 case Relation::HAS_MANY_THROUGH:
-                    $alias2 = $alias.'_intermediate';
-                    $left1  = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    $alias2 = $alias . '_intermediate';
+                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
                     $right1 = "[$alias2]." . $relation->getIntermediateFields();
                     $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
 
-                    $left2  = "[$alias2]." . $relation->getIntermediateReferencedFields();
+                    $left2 = "[$alias2]." . $relation->getIntermediateReferencedFields();
                     $right2 = "[$alias]." . $relation->getReferencedFields();
                     $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
                     break;
@@ -346,7 +346,7 @@ class QueryBuilder extends Injectable
 
         // if a related table is referenced, then search related model column maps instead of the primary model
         if (count($searchBits) == 2) {
-            // build fieldname from 2nd value
+            // build field name from 2nd value
             $fieldName = $searchBits[1];
             // start search for a related model
             $matchFound = false;
@@ -370,14 +370,14 @@ class QueryBuilder extends Injectable
 
             // if we made it this far, than a prefix was supplied but it did not match any known hasOne relationship
             if ($matchFound == false) {
-                throw new HTTPException('Unknown table prefix supplied in filter.', 500, [
-                    'dev' => 'Encountered a table prefix that did not match any known hasOne relationships in the model.',
+                throw new HTTPException("Unknown table prefix supplied in filter.", 500, array(
+                    'dev' => "Encountered a table prefix that did not match any known hasOne relationships in the model.",
                     'code' => '891488651361948131461849'
-                ]);
+                ));
             }
         } else {
             $alias = $this->model->getModelNameSpace();
-            $colMap = $this->model->getAllColumns();
+            $colMap = $this->model->getAllColumns(false);
         }
 
         // prepend modelNameSpace if the field is detected in the selected model's column map
@@ -387,6 +387,33 @@ class QueryBuilder extends Injectable
             }
         }
 
+        // still here?  try the parent model and prepend the parent model alias if the field is detected in that model's column map
+        $currentModel = $this->model;
+        while ($currentModel) {
+            $parentModelNameSpace = $currentModel->getParentModel(true);
+            $parentModelName = $currentModel->getParentModel(false);
+            // if not parent name specified, skip this part
+            if ($parentModelName) {
+                $parentModel = new $parentModelNameSpace();
+                // loop through all relationships to reference this one by its alias
+                foreach ($this->entity->activeRelations as $relation) {
+                    $alias = $relation->getAlias();
+                    $test = $relation->getModelName();
+                    // to detect the parent model we'll compare against either the alias or the full model name
+                    if ($parentModelName == $alias || $parentModelName == $relation->getModelName()) {
+                        $colMap = $parentModel->getAllColumns(false);
+                        foreach ($colMap as $field) {
+                            if ($fieldName == $field) {
+                                return "[$alias].$fieldName";
+                            }
+                        }
+                    }
+                }
+                $currentModel = $parentModel;
+            } else {
+                $currentModel = false;
+            }
+        }
         return $fieldName;
     }
 
@@ -537,13 +564,13 @@ class QueryBuilder extends Injectable
         $rawSort = $this->searchHelper->getSort('sql');
 
         // detect the correct name space for sort string
-        // notice this might be a fieldname with a sort suffix
-        $fieldBits = explode(':', $rawSort);
+        // notice this might be a field name with a sort suffix
+        $fieldBits = explode(' ', $rawSort);
         if (count($fieldBits) > 1) {
             // isolate just the field name
             $fieldName = $fieldBits[0];
             $suffix = $fieldBits[1];
-            $preparedSort = $this->prependFieldNameNamespace($fieldName) . '.' . $suffix;
+            $preparedSort = $this->prependFieldNameNamespace($fieldName) . ' ' . $suffix;
         } else {
             $preparedSort = $this->prependFieldNameNamespace($rawSort);
         }

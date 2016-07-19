@@ -396,7 +396,7 @@ class Entity extends Injectable
             foreach ($baseRecord as $record) {
                 $class = get_class($record);
                 if ($primaryModel === $class) {
-                    $baseArray = array_merge($this->loadAllowedColumns($record), $baseArray);
+                    $baseArray = array_merge($this->loadAllowedColumns($record, false, false), $baseArray);
                     continue;
                 }
 
@@ -404,13 +404,13 @@ class Entity extends Injectable
                     $refType = $relation->getType();
 
                     if ($refType == 1) {
-                        $baseArray = array_merge($this->loadAllowedColumns($record), $baseArray);
+                        $baseArray = array_merge($this->loadAllowedColumns($record, false, false), $baseArray);
                     }
                 }
             }
             $this->baseRecord = $baseArray;
         } else {
-            $this->baseRecord = $this->loadAllowedColumns($baseRecord);
+            $this->baseRecord = $this->loadAllowedColumns($baseRecord, false, false);
         }
     }
 
@@ -564,7 +564,7 @@ class Entity extends Injectable
             switch ($refType) {
                 // process hasOne records as well
                 case PhalconRelation::HAS_ONE:
-                    // do nothin w/ hasOne since these are auto merged into the main record
+                    // do nothing w/ hasOne since these are auto merged into the main record
                     break;
                 case PhalconRelation::BELONGS_TO:
                     // this doesn't seem right, why are they occasionally showing up inside an array?
@@ -679,19 +679,33 @@ class Entity extends Injectable
         } else {
             // check that this array doesn't already exist, otherwise push it into the stack
             foreach ($this->restResponse[$table] as $record) {
+
+                if (count($record) == 13) {
+                    $break = 1;
+                }
+
+                if ($record['id'] == 23) {
+                    $break = 1;
+                }
+
                 // if the number of keys differ...it's different
                 if (count($record) === count($newRecord)) {
                     // try two different ways to compare records when checking for duplicates
+                    $match = true;
                     foreach (array_keys($newRecord) as $key) {
                         if ($newRecord[$key] !== $record[$key]) {
-                            $this->restResponse[$table][] = $newRecord;
-                            return;
+                            $match = false;
                         }
                     }
+                    // all keys match, bug out!
+                    if ($match) {
+                        return;
+                    }
+
                     // this appears to be slower
-                    //  if (serialize($newRecord) === serialize($record)) {
-                    //      return;
-                    //  }
+//                    if (serialize($newRecord) === serialize($record)) {
+//                        return;
+//                    }
                 }
             }
             $this->restResponse[$table][] = $newRecord;
@@ -701,19 +715,24 @@ class Entity extends Injectable
 
     /**
      * extract only approved fields from a resultset
+     * this works with each resultset's model to get a list of allowed columns
+     * hence the similar method signature
      *
      * @param \PhalconRest\API\BaseModel $resultSet
+     * @param bool $nameSpace
+     * @param bool $includeParent
      * @return array
      */
-    protected function loadAllowedColumns(BaseModel $resultSet)
+    protected function loadAllowedColumns(BaseModel $resultSet, $nameSpace = true, $includeParent = true)
     {
         $record = array();
-        $allowedFields = $resultSet->getAllowedColumns(false);
+        $allowedFields = $resultSet->getAllowedColumns($nameSpace, $includeParent);
         foreach ($allowedFields as $field) {
             if (isset($resultSet->$field)) {
                 $record[$field] = $resultSet->$field;
             } else {
                 // error, field doesn't exist on resultSet!
+                // don't set to null, just leave it alone
                 $record[$field] = null;
             }
         }
@@ -935,7 +954,6 @@ class Entity extends Injectable
                             continue;
                         }
                     }
-                    $relatedRecArray = array_merge($relatedRecArray, $this->loadAllowedColumns($rec));
                 }
             } else {
                 // reset for each run
@@ -945,7 +963,7 @@ class Entity extends Injectable
                 // think of a join on optional table
                 $primaryKeyName = $relatedRecord->getPrimaryKeyName();
                 if (isset($relatedRecord->$primaryKeyName) AND $relatedRecord->$primaryKeyName != null) {
-                    $relatedRecArray = $this->loadAllowedColumns($relatedRecord);
+                    $relatedRecArray = $this->loadAllowedColumns($relatedRecord, false, false);
                 }
             }
             // push if a valid record is found
