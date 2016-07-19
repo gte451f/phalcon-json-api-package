@@ -377,6 +377,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getAllowedColumns($nameSpace = true, $includeParent = true)
     {
+		$allowColumns = array[];
         if ($this->allowColumns == NULL) {
             // load block columns if uninitialized
             if ($this->blockColumns == null) {
@@ -388,9 +389,7 @@ class BaseModel extends \Phalcon\Mvc\Model
                 $modelNameSpace = $this->getModelNameSpace() . '.';
             } else {
                 $modelNameSpace = null;
-            }
-
-            $allowColumns = array();
+            }           
 
             $colMap = $this->getAllColumns($includeParent);
 
