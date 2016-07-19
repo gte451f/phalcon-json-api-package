@@ -180,7 +180,10 @@ class Entity extends Injectable
             $foundSet++;
         }
 
-        $this->processDelayedRelationships();
+        // no need to process when no records were found
+        if ($foundSet > 0) {
+            $this->processDelayedRelationships();
+        }
 
         if (isset($timer)) {
             $timer->lap('Formatting Output');
@@ -203,7 +206,7 @@ class Entity extends Injectable
 
         foreach ($this->activeRelations as $relation) {
             $refType = $relation->getType();
-            if ($refType == 2) {
+            if ($refType == PhalconRelation::HAS_MANY) {
                 // finally process a combined call for child records
                 $relatedRecords = $this->getHasManyRecords($relation);
                 $this->updateBaseRecords($relatedRecords, $relation);
@@ -487,27 +490,42 @@ class Entity extends Injectable
 
             $config = $this->getDI()->get('config');
             // harmonize relatedRecords
-            if ($refType == PhalconRelation::BELONGS_TO) {
-                // extract belongsTo record differently if it's already present in the original query
-                if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
-                    $relatedRecords = $this->getBelongsToRecord($relation);
-                } else {
-                    //pluck the related record out of base record since we know its in there
-                    $relatedRecords = $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
-                }
-            } elseif ($refType == PhalconRelation::HAS_ONE) {
-                // ignore hasOne since they are processed like a parent relation
-                // this means current logic will not merge in a parent's record for a hasOne relationship
-                // it's an edge case but should be supported in the future
-            } elseif ($refType == PhalconRelation::HAS_MANY_THROUGH) {
-                $relatedRecords = $this->getHasManyToManyRecords($relation);
-            } else {
-                if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
-                    $relatedRecords = $this->getHasManyRecords($relation);
-                } else {
-                    // register a future record request to be processed later
-                    $this->registerHasManyRequest($relation);
-                }
+            switch ($refType) {
+                case PhalconRelation::BELONGS_TO:
+                    // extract belongsTo record differently if it's already present in the original query
+                    if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
+                        $relatedRecords = $this->getBelongsToRecord($relation);
+                    } else {
+                        //pluck the related record out of base record since we know its in there
+                        $relatedRecords = $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
+                    }
+                    break;
+
+                case PhalconRelation::HAS_ONE:
+                    // ignore hasOne since they are processed like a parent relation
+                    // this means current logic will not merge in a parent's record for a hasOne relationship
+                    // it's an edge case but should be supported in the future
+                    break;
+
+                case PhalconRelation::HAS_MANY_THROUGH:
+                    $relatedRecords = $this->getHasManyToManyRecords($relation);
+                    break;
+
+                case PhalconRelation::HAS_MANY:
+                    if (!array_deep_key($config, 'feature_flags.fastHasMany')) {
+                        $relatedRecords = $this->getHasManyRecords($relation);
+                    } else {
+                        // register a future record request to be processed later
+                        $this->registerHasManyRequest($relation);
+                    }
+                    break;
+
+                default:
+                    // wah!
+                    throw new HTTPException("Unknown relationship submitted!", 500, array(
+                        'code' => '4984846846849494'
+                    ));
+                    break;
             }
 
             // only normalize when some sort of resultset is returned, even an empty array
