@@ -679,15 +679,6 @@ class Entity extends Injectable
         } else {
             // check that this array doesn't already exist, otherwise push it into the stack
             foreach ($this->restResponse[$table] as $record) {
-
-                if (count($record) == 13) {
-                    $break = 1;
-                }
-
-                if ($record['id'] == 23) {
-                    $break = 1;
-                }
-
                 // if the number of keys differ...it's different
                 if (count($record) === count($newRecord)) {
                     // try two different ways to compare records when checking for duplicates
