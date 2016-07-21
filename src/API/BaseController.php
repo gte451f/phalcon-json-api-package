@@ -193,7 +193,6 @@ class BaseController extends Injectable
         $request = $this->getDI()->get('request');
         $post = $this->mungeSubmittedData($request->getJson());
 
-
         if (!$post) {
             throw new HTTPException("There was an error adding new record.", 500, array(
                 'dev' => "Invalid data posted to the server",
@@ -291,11 +290,11 @@ class BaseController extends Injectable
      * will disentangle the mess JSON API submits down to something our API can work with
      *
      * @param $post
-     * @return object
+     * @return mixed
+     * @throws HTTPException
      */
     public function mungeSubmittedData($post)
     {
-
         // munge a bit so it works for internal data handling
         if (!isset($post->attributes)) {
             // error here, all posts require an attributes tag
