@@ -61,9 +61,6 @@ class QueryBuilder extends Injectable
             "$modelNameSpace.*"
         );
 
-        // hook to allow for custom work to be done on the $query object before it is process by the queryBuilder method
-        $this->beforeQueryBuilderHook($query);
-
         // process hasOne Joins
         $this->queryJoinHelper($query);
         $this->querySearcheHelper($query);
@@ -72,7 +69,7 @@ class QueryBuilder extends Injectable
         if ($count) {
             $query->columns('count(*) as count');
         } else {
-            // preseve any columns added through joins
+            // preserve any columns added through joins
             $existingColumns = $query->getColumns();
             $allColumns = array_merge($columns, $existingColumns);
             $query->columns($allColumns);
@@ -82,27 +79,8 @@ class QueryBuilder extends Injectable
             $this->queryLimitHelper($query);
         }
 
-        // hook to allow for custom work to be done on the $query object before returning it.
-        $this->afterQueryBuilderHook($query);
-
         // todo build fields feature into PHQL instead of doing in PHP
         return $query;
-    }
-
-    /**
-     * hook to do custom work on the $query object before it is processed by the queryBuilder method
-     */
-    public function beforeQueryBuilderHook($query)
-    {
-        return true;
-    }
-
-    /**
-     * hook to allow for custom work to be done on the $query object before returning it
-     */
-    public function afterQueryBuilderHook($query)
-    {
-        return true;
     }
 
     /**

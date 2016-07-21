@@ -331,11 +331,17 @@ class Entity extends Injectable
      * will run a search, but forks to either do a PHQL based query
      * or simple query depending on suppliedParameters
      *
+     * TODO do we need to support suppliedParameter anymore?
+     *
      * @param string $suppliedParameters
      * @return mixed
      */
     public function runSearch($suppliedParameters = null)
     {
+
+        // hook before query in case entity needs to act
+        $this->beforeQueryBuilderHook();
+
         // run a simple search if parameters are supplied,
         // this would only happen if another part of the app was calling this entity directly
         // not sure we need this, it might be better to work directly on the searchHelper?
@@ -343,13 +349,19 @@ class Entity extends Injectable
             // construct using PHQL
 
             // run this once for the count
+            // access hook after queryBuilder in case entity needs to act on the query
             $query = $this->queryBuilder->build('count');
+            $query = $this->afterQueryBuilderHook($query);
+
             $result = $query->getQuery()->getSingleResult();
             $this->recordCount = intval($result->count);
 
             if (!$this->searchHelper->isCount) {
                 // now run the real query
+                // access hook after queryBuilder in case entity needs to act on the query
                 $query = $this->queryBuilder->build();
+                $query = $this->afterQueryBuilderHook($query);
+
                 $result = $query->getQuery()->execute();
                 return $result;
             } else {
@@ -492,6 +504,28 @@ class Entity extends Injectable
             }
             return true;
         }
+    }
+
+    /**
+     * hook for an entity to act before queryBuilder runs
+     * no query object supplied this is is before one is generated
+     *
+     * @return void
+     */
+    public function beforeQueryBuilderHook()
+    {
+
+    }
+
+    /**
+     * hook to allow for custom work to be done on the $query object before returning it
+     *
+     * @param $query
+     * @return mixed
+     */
+    public function afterQueryBuilderHook($query)
+    {
+        return $query;
     }
 
     /**
