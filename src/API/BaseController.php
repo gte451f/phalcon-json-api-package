@@ -107,8 +107,20 @@ class BaseController extends Injectable
             $searchHelper = $this->getSearchHelper();
             $entity = $config['namespaces']['entities'] . $this->getControllerName('singular') . 'Entity';
             $this->entity = new $entity($model, $searchHelper);
+            $this->configureEntity();
         }
         return $this->entity;
+    }
+
+    /**
+     * In order that the controller has access during the getSearchHelper
+     * to configure the entity, the controller needs to implement
+     * this method to override the functionality
+     * @return void
+     */
+    public function configureEntity()
+    {
+        return;
     }
 
     /**
