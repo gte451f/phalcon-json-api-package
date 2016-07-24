@@ -66,8 +66,12 @@ class ErrorStore
     {
         $di = \Phalcon\DI::getDefault();
 
-        $this->dev = @$errorList['dev'];
+        if (isset($errorList['dev'])) {
+            $this->dev = @$errorList['dev'];
+        }
+
         $this->code = @$errorList['code'];
+
         if (isset($errorList['more'])) {
             $this->more = @$errorList['more'];
         }

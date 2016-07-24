@@ -194,7 +194,7 @@ class BaseController extends Injectable
         $post = $this->mungeSubmittedData($request->getJson());
 
         if (!$post) {
-            throw new HTTPException("There was an error adding new record.", 500, array(
+            throw new HTTPException("There was an error adding new record.  Missing POST data.", 400, array(
                 'dev' => "Invalid data posted to the server",
                 'code' => '568136818916816'
             ));
@@ -298,6 +298,10 @@ class BaseController extends Injectable
         // munge a bit so it works for internal data handling
         if (!isset($post->attributes)) {
             // error here, all posts require an attributes tag
+            throw new HTTPException("The API received a malformed API request", 400, [
+                'dev' => 'Bad or incomplete attributes property submitted to the api',
+                'code' => '894168146168168168161'
+            ]);
         } else {
             $data = $post->attributes;
         }
@@ -323,7 +327,7 @@ class BaseController extends Injectable
                                 $data->$fk = $post->relationships->$name->data->id;
                             } else {
                                 // A bad or incomplete relationship record was submitted
-                                throw new HTTPException("An error occurred saving this record.", 500, [
+                                throw new HTTPException("An error occurred saving this record.", 400, [
                                     'dev' => 'Bad or incomplete relationship record posted to the api.',
                                     'code' => '4894681316189'
                                 ]);
