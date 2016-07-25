@@ -962,7 +962,7 @@ class Entity extends Injectable
      */
     protected function loadRelationRecords($result, Relation $relation)
     {
-        $relatedRecords = array(); // store all related records
+        $relatedRecords = []; // store all related records
         foreach ($result as $relatedRecord) {
             // when a related record contains hasOne or a parent, merge in those fields as part of side load response
             $parent = $relation->getParent();
@@ -972,13 +972,14 @@ class Entity extends Injectable
                 // process records that include joined in parent records
                 foreach ($relatedRecord as $rec) {
                     // filter manyHasMany differently than other relationships
-                    if ($relation->getType() == 4) {
+                    if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
                         // only interested in the "end" relationship, not the intermediate
                         $intermediateModelNameSpace = $relation->getIntermediateModel();
                         if ($intermediateModelNameSpace == get_class($rec)) {
                             continue;
                         }
                     }
+                    $relatedRecArray = array_merge($this->loadAllowedColumns($rec, false, false), $relatedRecArray);
                 }
             } else {
                 // reset for each run

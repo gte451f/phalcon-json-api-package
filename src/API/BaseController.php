@@ -74,10 +74,10 @@ class BaseController extends Injectable
         if ($this->model == false) {
             $config = $this->getDI()->get('config');
             // auto load model so we can inject it into the entity
-            if (! $modelNameString) {
+            if (!$modelNameString) {
                 $modelNameString = $this->getControllerName();
             }
-            
+
             $modelName = $config['namespaces']['models'] . $modelNameString;
             $this->model = new $modelName($this->di);
         }
@@ -95,7 +95,7 @@ class BaseController extends Injectable
 
     /**
      * Load a default entity unless one is already in place
-     * return the currentlyloaded entity
+     * return the currently loaded entity
      *
      * @return \PhalconRest\API\Entity
      */
@@ -106,8 +106,8 @@ class BaseController extends Injectable
             $model = $this->getModel();
             $searchHelper = $this->getSearchHelper();
             $entity = $config['namespaces']['entities'] . $this->getControllerName('singular') . 'Entity';
-            $this->entity = new $entity($model, $searchHelper);
-            $this->configureEntity();
+            $entity = new $entity($model, $searchHelper);
+            $this->entity = $this->configureEntity($entity);
         }
         return $this->entity;
     }
@@ -116,11 +116,12 @@ class BaseController extends Injectable
      * In order that the controller has access during the getSearchHelper
      * to configure the entity, the controller needs to implement
      * this method to override the functionality
-     * @return void
+     * @param  \PhalconRest\API\Entity $entity
+     * @return \PhalconRest\API\Entity $entity
      */
-    public function configureEntity()
+    public function configureEntity($entity)
     {
-        return;
+        return $entity;
     }
 
     /**
@@ -258,7 +259,7 @@ class BaseController extends Injectable
             unset($put->$value);
         }
 
-        if (! $put) {
+        if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
                 'dev' => "Invalid data posted to the server",
                 'code' => '568136818916816'
