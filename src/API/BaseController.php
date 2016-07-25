@@ -327,10 +327,12 @@ class BaseController extends Injectable
                                 $data->$fk = $post->relationships->$name->data->id;
                             } else {
                                 // A bad or incomplete relationship record was submitted
-                                throw new HTTPException("An error occurred saving this record.", 400, [
-                                    'dev' => 'Bad or incomplete relationship record posted to the api.',
-                                    'code' => '4894681316189'
-                                ]);
+                                // this isn't always an error, it might be that an empty relationship was submitted
+
+                                // throw new HTTPException("An error occurred saving this record.", 400, [
+                                //    'dev' => 'Bad or incomplete relationship record posted to the api.',
+                                //    'code' => '4894681316189'
+                                // ]);
                             }
                         }
                         break;

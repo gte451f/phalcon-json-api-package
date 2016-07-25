@@ -186,8 +186,11 @@ class Entity extends Injectable
             $foundSet++;
         }
 
-        // pull in related records that are to be processed as seperate & batched queries
-        $this->processDelayedRelationships();
+        // no need to process if no primary records are found
+        if ($foundSet > 0) {
+            // pull in related records that are to be processed as separate & batched queries
+            $this->processDelayedRelationships();
+        }
 
         if (isset($timer)) {
             $timer->lap('Formatting Output');
@@ -288,9 +291,11 @@ class Entity extends Injectable
             $foundSet++;
         }
 
-        // pull in related records that are to be processed as seperate & batched queries
-        $this->processDelayedRelationships();
-
+        // no need to process if no primary records are found
+        if ($foundSet > 0) {
+            // pull in related records that are to be processed as separate & batched queries
+            $this->processDelayedRelationships();
+        }
         if (isset($timer)) {
             $timer->lap('Formatting Output');
         }
