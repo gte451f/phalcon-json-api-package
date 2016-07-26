@@ -176,7 +176,7 @@ class Entity extends Injectable
             // hook for manipulating the base record after processing relationships
             $this->afterProcessRelationships($baseResult);
 
-            $this->pushRestResponse($this->model->getTableName(), $this->baseRecord);
+            $this->pushRestResponse($this->model->getTableName(), $this->baseRecord, true);
             $foundSet++;
         }
 
@@ -704,33 +704,37 @@ class Entity extends Injectable
      *
      * @param string $table the table name where the records originated
      * @param array $newRecord usually related records, but could side load just about any records to an api response
+     * @param boolean $skipDuplicateCheck should the function skip checking for duplicates and push it into the rest response directly?
+     *  this can be useful when you know the chance of duplicates is close to zero
      * @return void
      */
-    protected function pushRestResponse($table, array $newRecord)
+    protected function pushRestResponse($table, array $newRecord, $skipDuplicateCheck = false)
     {
         if (!isset($this->restResponse[$table])) {
             $this->restResponse[$table][] = $newRecord;
         } else {
-            // check that this array doesn't already exist, otherwise push it into the stack
-            foreach ($this->restResponse[$table] as $record) {
-                // if the number of keys differ...it's different
-                if (count($record) === count($newRecord)) {
-                    // try two different ways to compare records when checking for duplicates
-                    $match = true;
-                    foreach (array_keys($newRecord) as $key) {
-                        if ($newRecord[$key] !== $record[$key]) {
-                            $match = false;
+            if ($skipDuplicateCheck == false) {
+                // check that this array doesn't already exist, otherwise push it into the stack
+                foreach ($this->restResponse[$table] as $record) {
+                    // if the number of keys differ...it's different
+                    if (count($record) === count($newRecord)) {
+                        // try two different ways to compare records when checking for duplicates
+                        $match = true;
+                        foreach (array_keys($newRecord) as $key) {
+                            if ($newRecord[$key] !== $record[$key]) {
+                                $match = false;
+                            }
                         }
-                    }
-                    // all keys match, bug out!
-                    if ($match) {
-                        return;
-                    }
+                        // all keys match, bug out!
+                        if ($match) {
+                            return;
+                        }
 
-                    // this appears to be slower
+                        // this appears to be slower
 //                    if (serialize($newRecord) === serialize($record)) {
 //                        return;
 //                    }
+                    }
                 }
             }
             $this->restResponse[$table][] = $newRecord;
