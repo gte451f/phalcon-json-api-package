@@ -508,8 +508,13 @@ class Entity extends Injectable
                     if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                         $relatedRecords = $this->getBelongsToRecord($relation);
                     } else {
-                        //pluck the related record out of base record since we know its in there
-                        $relatedRecords = $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
+                        // for simple belongsTo, pluck the related record out of base record since we know its in there
+                        // some belongsTo have parent records, revert to the older style to get a complete record
+                        if ($relation->getParent()) {
+                            $relatedRecords = $this->getBelongsToRecord($relation);
+                        } else {
+                            $relatedRecords = $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
+                        }
                     }
                     break;
 

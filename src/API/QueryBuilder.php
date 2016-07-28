@@ -112,6 +112,18 @@ class QueryBuilder extends Injectable
             $type = $relation->getType();
             switch ($type) {
                 case Relation::BELONGS_TO:
+                    // process feature flag for belongsTo
+                    // attempt to join "simple" in side loaded belongsTo records that do not themselves have parents
+                    if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
+                        // create both sides of the join
+                        $left = "[$alias]." . $relation->getReferencedFields();
+                        $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                        // create and alias join
+                        $query->leftJoin($referencedModel, "$left = $right", $alias);
+                        $columns[] = "[$alias].*";
+                    }
+                    break;
+
                 case Relation::HAS_ONE:
                     // create both sides of the join
                     $left = "[$alias]." . $relation->getReferencedFields();
@@ -120,9 +132,7 @@ class QueryBuilder extends Injectable
                     $query->leftJoin($referencedModel, "$left = $right", $alias);
 
                     // add all parent AND hasOne joins to the column list
-                    if ($type == Relation::HAS_ONE) {
-                        $columns[] = "[$alias].*";
-                    }
+                    $columns[] = "[$alias].*";
                     break;
 
                 case Relation::HAS_MANY_THROUGH:
@@ -138,15 +148,6 @@ class QueryBuilder extends Injectable
 
                 default:
                     $this->di->get('logger')->warning("Relationship was ignored during join: {$this->model->getModelName()}.$alias, type #$type");
-            }
-
-            // process feature flag for belongsTo
-            // attempt to join in side loaded belongsTo records
-            if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
-                // add all parent AND hasOne joins to the column list
-                if ($type == Relation::BELONGS_TO) {
-                    $columns[] = "[$alias].*";
-                }
             }
         }
         $query->columns($columns);

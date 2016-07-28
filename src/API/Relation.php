@@ -10,7 +10,7 @@ use Phalcon\Mvc\Model\ManagerInterface;
  *
  *
  * @author jjenkins
- *        
+ *
  */
 class Relation
 {
@@ -96,7 +96,7 @@ class Relation
     /**
      * inject dependencies
      *
-     * @param \Phalcon\Mvc\Model\Relation $relation            
+     * @param \Phalcon\Mvc\Model\Relation $relation
      * @param ManagerInterface $modelManager
      */
     function __construct(\Phalcon\Mvc\Model\Relation $relation, ManagerInterface $modelManager)
@@ -108,8 +108,8 @@ class Relation
     /**
      * pass unknown functions down to $relation
      *
-     * @param mixed $name            
-     * @param mixed $arguments            
+     * @param mixed $name
+     * @param mixed $arguments
      */
     function __call($name, $arguments)
     {
@@ -176,7 +176,7 @@ class Relation
                 $this->alias = NULL;
             }
         }
-        
+
         return $this->alias;
     }
 
@@ -192,7 +192,7 @@ class Relation
     }
 
     /**
-     * get a list of hasOne tables, simlar to getParent but more inclusive
+     * get a list of hasOne tables, similar to getParent but more inclusive
      *
      * @return string or false
      */
@@ -207,7 +207,7 @@ class Relation
                 $list[] = $relation->getReferencedModel();
             }
         }
-        
+
         return $list;
     }
 
