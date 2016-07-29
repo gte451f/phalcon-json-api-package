@@ -377,7 +377,9 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getAllowedColumns($nameSpace = true, $includeParent = true)
     {
-		$allowColumns = [];
+        $allowColumns = [];
+
+        // cache allowColumns to save us the work in subsequent calls
         if ($this->allowColumns == NULL) {
             // load block columns if uninitialized
             if ($this->blockColumns == null) {
@@ -391,7 +393,7 @@ class BaseModel extends \Phalcon\Mvc\Model
                 $modelNameSpace = null;
             }
 
-            $colMap = $this->getAllColumns($includeParent);
+            $colMap = $this->getAllColumns(false);
 
             foreach ($colMap as $key => $value) {
                 if (array_search($value, $this->blockColumns) === false) {
@@ -400,12 +402,12 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
             $this->allowColumns = $allowColumns;
         }
-
+        // give function the chance to re-merge in parent columns
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
             if ($parentModel) {
                 $parentModel = new $parentModel();
-                $parentColumns = $parentModel->getAllowedColumns(true);
+                $parentColumns = $parentModel->getAllowedColumns(false, $includeParent);
 
                 // the parent model may return null, let's catch and change to an empty array
                 // thus indicating that block columns have been "loaded" even if they are blank

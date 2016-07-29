@@ -99,7 +99,7 @@ class BaseController extends Injectable
 
     /**
      * Load a default entity unless one is already in place
-     * return the currentlyloaded entity
+     * return the currently loaded entity
      *
      * @return \PhalconRest\API\Entity
      */
@@ -110,9 +110,22 @@ class BaseController extends Injectable
             $model = $this->getModel();
             $searchHelper = $this->getSearchHelper();
             $entity = $config['namespaces']['entities'] . $this->getControllerName('singular') . 'Entity';
-            $this->entity = new $entity($model, $searchHelper);
+            $entity = new $entity($model, $searchHelper);
+            $this->entity = $this->configureEntity($entity);
         }
         return $this->entity;
+    }
+
+    /**
+     * In order that the controller has access during the getSearchHelper
+     * to configure the entity, the controller needs to implement
+     * this method to override the functionality
+     * @param  \PhalconRest\API\Entity $entity
+     * @return \PhalconRest\API\Entity $entity
+     */
+    public function configureEntity($entity)
+    {
+        return $entity;
     }
 
     /**
@@ -149,7 +162,7 @@ class BaseController extends Injectable
     /**
      * catches incoming requests for groups of records
      *
-     * @return array Results formmated by respond()
+     * @return array Results formated by respond()
      */
     public function get()
     {
@@ -404,7 +417,7 @@ class BaseController extends Injectable
 
     /**
      *
-     * @param mixed $id
+     * @param int $id
      * @return Result
      */
     public function patch($id)

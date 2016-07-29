@@ -242,8 +242,14 @@ class QueryBuilder extends Injectable
                                 $marker = 'marker' . $count;
                                 $operator = $this->determineWhereOperator($fieldValue);
                                 $newFieldValue = $this->processFieldValue($fieldValue, $operator);
-                                $queryArr[] = "$fieldName $operator :$marker:";
-                                $valueArr[$marker] = $newFieldValue;
+
+                                if ($operator === 'IS NULL') {
+                                    $queryArr[] = "$fieldName $operator";
+                                } else {
+                                    $queryArr[] = "$fieldName $operator :$marker:";
+                                    $valueArr[$marker] = $newFieldValue;
+                                }
+
                                 $count++;
                             }
                         }

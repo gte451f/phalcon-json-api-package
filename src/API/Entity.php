@@ -491,8 +491,13 @@ class Entity extends Injectable
             // harmonize relatedRecords
             switch ($relation->getType()) {
                 case PhalconRelation::BELONGS_TO:
-                    //pluck the related record out of base record since we know its in there
-                    $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
+                    // for simple belongsTo, pluck the related record out of base record since we know its in there
+                    // some belongsTo have parent records, revert to the older style to get a complete record
+                    if ($relation->getParent()) {
+                        $this->getBelongsToRecord($relation);
+                    } else {
+                        $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
+                    }
                     break;
                 case PhalconRelation::HAS_ONE:
                     // ignore hasOne since they are processed like a parent relation
