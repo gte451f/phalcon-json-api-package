@@ -10,7 +10,7 @@ use PhalconRest\Util\ValidationException;
  * TODO: Improve this.
  * TODO: Kept here due to dependency on $app
  */
-set_exception_handler(function ($exception) use ($app, $config) {
+set_exception_handler(function (\Exception $exception) use ($app, $config) {
     // $config = $di->get('config');
 
     // those exceptions's send method provides the correct response headers and body
@@ -23,7 +23,7 @@ set_exception_handler(function ($exception) use ($app, $config) {
 
     // seems like this is only run when an unexpected exception occurs
     if ($config['application']['debugApp'] == true) {
-        \Kint::dump($exception);
+        customErrorHandler($exception->getCode(), $exception->getMessage(), $exception->getFile(), $exception->getLine(), $exception, 'Unexpected '.get_class($exception));
     }
 });
 
@@ -47,11 +47,21 @@ function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null
     $errorReport->code = $errno;
     $errorReport->title = is_string($title)? $title : 'Fatal Error Occurred and bad $title given';
     $errorReport->detail = $errstr;
-    $errorReport->context = $context;
 
-    // generate a simplified backtrace
-    //FIXME: shouldn't backtrace be shown only in debug mode?
-    $backTrace = debug_backtrace(true, 5);
+    if ($context instanceof Exception) {
+        if ($previous = $context->getPrevious()) {
+            $errorReport->context = '[Previous] '.(string)$previous; //todo: could recurse the creation of exception details
+        } else {
+            $errorReport->context = null;
+        }
+        $backTrace = explode("\n", $context->getTraceAsString());
+        array_walk($backTrace, function(&$line) { $line = preg_replace('/^#\d+ /', '', $line); });
+    } else {
+        $errorReport->context = $context;
+        $backTrace = debug_backtrace(true, 5); //FIXME: shouldn't backtrace be shown only in debug mode?
+    }
+
+    // generates a simplified backtrace
     $backTraceLog = [];
     foreach ($backTrace as $record) {
         // clean out args since these can cause recursion problems and isn't all that valuable anyway

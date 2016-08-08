@@ -38,9 +38,9 @@ class HTTPException extends \Exception
      *
      * @param string $title required user friendly message to return to the requestor
      * @param int $code required HTTP response code
-     * @param array $errorList list of optional properites to set on the error object
+     * @param array $errorList list of optional properties to set on the error object
      */
-    public function __construct($title, $code, $errorList)
+    public function __construct($title, $code, $errorList = [])
     {
         // store general error data
         $this->errorStore = new ErrorStore($errorList);
