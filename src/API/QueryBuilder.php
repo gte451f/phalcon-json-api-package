@@ -100,6 +100,13 @@ class QueryBuilder extends Injectable
         $columns = [];
         // join all active hasOne and belongTo instead of just the parent hasOne
         foreach ($this->entity->activeRelations as $relation) {
+
+            // be sure to skip any relationships that are marked for custom processing
+            $relationOptions = $relation->getOptions();
+            if (isset($relationOptions) && (array_key_exists('customProcessing', $relationOptions) && ($relationOptions['customProcessing'] === true))) {
+                continue;
+            }
+
             // refer to alias or model path to prefix each relationship
             // prefer alias over model path in case of collisions
             $alias = $relation->getAlias();

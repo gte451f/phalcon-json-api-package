@@ -57,7 +57,7 @@ class SearchHelper
      * prevent any relationships from being sideloaded regardless
      * of what the client asked for
      *
-     * comma, seperated, list
+     * comma, separated, list
      * a list of supplied relationships
      *
      * all

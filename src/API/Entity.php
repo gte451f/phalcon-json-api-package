@@ -988,7 +988,9 @@ class Entity extends Injectable
                             continue;
                         }
                     }
-                    $relatedRecArray = array_merge($this->loadAllowedColumns($rec, false, false), $relatedRecArray);
+                    // we don't as for parent fields here because they are already included in the complex $result
+                    $newFields = $this->loadAllowedColumns($rec, false, false);
+                    $relatedRecArray = array_merge($newFields, $relatedRecArray);
                 }
             } else {
                 // reset for each run
