@@ -1077,9 +1077,10 @@ class Entity extends Injectable
         // $inflector = new Inflector();
         $primaryModelName = $this->model->getModelNameSpace();
         $modelToDelete = $primaryModelName::findFirst($id);
-        $this->beforeDelete($modelToDelete);
 
         if ($modelToDelete != false) {
+            $this->beforeDelete($modelToDelete);
+
             // attempt delete run gold leader!
             if ($modelToDelete->delete() == false) {
                 // store error messages
@@ -1108,9 +1109,9 @@ class Entity extends Injectable
      * hook to be run before an entity is deleted
      * make it easier to extend default delete logic
      *
-     * @param mixed $model the record to be deleted
+     * @param BaseModel $model the record to be deleted
      */
-    public function beforeDelete($model)
+    public function beforeDelete(\PhalconRest\API\BaseModel $model)
     {
         // extend me in child class
     }
