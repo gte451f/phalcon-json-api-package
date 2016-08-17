@@ -142,16 +142,17 @@ class QueryBuilder extends Injectable
                     $columns[] = "[$alias].*";
                     break;
 
-                case Relation::HAS_MANY_THROUGH:
-                    $alias2 = $alias . '_intermediate';
-                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
-                    $right1 = "[$alias2]." . $relation->getIntermediateFields();
-                    $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
-
-                    $left2 = "[$alias2]." . $relation->getIntermediateReferencedFields();
-                    $right2 = "[$alias]." . $relation->getReferencedFields();
-                    $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
-                    break;
+                    // stop processing these types of joins with the main query.  They might return "n" number of related records
+//                case Relation::HAS_MANY_THROUGH:
+//                    $alias2 = $alias . '_intermediate';
+//                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+//                    $right1 = "[$alias2]." . $relation->getIntermediateFields();
+//                    $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
+//
+//                    $left2 = "[$alias2]." . $relation->getIntermediateReferencedFields();
+//                    $right2 = "[$alias]." . $relation->getReferencedFields();
+//                    $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
+//                    break;
 
                 default:
                     $this->di->get('logger')->warning("Relationship was ignored during join: {$this->model->getModelName()}.$alias, type #$type");
