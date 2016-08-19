@@ -494,7 +494,7 @@ class Entity extends Injectable
                     // for simple belongsTo, pluck the related record out of base record since we know its in there
                     // some belongsTo have parent records, revert to the older style to get a complete record
                     if ($relation->getParent()) {
-                        $this->getBelongsToRecord($relation);
+                        $this->getBelongsToRecord($relation, $baseRecord);
                     } else {
                         $this->loadRelationRecords([$baseRecord->$refModelName], $relation);
                     }
@@ -729,44 +729,34 @@ class Entity extends Injectable
     /**
      * built for belongsTo relationships
      * in cases where the related record itself refers to a parent record,
-     * write a custom query to load the related record including it's parent
+     * write a custom query to load the related record including it's parent (and has ones?)
      *
      * @param Relation $relation
+     * @param $baseRecord - expect this to be a complex result, otherwise why would you be here gathering belongsTo?
      * @return array
      */
-    private function getBelongsToRecord(Relation $relation)
+    private function getBelongsToRecord(Relation $relation, $baseRecord)
     {
         $query = $this->buildRelationQuery($relation);
         $referencedField = $relation->getReferencedFields();
         $foreignKey = $relation->getFields();
 
         // can take a shortcut here,
-        // if the related record has already been loaded, than return empty array
+        // check to see if this record has already been loaded
         $tableName = $relation->getTableName();
-        $foreignKeyValue = $this->baseRecord[$foreignKey];
+        $foreignKeyValue = $baseRecord->Attendees->$referencedField;
+        $existingRecord = $this->result->getInclude($tableName, $foreignKeyValue);
 
-        if (isset($this->restResponse[$tableName]) and count($this->restResponse[$tableName]) > 0) {
-            // figure out how to best refer to the newly loaded field
-            // will check for a reference field first, but if that is blocked....
-            // try the pkid or even worse, just try "id" as a last resort
-            $matchField = 'id';
-
-            if (isset($this->restResponse[$tableName][0][$referencedField])) {
-                $matchField = $referencedField;
-            } elseif (isset($this->restResponse[$tableName][0][$relation->getPrimaryKeyName()])) {
-                $matchField = $relation->getPrimaryKeyName();
-            }
-
-            foreach ($this->restResponse[$tableName] as $row) {
-                if ($row[$matchField] == $foreignKeyValue) {
-                    return array();
-                }
-            }
+        // since this record has already been loaded, we only need to link to current record
+        //...or maybe not if it's already connected
+        if ($existingRecord) {
+            $this->baseRecord->addRelationship($relation->getTableName('singular'), $existingRecord->getId(), $tableName);
+        } else {
+            // query uses model prefix to avoid ambiguous queries
+            $query->where("{$relation->getReferencedModel()}.{$referencedField} = \"{$this->baseRecord->attributes[$foreignKey]}\"");
+            $result = $query->getQuery()->execute();
+            return $this->loadRelationRecords($result, $relation);
         }
-        // query uses model prefix to avoid ambiguous queries
-        $query->where("{$relation->getReferencedModel()}.{$referencedField} = \"{$this->baseRecord[$foreignKey]}\"");
-        $result = $query->getQuery()->execute();
-        return $this->loadRelationRecords($result, $relation);
     }
 
     /**

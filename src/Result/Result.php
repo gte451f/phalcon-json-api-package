@@ -7,7 +7,8 @@ use PhalconRest\Result\Data;
 
 /**
  * The object used to store intermediate api results before they are sent to the client
- * This result object is designed specifically for use in JSON API and is not intended as a general purpose result collection
+ * This result object is designed specifically for use in JSON API and is not intended
+ * as a general purpose result collection
  */
 class Result extends \Phalcon\DI\Injectable
 {
@@ -163,6 +164,26 @@ class Result extends \Phalcon\DI\Injectable
     public function countResults()
     {
         return count($this->data);
+    }
+
+
+    /**
+     * for a given relationship and id, return the matching included record
+     * @param $relationshipName
+     * @param $referencedField
+     * @param $id
+     * @return bool
+     */
+    public function getInclude($relationshipName, $id)
+    {
+        foreach ($this->included as $item) {
+            if ($item->getType() === $relationshipName AND $item->getId() === $id) {
+                return $item;
+            }
+        }
+
+        return false;
+
     }
 
 }

@@ -107,10 +107,17 @@ class QueryBuilder extends Injectable
                 $alias = $referencedModel;
             }
 
-            // structure to always join in belongsTo just in case the query filters by a related field
             $type = $relation->getType();
             switch ($type) {
+                // structure to always join in belongsTo just in case the query filters by a related field
                 case Relation::BELONGS_TO:
+                    // create both sides of the join
+                    $left = "[$alias]." . $relation->getReferencedFields();
+                    $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    // create and alias join
+                    $query->leftJoin($referencedModel, "$left = $right", $alias);
+                    break;
+
                 case Relation::HAS_ONE:
                     // create both sides of the join
                     $left = "[$alias]." . $relation->getReferencedFields();
