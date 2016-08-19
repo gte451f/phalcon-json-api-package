@@ -65,7 +65,7 @@ $config = [
 
 // incorporate the correct environmental config file
 // TODO throw error if no file is found?
-$overridePath = APPLICATION_PATH . 'config/' . APPLICATION_ENV . '.php';
+$overridePath = APPLICATION_PATH . 'config/config.php';
 if (file_exists($overridePath)) {
     $config = array_merge_recursive_replace($config, require($overridePath));
 } else {
