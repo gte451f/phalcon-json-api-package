@@ -151,8 +151,9 @@ class Result extends \Phalcon\DI\Injectable
         foreach ($this->data as $key => $data) {
             if ($data->getId() == $id) {
                 $this->data[$key]->addRelationship($relationship, $related_id, $type);
+                return true;
             }
-            return true;
+
         }
         return false;
     }

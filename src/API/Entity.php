@@ -189,6 +189,7 @@ class Entity extends Injectable
         // no need to process if no primary records are found
         if ($foundSet > 0) {
             // pull in related records that are to be processed as separate & batched queries
+            // processing hasMany is one good example
             $this->processDelayedRelationships();
         }
 
