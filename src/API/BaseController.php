@@ -382,15 +382,10 @@ class BaseController extends Injectable
     /**
      * Should be called by methods in the controllers that need to output results to the HTTP Response.
      * Ensures that arrays conform to the patterns required by the Response objects.
-     *
-     * appends the controller name to each since that is what ember wants
-     * that logic should probably sit in the JSONReponse object but I'm
-     * not sure how to infer the controllers name from there maybe check
-     * in bootstrap... $app->after() to see if you can access the current controller?
+     * at the moment, it just checks that is is an array
      *
      * @param array $recordsResult records to format as return output
-     * @return array If there are records (even 1), every record will
-     *                be an array ex: array(array('id'=>1),array('id'=>2))
+     * @return array
      * @throws HTTPException
      */
     protected function respond($recordsResult)
@@ -403,24 +398,6 @@ class BaseController extends Injectable
             ]);
         }
 
-        // modify results based on the number of records returned
-        $rowCount = count($recordsResult);
-        switch ($rowCount) {
-            // No records returned, so return an empty array
-            case 0:
-                return [];
-
-            // return single record within an array
-            case 1:
-                if (isset($recordsResult['meta'])) {
-                    return $recordsResult;
-                } else {
-                    $recordsResult[0]; //FIXME: sounds like a bug? this should be returned?
-                }
-
-            default:
-                return $recordsResult;
-                break;
-        }
+        return $recordsResult;
     }
 }
