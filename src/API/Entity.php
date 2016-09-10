@@ -504,10 +504,11 @@ class Entity extends Injectable
             // harmonize relatedRecords
             switch ($refType) {
                 case PhalconRelation::BELONGS_TO:
-                    // extract belongsTo record differently if it's already present in the original query
+                    // if fastBelongsTo is disabled, use the standard approach to loading belongsTo records
                     if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                         $relatedRecords = $this->getBelongsToRecord($relation);
                     } else {
+                        // attempt a shortcut for some belongs to relationships
                         // for simple belongsTo, pluck the related record out of base record since we know its in there
                         // some belongsTo have parent records, revert to the older style to get a complete record
                         if ($relation->getParent()) {
