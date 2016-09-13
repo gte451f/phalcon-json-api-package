@@ -3,6 +3,7 @@ namespace PhalconRest\API;
 
 use Phalcon\DI;
 use Phalcon\DI\Injectable;
+use Phalcon\Mvc\Controller;
 use \PhalconRest\Util\HTTPException;
 
 /**
@@ -14,7 +15,7 @@ use \PhalconRest\Util\HTTPException;
  * Responsible for handling various REST requests
  * Will load the correct model and entity and perform the correct action
  */
-class BaseController extends Injectable
+class BaseController extends Controller
 {
 
     /**
@@ -22,43 +23,37 @@ class BaseController extends Injectable
      *
      * @var \PhalconRest\API\Entity
      */
-    protected $entity = FALSE;
+    protected $entity;
 
     /**
      * Store the default model here
      *
      * @var \PhalconRest\API\BaseModel
      */
-    protected $model = FALSE;
+    protected $model;
 
     /**
-     * the name of the controller
-     * derived from inflection
+     * The name of the controller, derived from inflection
      *
      * @var string
      */
-    public $singularName = null;
+    public $singularName;
 
     /**
-     * plural version of controller name
-     * used for Ember compatible rest returns
+     * Plural version of controller name. Used for Ember-compatible REST returns
      *
      * @var string
      */
-    public $pluralName = null;
+    public $pluralName;
 
     /**
-     * Constructor, calls the parse method for the query string by default.
-     *
-     * @param boolean $parseQueryString
-     *            true Can be set to false if a controller needs to be called
-     *            from a different controller, bypassing the $allowedFields parse
+     * Includes the default Dependency Injector and loads the Entity.
      */
-    public function __construct($parseQueryString = true)
+    public function onConstruct()
     {
         $di = DI::getDefault();
         $this->setDI($di);
-        // initialize entity and set to class property
+        // initialize entity and set to class property (doing the same to the model property)
         $this->getEntity();
     }
 
@@ -97,6 +92,7 @@ class BaseController extends Injectable
      * Load a default entity unless one is already in place
      * return the currently loaded entity
      *
+     * @see $entity
      * @return \PhalconRest\API\Entity
      */
     public function getEntity()
