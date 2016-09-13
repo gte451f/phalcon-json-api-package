@@ -768,8 +768,7 @@ class Entity extends Injectable
      * @param Relation $relation
      * @return array
      */
-    protected
-    function getHasManyToManyRecords($relation)
+    protected function getHasManyToManyRecords($relation)
     {
         $refModelNameSpace = $relation->getReferencedModel();
         $intermediateModelNameSpace = $relation->getIntermediateModel();
@@ -808,11 +807,14 @@ class Entity extends Injectable
         $columns[] = $refModelNameSpace . ".*, " . $intermediateModelNameSpace . ".*";
         $query->columns($columns);
 
-        if (isset($this->baseRecord[$field])) {
-            $fieldValue = $this->baseRecord[$field];
+        if (isset($this->baseRecord->attributes[$field])) {
+            $fieldValue = $this->baseRecord->attributes[$field];
         } else {
-            // fall back to using the primaryKeyValue
-            $fieldValue = $this->primaryKeyValue;
+            // required search field isn't found
+            throw new HTTPException("Bad ManyToMany relationship encountered.  Missing required search field.", 404, array(
+                'dev' => "Expecting $field to be present in baseRecord->attributes",
+                'code' => '239049827359827394'
+            ));
         }
 
         $whereField = $intermediateModelNameSpace . '.' . $relation->getIntermediateFields();
@@ -1088,7 +1090,7 @@ class Entity extends Injectable
             throw new HTTPException("Could not find record #$id to delete.", 404, array(
                 'dev' => "No record was found to delete",
                 'code' => '2343467699'
-            )); // Could have link to documentation here.
+            ));
         }
 
         $this->afterDelete($modelToDelete);

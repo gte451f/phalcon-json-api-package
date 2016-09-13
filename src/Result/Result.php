@@ -53,6 +53,7 @@ class Result extends \Phalcon\DI\Injectable
         switch ($relation->getType()) {
             case PhalconRelation::HAS_ONE:
             case PhalconRelation::BELONGS_TO:
+            case PhalconRelation::HAS_ONE_THROUGH:
                 $name = $relation->getTableName('singular');
                 break;
             case PhalconRelation::HAS_MANY:
