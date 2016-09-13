@@ -1,8 +1,6 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
-
 /**
  * placeholder for future work
  *
@@ -131,7 +129,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * provided to lazy load the model's name
      *
-     * @param string type singular|plural
+     * @param string $type singular|plural
      * @return string
      */
     public function getModelName($type = 'plural')
@@ -204,6 +202,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * default behavior is to expect plural table names in schema
      *
+     * @todo maybe we should be on the safe side and verify the argument, or return an error in the end if nothing happens?
      * @param string $type
      * @return string
      */
@@ -301,6 +300,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         $parentModelName = $class::$parentModel;
 
         if ($parentModelName) {
+            /** @var BaseModel $parentModel */
             $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
             $parentModel = new $parentModelNameSpace();
             $blockColumns = $parentModel->getBlockColumns();
@@ -355,6 +355,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
             if ($parentModel) {
+                /** @var BaseModel $parentModel */
                 $parentModel = new $parentModel();
                 $parentColumns = $parentModel->getBlockColumns(true);
 
@@ -422,6 +423,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
             if ($parentModel) {
+                /** @var BaseModel $parentModel */
                 $parentModel = new $parentModel();
                 $parentColumns = $parentModel->getAllowedColumns(false, $includeParent);
 
@@ -440,6 +442,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * return what should be a full set of columns for the model
      * if requested, return parent columns as well
      *
+     * @todo sounds similar to getAllowedColumns() and loadBlockColumns()... maybe both could be merged and get DRY?
      * @param bool $includeParent - should the list include parent columns?
      * @return array
      */
@@ -456,6 +459,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
             if ($parentModel) {
+                /** @var BaseModel $parentModel */
                 $parentModel = new $parentModel();
                 $parentColumns = $parentModel->getAllColumns(true);
 
@@ -474,15 +478,18 @@ class BaseModel extends \Phalcon\Mvc\Model
      * ask this entity for all parents from the model and up the chain
      * lazy load and cache
      *
-     * @param bool $nameSpace
+     * @param bool $withNamespace
      * should the parent names be formatted as a full namespace?
      *
      * @return array|boolean list of parent models or false
      */
-    public function getParentModels($nameSpace = false)
+    public function getParentModels($withNamespace = false)
     {
+        $modelNameSpace = null;
+
         // first load parentModels
         if (!isset($parentModels)) {
+            /** @var BaseModel $path */
             $config = $this->getDI()->get('config');
             $modelNameSpace = $config['namespaces']['models'];
             $path = $modelNameSpace . $this->getModelName();
@@ -503,7 +510,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         }
 
         // reset name space if it was not asked for
-        if (!$nameSpace) {
+        if (!$withNamespace) {
             $modelNameSpace = null;
         }
 
@@ -518,11 +525,12 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * get the model name or full namespace
      *
-     * @param boolean $nameSpace return the namespace or just the name
+     * @param boolean $withNamespace return the namespace or just the name
      * @return mixed either a model namespace or model name, false if not defined
      */
-    public function getParentModel($nameSpace = false)
+    public function getParentModel($withNamespace = false)
     {
+        /** @var BaseModel $path */
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
         $path = $modelNameSpace . $this->getModelName();
@@ -532,10 +540,6 @@ class BaseModel extends \Phalcon\Mvc\Model
             return false;
         }
 
-        if ($nameSpace) {
-            return $modelNameSpace . $parentModelName;
-        } else {
-            return $parentModelName;
-        }
+        return $withNamespace? $modelNameSpace . $parentModelName : $parentModelName;
     }
 }

@@ -3,7 +3,9 @@ namespace PhalconRest\API;
 
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
+use Phalcon\Mvc\Model\Query\Builder;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
+use Phalcon\Mvc\Model\Row;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 use Symfony\Component\Config\Definition\Exception\Exception;
@@ -21,7 +23,7 @@ class Entity extends Injectable
      * store a list of all active relationships
      * not just a list of all possible relationships
      *
-     * @var Relation[]
+     * @var Relation[]|PhalconRelation[]
      */
     public $activeRelations = null;
 
@@ -144,7 +146,7 @@ class Entity extends Injectable
     /**
      * for a given search query, perform find + load related records for each!
      * @param mixed $suppliedParameters
-     * @return array
+     * @return array|bool
      */
     public function find($suppliedParameters = null)
     {
@@ -392,7 +394,7 @@ class Entity extends Injectable
      * for a given base record, build an array to represent a single row including merged tables
      * strip out extra merge rows and return a single result record
      *
-     * @param mixed $baseRecord
+     * @param BaseModel $baseRecord
      * @return void
      */
     public function extractMainRow($baseRecord)
@@ -430,7 +432,7 @@ class Entity extends Injectable
      * for a given record, load any related values
      * called from both find and findFirst
      *
-     * @param array|\Phalcon\Mvc\Model\Row $baseRecord the base record to decorate
+     * @param array|Row $baseRecord the base record to decorate
      * @return array $baseRecord the base record, but decorated
      */
     public function processRelationships($baseRecord)
@@ -449,6 +451,7 @@ class Entity extends Injectable
                 $this->processStandardRelationships($relation, $baseRecord);
             }
         }
+        //FIXME: what should be returned here? doc says one thing, code does another... is it safe to remove this return?
         return true;
     }
 
@@ -470,8 +473,8 @@ class Entity extends Injectable
      * build an intermediate list of related records
      * then normalize them for inclusion in the final response
      *
-     * @param Relation $relation
-     * @param array $baseRecord
+     * @param Relation|PhalconRelation $relation
+     * @param array|Row $baseRecord
      * @throws HTTPException
      * @return mixed
      */
@@ -657,7 +660,7 @@ class Entity extends Injectable
      * originally written to process a series of where IN records and attach to their parents via hasMany
      *
      * @param $relatedRecords
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      */
     private function updateBaseRecords($relatedRecords, $relation)
     {
@@ -753,7 +756,7 @@ class Entity extends Injectable
      * this works with each resultset's model to get a list of allowed columns
      * hence the similar method signature
      *
-     * @param \PhalconRest\API\BaseModel $resultSet
+     * @param BaseModel $resultSet
      * @param bool $nameSpace
      * @param bool $includeParent
      * @return array
@@ -766,9 +769,14 @@ class Entity extends Injectable
             if (isset($resultSet->$field)) {
                 $record[$field] = $resultSet->$field;
             } else {
-                // error, field doesn't exist on resultSet!
-                // don't set to null, just leave it alone
-                $record[$field] = null;
+                $getter = 'get'.ucfirst($field);
+                if (method_exists($resultSet, $getter)) {
+                    $record[$field] = $resultSet->$getter();
+                } else {
+                    // error, field doesn't exist on resultSet!
+                    // don't set to null, just leave it alone
+                    $record[$field] = null;
+                }
             }
         }
         return $record;
@@ -781,7 +789,7 @@ class Entity extends Injectable
      *
      * depends on the existance of a primaryKeyValue
      *
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      * @return array
      */
     protected function getHasManyRecords(Relation $relation)
@@ -815,7 +823,7 @@ class Entity extends Injectable
 
     /**
      * store away a request for a record in a child table
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      */
     protected function registerHasManyRequest(Relation $relation)
     {
@@ -835,7 +843,7 @@ class Entity extends Injectable
      * in cases where the related record itself refers to a parent record,
      * write a custom query to load the related record including it's parent
      *
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      * @return array
      */
     private function getBelongsToRecord(Relation $relation)
@@ -878,7 +886,7 @@ class Entity extends Injectable
      * build most of the joins manually since by reference relationship in the model isn't working so well
      * this support joins to distant tables with parent models
      *
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      * @return array
      */
     protected function getHasManyToManyRecords($relation)
@@ -895,6 +903,7 @@ class Entity extends Injectable
         $modelNameSpace = $config['namespaces']['models'];
         $mm = $this->getDI()->get('modelsManager');
 
+        /** @var Builder $query */
         $query = $mm->createBuilder()
             ->from($intermediateModelNameSpace)
             ->join($refModelNameSpace, $refModelNameSpace . ".$referencedField = " . $intermediateModelNameSpace . ".$intermediateFields");
@@ -905,6 +914,7 @@ class Entity extends Injectable
         $parentName = $relation->getParent();
         if ($parentName) {
             // load parent model
+            /** @var BaseModel $parentModel */
             $parentModelNameSpace = $modelNameSpace . $parentName;
             $parentModel = new $refModelNameSpace();
             // load reference relationship
@@ -936,11 +946,12 @@ class Entity extends Injectable
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
      *
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      * @return object
      */
     private function buildRelationQuery(Relation $relation)
     {
+        /** @var Builder $query */
         $refModelNameSpace = $relation->getReferencedModel();
         $mm = $this->getDI()->get('modelsManager');
         $query = $mm->createBuilder()->from($refModelNameSpace);
@@ -967,7 +978,7 @@ class Entity extends Injectable
      * one or more individual record arrays in a larger array
      *
      * @param array $result
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      * @return array
      */
     protected function loadRelationRecords($result, Relation $relation)
@@ -1024,7 +1035,7 @@ class Entity extends Injectable
      * all = load all possible relationships
      * csv,list = load only these relationships
      *
-     * @return bool
+     * @return bool|void
      */
     final public function loadActiveRelationships()
     {
@@ -1171,16 +1182,14 @@ class Entity extends Injectable
                 foreach ($this->model->getMessages() as $message) {
                     $messageBag->set($message->getMessage());
                 }
-                throw new HTTPException("Error deleting record #$id.", 500, array(
-                    'code' => '66498419846816'
-                ));
+                throw new HTTPException("Error deleting record #$id.", 500, ['code' => '66498419846816']);
             }
         } else {
             // no record found to delete
-            throw new HTTPException("Could not find record #$id to delete.", 404, array(
+            throw new HTTPException("Could not find record #$id to delete.", 404, [
                 'dev' => "No record was found to delete",
                 'code' => '2343467699'
-            )); // Could have link to documentation here.
+            ]); // Could have link to documentation here.
         }
 
         $this->afterDelete($modelToDelete);
@@ -1213,9 +1222,9 @@ class Entity extends Injectable
     /**
      * hook to be run before an entity is saved make it easier to extend default save logic
      *
-     * @param array $object the data submitted to the server
+     * @param BaseModel $object the data submitted to the server
      * @param int|null $id the pkid of the record to be updated, otherwise null on inserts
-     * @return object $object
+     * @return BaseModel $object
      */
     public function beforeSave($object, $id = null)
     {
@@ -1318,17 +1327,15 @@ class Entity extends Injectable
      * return the final definitive parent model
      * along with loading client submitted data into each model
      *
-     *
      * @param BaseModel $model
      * @param object $object
-     * @return object $model
+     * @return object|bool $model
      */
     public function loadParentModel($model, $object)
     {
-
         // invalid first param, return false though it won't do much good
         if ($model === false) {
-            return false;
+            return false; //FIXME: when will this happen? sounds like a workaround?
         }
 
         if ($model::$parentModel != false) {
