@@ -4,6 +4,7 @@ namespace PhalconRest\API;
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
+use Phalcon\Mvc\Model\Row;
 use \PhalconRest\Util\HTTPException;
 use \PhalconRest\Util\ValidationException;
 
@@ -20,7 +21,7 @@ class Entity extends Injectable
      * store a list of all active relationships
      * not just a list of all possible relationships
      *
-     * @var PhalconRelation[]|Relation[]
+     * @var Relation[]|PhalconRelation[]
      */
     public $activeRelations = null;
 
@@ -389,7 +390,7 @@ class Entity extends Injectable
      * for a given base record, build an array to represent a single row including merged tables
      * strip out extra merge rows and return a single result record
      *
-     * @param mixed $baseRecord
+     * @param BaseModel $baseRecord
      * @return void
      */
     public function extractMainRow($baseRecord)
@@ -469,7 +470,7 @@ class Entity extends Injectable
      * then normalize them for inclusion in the final response
      *
      * @param Relation|PhalconRelation $relation
-     * @param array $baseRecord
+     * @param array|Row $baseRecord
      * @throws HTTPException
      * @return mixed
      * @fixme this method contains some odd return points
@@ -503,10 +504,11 @@ class Entity extends Injectable
             // harmonize relatedRecords
             switch ($refType) {
                 case PhalconRelation::BELONGS_TO:
-                    // extract belongsTo record differently if it's already present in the original query
+                    // if fastBelongsTo is disabled, use the standard approach to loading belongsTo records
                     if (!array_deep_key($config, 'feature_flags.fastBelongsTo')) {
                         $relatedRecords = $this->getBelongsToRecord($relation);
                     } else {
+                        // attempt a shortcut for some belongs to relationships
                         // for simple belongsTo, pluck the related record out of base record since we know its in there
                         // some belongsTo have parent records, revert to the older style to get a complete record
                         if ($relation->getParent()) {
@@ -750,7 +752,7 @@ class Entity extends Injectable
      * this works with each resultset's model to get a list of allowed columns
      * hence the similar method signature
      *
-     * @param \PhalconRest\API\BaseModel $resultSet
+     * @param BaseModel $resultSet
      * @param bool $nameSpace
      * @param bool $includeParent
      * @return array
@@ -763,9 +765,14 @@ class Entity extends Injectable
             if (isset($resultSet->$field)) {
                 $record[$field] = $resultSet->$field;
             } else {
-                // error, field doesn't exist on resultSet!
-                // don't set to null, just leave it alone
-                $record[$field] = null;
+                $getter = 'get'.ucfirst($field);
+                if (method_exists($resultSet, $getter)) {
+                    $record[$field] = $resultSet->$getter();
+                } else {
+                    // error, field doesn't exist on resultSet!
+                    // don't set to null, just leave it alone
+                    $record[$field] = null;
+                }
             }
         }
         return $record;
@@ -904,6 +911,7 @@ class Entity extends Injectable
         if ($parentName) {
             /** @var BaseModel $parentModel */
             // load parent model
+            /** @var BaseModel $parentModel */
             $parentModelNameSpace = $modelNameSpace . $parentName;
             $parentModel = new $refModelNameSpace();
             // load reference relationship
@@ -1024,7 +1032,7 @@ class Entity extends Injectable
      * all = load all possible relationships
      * csv,list = load only these relationships
      *
-     * @return bool
+     * @return bool|void
      */
     final public function loadActiveRelationships()
     {
@@ -1209,9 +1217,9 @@ class Entity extends Injectable
     /**
      * hook to be run before an entity is saved make it easier to extend default save logic
      *
-     * @param object $object the data submitted to the server
+     * @param BaseModel $object the data submitted to the server
      * @param int|null $id the pkid of the record to be updated, otherwise null on inserts
-     * @return object $object
+     * @return BaseModel $object
      */
     public function beforeSave($object, $id = null)
     {
@@ -1319,10 +1327,9 @@ class Entity extends Injectable
      */
     public function loadParentModel($model, $object)
     {
-
         // invalid first param, return false though it won't do much good
         if ($model === false) {
-            return false;
+            return false; //FIXME: when will this happen? sounds like a workaround?
         }
 
         if ($model::$parentModel != false) {
