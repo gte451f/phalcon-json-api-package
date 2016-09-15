@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
+use PhalconRest\Util\ValidationException;
 
 /**
  * placeholder for future work
@@ -119,6 +119,23 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @var boolean|array
      */
     private $parentModels = null;
+
+    /**
+     * BaseModel property that allows for the original {@link \Phalcon\Mvc\Model::save()} behavior: return false on errors.
+     * By default this class' {@link save()} implementation throws ValidationException on errors.
+     * @see save()
+     * @var bool
+     */
+    public static $throwOnSave = true;
+
+    /**
+     * Instance counterpart of {@link $throwOnSave}. Resets to true after one save() call.
+     * @see $throwOnSave
+     * @see throwOnNextSave()
+     * @see save()
+     * @var bool
+     */
+    public $throwOnNextSave = true;
 
     /**
      * auto populate a few key values
@@ -538,4 +555,49 @@ class BaseModel extends \Phalcon\Mvc\Model
             return $parentModelName;
         }
     }
+
+    /**
+     * Overrides the original save method by throwing a ValidationException on save failures.
+     * This behavior can be skipped all the times or once by using {@link $throwOnSave} and {@link $throwOnNextSave}.
+     * @see $throwOnSave
+     * @see $throwOnNextSave
+     * @see \Phalcon\Mvc\Model::save()
+     * @param null $data
+     * @param null $whiteList
+     * @return bool
+     * @throws ValidationException
+     */
+    public function save($data = null, $whiteList = null)
+    {
+        $result = parent::save($data, $whiteList);
+        // if the save failed, gather errors and return a validation failure if enabled
+
+        if (!$this->throwOnNextSave) {
+            $this->throwOnNextSave = true;
+            return $result;
+        } elseif (!self::$throwOnSave) {
+            return $result;
+        } else {
+            if ($result == false) {
+                throw new ValidationException("Validation Errors Encountered", [
+                    'code' => '50986904809',
+                    'dev' => 'BaseModel::save() failed'
+                ], $this->getMessages());
+            }
+
+            return $result;
+        }
+    }
+
+    /**
+     * Simple chainable method to make {@link save()} calls a bit easier.
+     * @see $throwOnNextSave
+     * @param $bool
+     * @return $this
+     */
+    public function throwOnNextSave($bool = true) {
+        $this->throwOnNextSave = $bool;
+        return $this;
+    }
+
 }

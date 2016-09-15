@@ -1395,14 +1395,7 @@ class Entity extends Injectable
      */
     function simpleSave($model)
     {
-        $result = $model->save();
-        // if the save failed, gather errors and return a validation failure
-        if ($result == false) {
-            throw new ValidationException("Validation Errors Encountered", array(
-                'code' => '7894181864684',
-                'dev' => 'entity->simpleSave failed to save model'
-            ), $model->getMessages());
-        }
+        $model->save(); //can throw an exception if a validation issue happens
         return $model->getPrimaryKeyValue();
     }
 }
