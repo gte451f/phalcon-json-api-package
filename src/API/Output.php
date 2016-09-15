@@ -51,30 +51,40 @@ class Output extends \Phalcon\DI\Injectable
     /**
      * format result set for output to web browser
      *
-     * @param array $records            
-     * @param string $error            
+     * @param array $records
+     * @param string $error
      */
     public function send($records)
     {
-        // Most devs prefer camelCase to snake_Case in JSON, but this can be overriden here
+        // Most devs prefer camelCase to snake_Case in JSON, but this can be overridden here
         if ($this->snake) {
             $records = $this->arrayKeysToSnake($records);
         }
-        
+
         // stop timer and add to meta
-        $timer = $this->di->get('stopwatch');
-        $timer->end();
-        $interval = round(($timer->laps[0]['total']) * 1000);
-        $records['meta']['duration'] = $interval . ' milliseconds';
-        
+        if ($this->di->get('config')['application']['debugApp'] == true) {
+            $timer = $this->di->get('stopwatch');
+            $timer->end();
+
+            $summary = [
+                'total_run_time' => round(($timer->endTime - $timer->startTime) * 1000, 2) . ' ms',
+                'laps' => []
+            ];
+            foreach ($timer->laps as $lap) {
+                $summary['laps'][$lap['name']] = round(($lap['end'] - $lap['start']) * 1000, 2) . ' ms';
+            }
+            $records['meta']['stopwatch'] = $summary;
+        }
+
+
         $this->_send($records);
         return $this;
     }
 
     /**
      * process an errorStore into a simple message
-     * 
-     * @param \PhalconRest\Util\ErrorStore $errorStore            
+     *
+     * @param \PhalconRest\Util\ErrorStore $errorStore
      * @return \PhalconRest\API\Output
      */
     public function sendError(\PhalconRest\Util\ErrorStore $errorStore)
@@ -84,7 +94,7 @@ class Output extends \Phalcon\DI\Injectable
         $message['errors']['code'] = $errorStore->code;
         $message['errors']['detail'] = $errorStore->more;
         $message['errors']['status'] = $this->httpCode;
-        
+
         $config = $this->di->get('config');
         if ($config['application']['debugApp'] == true and isset($errorStore->dev)) {
             $message['errors']['meta']['developer_message'] = $errorStore->dev;
@@ -94,7 +104,7 @@ class Output extends \Phalcon\DI\Injectable
                 $message['errors'][$validation->getField()] = $validation->getMessage();
             }
         }
-        
+
         $this->_send($message);
         return $this;
     }
@@ -102,7 +112,7 @@ class Output extends \Phalcon\DI\Injectable
     /**
      * for a given string message, prepare a basic json response for the browser
      *
-     * @param string $message            
+     * @param string $message
      */
     private function _send($message)
     {
@@ -110,10 +120,10 @@ class Output extends \Phalcon\DI\Injectable
         $response = $this->di->get('response');
         $response->setContentType('application/json');
         $response->setStatusCode($this->httpCode, $this->httpMessage)->sendHeaders();
-        
+
         // HEAD requests are detected in the parent constructor.
         // HEAD does everything exactly the same as GET, but contains no body
-        if (! $this->head) {
+        if (!$this->head) {
             $response->setJsonContent($message);
         }
         $response->send();
@@ -123,24 +133,24 @@ class Output extends \Phalcon\DI\Injectable
      * should we convert array keys to snake_case?
      * otherwise array keys are left untouched
      *
-     * @param bool $snake            
-     * @return \PhalconRest\Responses\JSONResponse
+     * @param bool $snake
+     * @return object $this
      */
     public function convertSnakeCase($snake)
     {
-        $this->snake = (bool) $snake;
+        $this->snake = (bool)$snake;
         return $this; // for method chaining
     }
 
     /**
      * include an envelop as part of the response
      *
-     * @param bool $envelope            
-     * @return \PhalconRest\Responses\JSONResponse
+     * @param bool $envelope
+     * @return object $this
      */
     public function useEnvelope($envelope)
     {
-        $this->envelope = (bool) $envelope;
+        $this->envelope = (bool)$envelope;
         return $this; // for method chaining
     }
 
@@ -181,8 +191,8 @@ class Output extends \Phalcon\DI\Injectable
     /**
      * simple setter for properties
      *
-     * @param int $code            
-     * @param string $message            
+     * @param int $code
+     * @param string $message
      */
     public function setStatusCode($code, $message)
     {

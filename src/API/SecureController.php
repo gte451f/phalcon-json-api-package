@@ -10,42 +10,26 @@ use \PhalconRest\Util\HTTPException;
 class SecureController extends BaseController
 {
 
-    public function __construct($parseQueryString = true)
+    public function onConstruct()
     {
+        parent::onConstruct();
         $config = $this->getDI()->get('config');
+        $auth = $this->getDI()->get('auth');
 
         switch ($config['security']) {
             case true:
-                // try to read in from header first, otherwise attempt to read in from query param
-                if ($headerToken = $this->request->getHeader('X_AUTHORIZATION')) {
-                    $token = $headerToken;
-                } elseif ($queryParamToken = $this->request->getQuery('token')) {
-                    $token = $queryParamToken;
-                } elseif ($postedParamToken = $this->request->getPost('token')) {
-                    $token = $postedParamToken;
-                    unset($_POST['token']);
-                } else {
-                    $token = '';
-                }
+                $token = $this->getAuthToken();
 
-                $token = trim(str_ireplace('Token: ', '', $token));
-                if (strlen($token) < 30) {
-                    throw new HTTPException('Bad token supplied', 401, [
-                        'dev'  => 'Supplied Token: ' . $token,
-                        'code' => '0273497957',
-                    ]);
-                }
                 // check for a valid session
-                if ($this->auth->isLoggedIn($token)) {
+                if ($auth->isLoggedIn($token)) {
                     // get the security service object
                     $securityService = $this->getDI()->get('securityService');
                     // run security check
                     $this->securityCheck($securityService);
-                    parent::__construct($parseQueryString);
                 } else {
                     throw new HTTPException('Unauthorized, please authenticate first.', 401, [
-                        'dev'  => 'Must be authenticated to access.',
-                        'code' => '30945680384502037',
+                        'dev' => 'Must be authenticated to access.',
+                        'code' => '30945680384502037'
                     ]);
                 }
                 break;
@@ -54,15 +38,12 @@ class SecureController extends BaseController
                 // if security is off, then create a fake user profile
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
-                if ($this->auth->isLoggedIn('HACKYHACKERSON')) {
-                    // get the security service object
-                    $securityService = $this->getDI()->get('securityService');
+                if ($auth->isLoggedIn('HACKYHACKERSON')) {
                     // run security check
-                    $this->securityCheck($securityService);
-                    parent::__construct($parseQueryString);
+                    $this->securityCheck($this->getDI()->get('securityService'));
                 } else {
                     throw new HTTPException('Security False is not loading a valid user.', 401, [
-                        'dev'  => 'The authenticator isn\'t loading a valid user.',
+                        'dev' => 'The authenticator isn\'t loading a valid user.',
                         'code' => '23749873490704'
                     ]);
                 }
@@ -72,6 +53,33 @@ class SecureController extends BaseController
                 throw new HTTPException('Bad security value supplied', 500, ['code' => '280273409724075']);
                 break;
         }
+    }
+
+    /**
+     * Tries to get the Authorization Token in this order:
+     * 1. Header: X-Authorization
+     * 2. GET "token"
+     * 3. POST "token"
+     * @throws HTTPException 401 If token is not found
+     * @return string
+     */
+    protected function getAuthToken()
+    {
+        $token = $this->request->getHeader('X_AUTHORIZATION');
+        if (!$token) {
+            $request = $this->getDI()->get('request');
+            $token = $request->getQuery('token')?: $request->getPost('token');
+        }
+
+        $token = trim(str_ireplace('Token:', '', $token));
+        if (strlen($token) < 30) {
+            throw new HTTPException('Bad token supplied', 401, [
+                'dev' => 'Supplied Token: ' . $token,
+                'code' => '0273497957'
+            ]);
+        }
+
+        return $token;
     }
 
     /**

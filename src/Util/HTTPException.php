@@ -36,12 +36,11 @@ class HTTPException extends \Exception
 
     /**
      *
-     * @param string $title     required user friendly message to return to the requestor
-     * @param int    $code      required HTTP response code
-     * @param array  $errorList list of optional properites to set on the error object
-     * @param null   $previous
+     * @param string $title required user friendly message to return to the requestor
+     * @param int $code required HTTP response code
+     * @param array $errorList list of optional properties to set on the error object
      */
-    public function __construct($title, $code, $errorList, $previous = null)
+    public function __construct($title, $code, $errorList = [])
     {
         parent::__construct($title, $code, $previous);
 
@@ -60,7 +59,7 @@ class HTTPException extends \Exception
     public function send()
     {
         $output = new Output();
-        $output->setStatusCode($this->getCode(), $this->response);
+        $output->setStatusCode($this->code, $this->response);
         $output->sendError($this->errorStore);
         return true;
     }

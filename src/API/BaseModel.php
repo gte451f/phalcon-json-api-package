@@ -1,13 +1,11 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
-
 /**
  * placeholder for future work
  *
  * @author jjenkins
- *        
+ *
  */
 class BaseModel extends \Phalcon\Mvc\Model
 {
@@ -70,9 +68,10 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $relationships = null;
 
     /**
-     * hold a list of columns that can be published to the api
-     * this array is not directly modifed but rather inferred
-     * should work, even when sideloading data
+     * hold a list of MODEL columns that can be published to the api
+     * this array is not directly modified but rather inferred
+     * should work, even when side-loading data
+     * should not store parent columns
      *
      * start as null to detect and only load once
      * all columns - block columns = allow columns
@@ -82,7 +81,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $allowColumns = NULL;
 
     /**
-     * hold a list of columns that are to be blocked by the api
+     * hold a list of MODEL columns that are to be blocked by the api
      * modify this list to prevent sensitive columns from being displayed
      *
      * a null value means block columns haven't been loaded yet
@@ -93,6 +92,33 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $blockColumns = null;
 
     /**
+     * The table this model depends on for it's existence
+     * A give away is when the PKID for this model references the parent PKID
+     * in the parent model
+     *
+     * a parent model effectively merges this table into the child table
+     * as a consequence, parent table columns are displayed when requesting a child end point
+     *
+     * child models should not block these fields from displaying,
+     * instead go to the parent model and block them from there
+     *
+     * @var boolean|string
+     */
+    public static $parentModel = FALSE;
+
+    /**
+     * store one or more parent models that this entity
+     * should merge into the final resource
+     *
+     * this basically caches the list of models this model should merge in,
+     * include a grand-parent model and grand-grand parent
+     * stores basic model names, not name spaces
+     *
+     * @var boolean|array
+     */
+    private $parentModels = null;
+
+    /**
      * auto populate a few key values
      */
     public function initialize()
@@ -101,37 +127,9 @@ class BaseModel extends \Phalcon\Mvc\Model
     }
 
     /**
-     * The table this model depends on for it's existance
-     * A give away is when the PKID for this model references the parent PKID
-     * in the parent model
-     *
-     * a parent model effectively merges this table into the child table
-     * as a consequence, parent table columns are displayed when requesting a child end point
-     * child models cannot block these fields from displaying,
-     * instead go to the parent model and block them from there
-     *
-     * @var boolean|string
-     */
-    public static $parentModel = FALSE;
-
-    /**
-     * for a provided model name, return that model's parent
-     *
-     * @param string $name            
-     */
-    public static function getParentModel($name)
-    {
-        $config = $this->getDI()->get('config');
-        $modelNameSpace = $config['namespaces']['models'];
-        $path = $modelNameSpace . $name;
-        return $path::$parentModel;
-    }
-
-    /**
      * provided to lazy load the model's name
      *
-     * @param
-     *            string type singular|plural
+     * @param string $type singular|plural
      * @return string
      */
     public function getModelName($type = 'plural')
@@ -142,21 +140,21 @@ class BaseModel extends \Phalcon\Mvc\Model
             } else {
                 $config = $this->getDI()->get('config');
                 $modelNameSpace = $config['namespaces']['models'];
-                
+
                 $name = get_class($this);
                 $name = str_replace($modelNameSpace, '', $name);
                 $this->pluralName = $name;
                 return $this->pluralName;
             }
         }
-        
+
         if ($type == 'singular') {
-            if (! isset($this->singularName)) {
+            if (!isset($this->singularName)) {
                 $this->singularName = substr($this->getPluralName(), 0, strlen($this->getPluralName()) - 1);
             }
             return $this->singularName;
         }
-        
+
         // todo throw and error here?
         return false;
     }
@@ -168,12 +166,12 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getModelNameSpace()
     {
-        if (! isset($this->modelNameSpace)) {
+        if (!isset($this->modelNameSpace)) {
             $config = $this->getDI()->get('config');
             $nameSpace = $config['namespaces']['models'];
             $this->modelNameSpace = $nameSpace . $this->getModelName();
         }
-        
+
         return $this->modelNameSpace;
     }
 
@@ -184,12 +182,12 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public function getPrimaryKeyName()
     {
-        if (! isset($this->primaryKeyName)) {
+        if (!isset($this->primaryKeyName)) {
             // lazy load
             $memory = $this->getDI()->get('memory');
             $attributes = $memory->getPrimaryKeyAttributes($this);
             $attributeKey = $attributes[0];
-            
+
             // adjust for colMaps if any are provided
             $colMap = $memory->getColumnMap($this);
             if (is_null($colMap)) {
@@ -204,7 +202,8 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * default behavior is to expect plural table names in schema
      *
-     * @param string $type            
+     * @todo maybe we should be on the safe side and verify the argument, or return an error in the end if nothing happens?
+     * @param string $type
      * @return string
      */
     public function getTableName($type = 'plural')
@@ -217,7 +216,7 @@ class BaseModel extends \Phalcon\Mvc\Model
                 return $this->pluralTableName;
             }
         }
-        
+
         if ($type == 'singular') {
             if (isset($this->singularTableName)) {
                 return $this->singularTableName;
@@ -243,10 +242,11 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * return all configured relations for a given model
      * use the supplied Relation library
+     * @return Relation[]
      */
     public function getRelations()
     {
-        if (! isset($this->relationships)) {
+        if (!isset($this->relationships)) {
             $this->relationships = array();
             // load them manually
             $mm = $this->getModelsManager();
@@ -254,15 +254,37 @@ class BaseModel extends \Phalcon\Mvc\Model
             // Temporary fix because $mm->getRelations() doesn't support hasManyToMany relations right now.
             // get them separately and merge them
             $mtmRelationships = $mm->getHasManyToMany($this);
-            
+
             $relationships = array_merge($relationships, $mtmRelationships);
-            
+
             foreach ($relationships as $relation) {
                 // todo load custom relationship
-                $this->relationships[] = new \PhalconRest\API\Relation($relation, $mm);
+                $this->relationships[] = new Relation($relation, $mm);
             }
         }
         return $this->relationships;
+    }
+
+    /**
+     * get a particular relationship configured for this model
+     *
+     * @param $name
+     * @return mixed either a relationship object or false
+     */
+    public function getRelation($name)
+    {
+        if (!isset($this->relationships)) {
+            $relations = $this->getRelations();
+        } else {
+            $relations = $this->relationships;
+        }
+
+        foreach ($relations as $relation) {
+            if ($relation->getAlias() == $name) {
+                return $relation;
+            }
+        }
+        return false;
     }
 
     /**
@@ -276,12 +298,13 @@ class BaseModel extends \Phalcon\Mvc\Model
         $blockColumns = [];
         $class = get_class($this);
         $parentModelName = $class::$parentModel;
-        
+
         if ($parentModelName) {
+            /** @var BaseModel $parentModel */
             $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
             $parentModel = new $parentModelNameSpace();
             $blockColumns = $parentModel->getBlockColumns();
-            
+
             // the parent model may return null, let's catch and change to an empty array
             // thus indicated that block columns have been "loaded" even if they are blank
             if ($blockColumns == null) {
@@ -306,7 +329,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($clear) {
             $this->blockColumns = [];
         }
-        
+
         foreach ($columnList as $column) {
             $this->blockColumns[] = $column;
         }
@@ -315,22 +338,45 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * basic getter for private property
      *
+     * @param $includeParent boolean - Include all parent block columns?
      * @return mixed
      */
-    public function getBlockColumns()
+    public function getBlockColumns($includeParent = true)
     {
         // load columns if they haven't been loaded yet
         if ($this->blockColumns === null) {
             $this->loadBlockColumns();
+
         }
+        $blockColumns = $this->blockColumns;
+
+
+        // also load parent(s) columns if requested
+        if ($includeParent) {
+            $parentModel = $this->getParentModel(true);
+            if ($parentModel) {
+                /** @var BaseModel $parentModel */
+                $parentModel = new $parentModel();
+                $parentColumns = $parentModel->getBlockColumns(true);
+
+                // the parent model may return null, let's catch and change to an empty array
+                // thus indicating that block columns have been "loaded" even if they are blank
+                if ($parentColumns == null) {
+                    $parentColumns = [];
+                }
+                $blockColumns = array_merge($blockColumns, $parentColumns);
+            }
+        }
+
         // return block columns
-        return $this->blockColumns;
+        return $blockColumns;
     }
-    
+
     /**
      * get the private notifyColumns property
      */
-    public function getNotifyColumns(){
+    public function getNotifyColumns()
+    {
         return null;
     }
 
@@ -339,30 +385,32 @@ class BaseModel extends \Phalcon\Mvc\Model
      * - to be used from an entity
      * - works when side loading!
      * - will exclude any fields listed in $this->blockFields
+     * - can also work with parent models
      *
-     * @param
-     *            should the resulting array have a nameSpace prefix?
+     * @param boolean $nameSpace should the resulting array have a nameSpace prefix?
+     * @param boolean $includeParent - should this function also include parent columns?
      * @return array
      */
-    public function getAllowedColumns($nameSpace = true)
+    public function getAllowedColumns($nameSpace = true, $includeParent = true)
     {
+        $allowColumns = [];
+
+        // cache allowColumns to save us the work in subsequent calls
         if ($this->allowColumns == NULL) {
             // load block columns if uninitialized
             if ($this->blockColumns == null) {
                 $this->loadBlockColumns();
             }
-            
+
             // prefix namespace if requested
             if ($nameSpace) {
                 $modelNameSpace = $this->getModelNameSpace() . '.';
             } else {
                 $modelNameSpace = null;
             }
-            
-            $allowColumns = array();
-            
-            $colMap = $this->getAllColumns();
-            
+
+            $colMap = $this->getAllColumns(false);
+
             foreach ($colMap as $key => $value) {
                 if (array_search($value, $this->blockColumns) === false) {
                     $allowColumns[] = $modelNameSpace . $value;
@@ -370,14 +418,35 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
             $this->allowColumns = $allowColumns;
         }
-        
-        return $this->allowColumns;
+
+        // give function the chance to re-merge in parent columns
+        if ($includeParent) {
+            $parentModel = $this->getParentModel(true);
+            if ($parentModel) {
+                /** @var BaseModel $parentModel */
+                $parentModel = new $parentModel();
+                $parentColumns = $parentModel->getAllowedColumns(false, $includeParent);
+
+                // the parent model may return null, let's catch and change to an empty array
+                // thus indicating that block columns have been "loaded" even if they are blank
+                if ($parentColumns == null) {
+                    $parentColumns = [];
+                }
+                $allowColumns = array_merge($allowColumns, $parentColumns);
+            }
+        }
+        return $allowColumns;
     }
 
     /**
      * return what should be a full set of columns for the model
+     * if requested, return parent columns as well
+     *
+     * @todo sounds similar to getAllowedColumns() and loadBlockColumns()... maybe both could be merged and get DRY?
+     * @param bool $includeParent - should the list include parent columns?
+     * @return array
      */
-    public function getAllColumns()
+    public function getAllColumns($includeParent = true)
     {
         // build a list of columns for this model
         $metaData = $this->getDI()->get('memory');
@@ -386,6 +455,91 @@ class BaseModel extends \Phalcon\Mvc\Model
             // but if it isn't present, fall back to attributes
             $colMap = $metaData->getAttributes($this);
         }
+
+        if ($includeParent) {
+            $parentModel = $this->getParentModel(true);
+            if ($parentModel) {
+                /** @var BaseModel $parentModel */
+                $parentModel = new $parentModel();
+                $parentColumns = $parentModel->getAllColumns(true);
+
+                // the parent model may return null, let's catch and change to an empty array
+                // thus indicating that block columns have been "loaded" even if they are blank
+                if ($parentColumns == null) {
+                    $parentColumns = [];
+                }
+                $colMap = array_merge($colMap, $parentColumns);
+            }
+        }
         return $colMap;
+    }
+
+    /**
+     * ask this entity for all parents from the model and up the chain
+     * lazy load and cache
+     *
+     * @param bool $withNamespace
+     * should the parent names be formatted as a full namespace?
+     *
+     * @return array|boolean list of parent models or false
+     */
+    public function getParentModels($withNamespace = false)
+    {
+        $modelNameSpace = null;
+
+        // first load parentModels
+        if (!isset($parentModels)) {
+            /** @var BaseModel $path */
+            $config = $this->getDI()->get('config');
+            $modelNameSpace = $config['namespaces']['models'];
+            $path = $modelNameSpace . $this->getModelName();
+            $parents = array();
+
+            $currentParent = $path::$parentModel;
+
+            while ($currentParent) :
+                $parents[] = $currentParent;
+                $path = $modelNameSpace . $currentParent;
+                $currentParent = $path::$parentModel;
+            endwhile;
+            $this->parentModels = $parents;
+        }
+
+        if (count($this->parentModels) == 0) {
+            return false;
+        }
+
+        // reset name space if it was not asked for
+        if (!$withNamespace) {
+            $modelNameSpace = null;
+        }
+
+        $parents = [];
+        foreach ($this->parentModels as $parent) {
+            $parents[] = $modelNameSpace . $parent;
+        }
+
+        return $parents;
+    }
+
+    /**
+     * get the model name or full namespace
+     *
+     * @param boolean $withNamespace return the namespace or just the name
+     * @return mixed either a model namespace or model name, false if not defined
+     */
+    public function getParentModel($withNamespace = false)
+    {
+        /** @var BaseModel $path */
+        $config = $this->getDI()->get('config');
+        $modelNameSpace = $config['namespaces']['models'];
+        $path = $modelNameSpace . $this->getModelName();
+        $parentModelName = $path::$parentModel;
+
+        if (!$parentModelName) {
+            return false;
+        }
+
+        return $withNamespace? $modelNameSpace . $parentModelName : $parentModelName;
     }
 }

@@ -1,14 +1,14 @@
 <?php
 namespace PhalconRest\Util;
 
+use Phalcon\DI;
 use Phalcon\Mvc\Model\Message as Message;
+use PhalconRest\API\Output;
 
 /**
  * where caught Validation Exceptions go to die
  *
- *
  * @author jjenkins
- *        
  */
 class ValidationException extends \Exception
 {
@@ -19,20 +19,23 @@ class ValidationException extends \Exception
     private $di;
 
     /**
+     * @var ErrorStore
+     */
+    public $errorStore;
+
+    /**
      * Important
-     * * ValidationException will accept a list of validation objects or a simple key->value list in the 3rd param of
+     * ValidationException will accept a list of validation objects or a simple key->value list in the 3rd param of
      *
-     * @param string $title
-     *            the basic error message
-     * @param array $errorList
-     *            key=>value pairs for properites of ErrorStore
-     * @param array $validationList
-     *            list of phalcon validation objects or key=>value pairs to be converted into validation objects
+     * @param string $title         the basic error message
+     * @param array $errorList      key=>value pairs for properites of ErrorStore
+     * @param array $validationList list of phalcon validation objects or key=>value pairs to be converted
+     *                               into validation objects
      */
     public function __construct($title, $errorList, $validationList)
     {
         // store general error data
-        $this->errorStore = new \PhalconRest\Util\ErrorStore($errorList);
+        $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
         
         $mergedValidations = [];
@@ -47,7 +50,7 @@ class ValidationException extends \Exception
         }
         $this->errorStore->validationList = $mergedValidations;
         
-        $this->di = \Phalcon\DI::getDefault();
+        $this->di = Di::getDefault();
     }
 
     /**
@@ -57,7 +60,7 @@ class ValidationException extends \Exception
      */
     public function send()
     {
-        $output = new \PhalconRest\API\Output();
+        $output = new Output();
         $output->setStatusCode('422', 'Unprocessable Entity');
         $output->sendError($this->errorStore);
         return true;

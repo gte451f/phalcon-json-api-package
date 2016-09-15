@@ -1,5 +1,6 @@
 <?php
 namespace PhalconRest\API;
+use Phalcon\Mvc\Model\ManagerInterface;
 
 /**
  * decorate a relation with additional properties and methods
@@ -9,7 +10,7 @@ namespace PhalconRest\API;
  *
  *
  * @author jjenkins
- *        
+ *
  */
 class Relation
 {
@@ -95,10 +96,10 @@ class Relation
     /**
      * inject dependencies
      *
-     * @param \Phalcon\Mvc\Model\Relation $relation            
-     * @param \Phalcon\Mvc\Model\Manager $modelManager            
+     * @param \Phalcon\Mvc\Model\Relation $relation
+     * @param ManagerInterface $modelManager
      */
-    function __construct(\Phalcon\Mvc\Model\Relation $relation, \Phalcon\Mvc\Model\Manager $modelManager)
+    function __construct(\Phalcon\Mvc\Model\Relation $relation, ManagerInterface $modelManager)
     {
         $this->relation = $relation;
         $this->modelManager = $modelManager;
@@ -107,8 +108,8 @@ class Relation
     /**
      * pass unknown functions down to $relation
      *
-     * @param mixed $name            
-     * @param mixed $arguments            
+     * @param mixed $name
+     * @param mixed $arguments
      */
     function __call($name, $arguments)
     {
@@ -117,6 +118,8 @@ class Relation
 
     /**
      * get the table name by passing this along to the underlying model
+     * @param string $type
+     * @return
      */
     public function getTableName($type = 'plural')
     {
@@ -131,6 +134,7 @@ class Relation
     /**
      * Get the singular/plural model name for a relationship
      *
+     * @param string $type
      * @return string
      */
     public function getModelName($type = 'plural')
@@ -172,7 +176,7 @@ class Relation
                 $this->alias = NULL;
             }
         }
-        
+
         return $this->alias;
     }
 
@@ -188,7 +192,7 @@ class Relation
     }
 
     /**
-     * get a list of hasOne tables, simlar to getParent but more inclusive
+     * get a list of hasOne tables, similar to getParent but more inclusive
      *
      * @return string or false
      */
@@ -203,7 +207,7 @@ class Relation
                 $list[] = $relation->getReferencedModel();
             }
         }
-        
+
         return $list;
     }
 
