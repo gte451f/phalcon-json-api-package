@@ -1,6 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
+use PhalconRest\Controllers\PermissionController;
 use PhalconRest\Util\ValidationException;
 
 /**
@@ -121,21 +122,26 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $parentModels = null;
 
     /**
-     * BaseModel property that allows for the original {@link \Phalcon\Mvc\Model::save()} behavior: return false on errors.
-     * By default this class' {@link save()} implementation throws ValidationException on errors.
+     * BaseModel property that allows for two different behaviors on {@link save()} calls:
+     * When true, a {@link ValidationException} will be thrown on errors.
+     * When false, a boolean false will be returned - the original {@link \Phalcon\Mvc\Model::save()} behavior.
      * @see save()
+     * @see throwOnNextSave
      * @var bool
      */
-    public static $throwOnSave = true;
+    public static $throwOnSave = false;
 
     /**
-     * Instance counterpart of {@link $throwOnSave}. Resets to true after one save() call.
+     * Instance counterpart of {@link $throwOnSave}. Resets after one save() call.
+     * If this is true, on save errors an exception will be thrown.
+     * If false, errors will be returned instead (original Phalcon behavior).
+     * If it's null, it'll obbey the global {@link $throwOnSave} flag.
      * @see $throwOnSave
      * @see throwOnNextSave()
      * @see save()
      * @var bool
      */
-    public $throwOnNextSave = true;
+    public $throwOnNextSave = null;
 
     /**
      * auto populate a few key values
@@ -578,21 +584,27 @@ class BaseModel extends \Phalcon\Mvc\Model
         $result = parent::save($data, $whiteList);
         // if the save failed, gather errors and return a validation failure if enabled
 
-        if (!$this->throwOnNextSave) {
-            $this->throwOnNextSave = true;
-            return $result;
-        } elseif (!self::$throwOnSave) {
-            return $result;
-        } else {
-            if ($result == false) {
+        if (!$result) {
+            //default behavior is: return the value.
+            //throwOnNextSave has higher priority. if it's truthy, lets throw.
+            //if it's not set, the global flag takes precedence.
+            $throw = false;
+            if ($this->throwOnNextSave) {
+                $throw = true;
+                $this->throwOnNextSave = null;
+            } elseif (is_null($this->throwOnNextSave) && self::$throwOnSave) {
+                $throw = true;
+            }
+
+            if ($throw) {
                 throw new ValidationException("Validation Errors Encountered", [
                     'code' => '50986904809',
                     'dev' => 'BaseModel::save() failed'
                 ], $this->getMessages());
             }
-
-            return $result;
         }
+
+        return $result;
     }
 
     /**
