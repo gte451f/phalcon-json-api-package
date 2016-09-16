@@ -1300,7 +1300,7 @@ class Entity extends Injectable
             // }
         }
 
-        $result = $this->simpleSave($primaryModel);
+        $result = $primaryModel->save();
 
         // if still blank, pull from recently created $result
         if (is_null($id)) {
@@ -1393,16 +1393,15 @@ class Entity extends Injectable
     }
 
     /**
-     * save a model and collect any error messages that may be returned
-     * return the model PKID whether insert or update
-     *
+     * Simple alias for {@link BaseModel::save()}.
+     * Used to do more stuff that now happens inside the model. Replace with <code>$model->save()</code>.
+     * @deprecated
      * @param BaseModel $model
      * @throws ValidationException
-     * @return int
+     * @return int|false
      */
     function simpleSave($model)
     {
-        $model->save(); //can throw an exception if a validation issue happens
-        return $model->getPrimaryKeyValue();
+        return $model->save();
     }
 }

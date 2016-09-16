@@ -139,7 +139,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @see $throwOnSave
      * @see throwOnNextSave()
      * @see save()
-     * @var bool
+     * @var bool|null
      */
     public $throwOnNextSave = null;
 
@@ -180,7 +180,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             return $this->singularName;
         }
 
-        // todo throw and error here?
+        // todo throw an error here?
         return false;
     }
 
@@ -576,7 +576,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @see \Phalcon\Mvc\Model::save()
      * @param null $data
      * @param null $whiteList
-     * @return bool
+     * @return int|false Returns false on failures (if throw behavior is disabled) and the PKID on success calls
      * @throws ValidationException
      */
     public function save($data = null, $whiteList = null)
@@ -602,6 +602,8 @@ class BaseModel extends \Phalcon\Mvc\Model
                     'dev' => 'BaseModel::save() failed'
                 ], $this->getMessages());
             }
+        } else { //it worked! let's return something more useful than a boolean: the ID
+            return $this->getPrimaryKeyValue();
         }
 
         return $result;
