@@ -261,7 +261,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function getPrimaryKeyValue()
     {
         $key = $this->getPrimaryKeyName();
-        return $this->$key;
+        return isset($this->$key)? $this->$key : null;
     }
 
     /**
@@ -576,7 +576,9 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @see \Phalcon\Mvc\Model::save()
      * @param null $data
      * @param null $whiteList
-     * @return int|false Returns false on failures (if throw behavior is disabled) and the PKID on success calls
+     * @return int|bool Returns false on failures (if throw behavior is disabled) and the PKID on success calls.
+     *                  May return true if the PKID cannot be found (on {@link getPrimaryKeyValue()),
+     *                  but the save worked nonetheless.
      * @throws ValidationException
      */
     public function save($data = null, $whiteList = null)
@@ -597,13 +599,14 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
 
             if ($throw) {
-                throw new ValidationException("Validation Errors Encountered", [
+                throw new ValidationException('Validation Errors Encountered', [
                     'code' => '50986904809',
-                    'dev' => 'BaseModel::save() failed'
+                    'dev' => get_called_class().'::save() failed'
                 ], $this->getMessages());
             }
-        } else { //it worked! let's return something more useful than a boolean: the ID
-            return $this->getPrimaryKeyValue();
+        } else { //it worked! let's return something more useful than a boolean: the ID, if possible
+            //an ID might not be found if there's something odd with the model's PK (hidden, for instance)
+            return $this->getPrimaryKeyValue()?: true;
         }
 
         return $result;
