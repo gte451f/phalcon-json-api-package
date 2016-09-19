@@ -1,6 +1,9 @@
 <?php
 namespace PhalconRest\API;
 
+use PhalconRest\Controllers\PermissionController;
+use PhalconRest\Util\ValidationException;
+
 /**
  * placeholder for future work
  *
@@ -119,6 +122,28 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $parentModels = null;
 
     /**
+     * BaseModel property that allows for two different behaviors on {@link save()} calls:
+     * When true, a {@link ValidationException} will be thrown on errors.
+     * When false, a boolean false will be returned - the original {@link \Phalcon\Mvc\Model::save()} behavior.
+     * @see save()
+     * @see throwOnNextSave
+     * @var bool
+     */
+    public static $throwOnSave = false;
+
+    /**
+     * Instance counterpart of {@link $throwOnSave}. Resets after one save() call.
+     * If this is true, on save errors an exception will be thrown.
+     * If false, errors will be returned instead (original Phalcon behavior).
+     * If it's null, it'll obbey the global {@link $throwOnSave} flag.
+     * @see $throwOnSave
+     * @see throwOnNextSave()
+     * @see save()
+     * @var bool|null
+     */
+    public $throwOnNextSave = null;
+
+    /**
      * auto populate a few key values
      */
     public function initialize()
@@ -155,7 +180,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             return $this->singularName;
         }
 
-        // todo throw and error here?
+        // todo throw an error here?
         return false;
     }
 
@@ -236,7 +261,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function getPrimaryKeyValue()
     {
         $key = $this->getPrimaryKeyName();
-        return $this->$key;
+        return isset($this->$key)? $this->$key : null;
     }
 
     /**
@@ -542,4 +567,60 @@ class BaseModel extends \Phalcon\Mvc\Model
 
         return $withNamespace? $modelNameSpace . $parentModelName : $parentModelName;
     }
+
+    /**
+     * Overrides the original save method by throwing a ValidationException on save failures.
+     * This behavior can be skipped all the times or once by using {@link $throwOnSave} and {@link $throwOnNextSave}.
+     * @see $throwOnSave
+     * @see $throwOnNextSave
+     * @see \Phalcon\Mvc\Model::save()
+     * @param null $data
+     * @param null $whiteList
+     * @return int|bool Returns false on failures (if throw behavior is disabled) and the PKID on success calls.
+     *                  May return true if the PKID cannot be found (on {@link getPrimaryKeyValue()),
+     *                  but the save worked nonetheless.
+     * @throws ValidationException
+     */
+    public function save($data = null, $whiteList = null)
+    {
+        $result = parent::save($data, $whiteList);
+        // if the save failed, gather errors and return a validation failure if enabled
+
+        if (!$result) {
+            //default behavior is: return the value.
+            //throwOnNextSave has higher priority. if it's truthy, lets throw.
+            //if it's not set, the global flag takes precedence.
+            $throw = false;
+            if ($this->throwOnNextSave) {
+                $throw = true;
+                $this->throwOnNextSave = null;
+            } elseif (is_null($this->throwOnNextSave) && self::$throwOnSave) {
+                $throw = true;
+            }
+
+            if ($throw) {
+                throw new ValidationException('Validation Errors Encountered', [
+                    'code' => '50986904809',
+                    'dev' => get_called_class().'::save() failed'
+                ], $this->getMessages());
+            }
+        } else { //it worked! let's return something more useful than a boolean: the ID, if possible
+            //an ID might not be found if there's something odd with the model's PK (hidden, for instance)
+            return $this->getPrimaryKeyValue()?: true;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Simple chainable method to make {@link save()} calls a bit easier.
+     * @see $throwOnNextSave
+     * @param $bool
+     * @return $this
+     */
+    public function throwOnNextSave($bool = true) {
+        $this->throwOnNextSave = $bool;
+        return $this;
+    }
+
 }
