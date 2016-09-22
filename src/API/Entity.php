@@ -135,7 +135,7 @@ class Entity extends Injectable
     }
 
     /**
-     * Hook intended to be overriden, that should execute anything related to {@link searchHelper}.
+     * Hook intended to be overridden, that should execute anything related to {@link searchHelper}.
      */
     public function configureSearchHelper()
     {
@@ -765,7 +765,7 @@ class Entity extends Injectable
             if (isset($resultSet->$field)) {
                 $record[$field] = $resultSet->$field;
             } else {
-                $getter = 'get'.ucfirst($field);
+                $getter = 'get' . ucfirst($field);
                 if (method_exists($resultSet, $getter)) {
                     $record[$field] = $resultSet->$getter();
                 } else {
@@ -1269,6 +1269,11 @@ class Entity extends Injectable
             $this->saveMode = 'insert';
             // pre-save hook placed after saveMode
             $formData = $this->beforeSave($formData, $id);
+
+            //need to create a new model since this is an insert
+            $modelNameSpace = $this->model->getModelNameSpace();
+            $this->model = new $modelNameSpace($this->di);
+
             // load a model including potential parents
             $primaryModel = $this->loadParentModel($this->model, $formData);
         } else {
@@ -1300,6 +1305,7 @@ class Entity extends Injectable
             // }
         }
 
+        // no need to pass in formdata since it was already loaded in $this->loadParentModel
         $result = $primaryModel->save();
 
         // if still blank, pull from recently created $result
