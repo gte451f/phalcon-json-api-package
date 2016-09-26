@@ -213,7 +213,6 @@ class Entity extends Injectable
                 $this->updateRestResponse($relation->getTableName(), $relatedRecords);
             }
         }
-
     }
 
     /**
@@ -690,15 +689,19 @@ class Entity extends Injectable
      *
      * @param string $table the table name where the records originated
      * @param array $records usually related records, but could side load just about any records to an api response
+     * @param bool $skipDuplicateCheck should this run ignore the duplicate check?
      * @return void
      */
-    protected function updateRestResponse($table, array $records)
+    protected function updateRestResponse($table, array $records, $skipDuplicateCheck = false)
     {
         if (!isset($this->restResponse[$table])) {
             $this->restResponse[$table] = $records;
         } else {
+            //we know the api chokes when working with more than 1000 records, so force skip in these cases
+            $skipDuplicateCheck = (count($records) + count($this->restResponse[$table]) > 1000) ? true : $skipDuplicateCheck;
+
             foreach ($records as $newRecord) {
-                $this->pushRestResponse($table, $newRecord);
+                $this->pushRestResponse($table, $newRecord, $skipDuplicateCheck);
             }
         }
     }
@@ -811,6 +814,7 @@ class Entity extends Injectable
             //name space the referenced field otherwise you might get ambigious errors
 
             $query->inWhere($relation->getReferencedModel() . '.' . $relation->getReferencedFields(), $foreign_keys);
+            $query->distinct('id');
         }
 
         $result = $query->getQuery()->execute();
