@@ -2,16 +2,13 @@
 /** @var array $config defined outside (probably at bin/config.php) */
 
 // Factory Default loads all services by default....
-use Phalcon\DI\FactoryDefault as DefaultDI;
-use Phalcon\Loader;
+use Phalcon\DI;
 
 // PhalconRest libraries
 use PhalconRest\API\Request as Request;
 use PhalconRest\Util\Inflector;
 
 // for password and credit card encryption
-use Phalcon\Crypt;
-use Phalcon\Security;
 use PHPBenchTime\Timer;
 use Phalcon\Logger\Adapter\File as FileLogger;
 
@@ -22,10 +19,10 @@ $T->start('Booting App');
  * The DI is our direct injector.
  * It will store pointers to all of our services
  * and we will insert it into all of our controllers.
- *
- * @var DefaultDI
+ * @var $di DI\FactoryDefault\Cli|DI\FactoryDefault
  */
-$di = new DefaultDI();
+
+$di = (PHP_SAPI == 'cli') ? new DI\FactoryDefault\Cli : new DI\FactoryDefault;
 
 $di->setShared('request', function () {
     // $request = new \PhalconRest\Libraries\Request\Request();
@@ -44,15 +41,17 @@ $di->setShared('logger', function () use ($config) {
     return new FileLogger($config['application']['loggingDir'] . date('d_m_y') . '-api.log');
 });
 
-/**
- * Return array of the Collections, which define a group of routes, from
- * routes/collections.
- * These will be mounted into the app itself later.
- */
-$di->set('collections', function () use ($T) {
-    $collections = include('../app/routes/routeLoader.php');
-    return $collections;
-});
+if (PHP_SAPI != 'cli') {
+    /**
+     * Return array of the Collections, which define a group of routes, from
+     * routes/collections.
+     * These will be mounted into the app itself later.
+     */
+    $di->set('collections', function () {
+        $collections = include('../app/routes/routeLoader.php');
+        return $collections;
+    });
+}
 
 /**
  * $di's setShared method provides a singleton instance.
@@ -143,6 +142,5 @@ $di->setShared('requestBody', function () {
             'more' => ''
         ));
     }
-
     return $in;
 });

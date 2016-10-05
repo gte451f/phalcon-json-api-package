@@ -2,12 +2,9 @@
 namespace PhalconRest\API;
 
 use Phalcon\DI;
-use Phalcon\DI\Injectable;
-use PhalconRest\Exception\HTTPException;
-use PhalconRest\API\BaseModel;
-use PhalconRest\API\Entity;
-use PhalconRest\Result\Result;
+use Phalcon\Mvc\Controller;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
+use PhalconRest\Exception\HTTPException;
 
 /**
  * \Phalcon\Mvc\Controller has a final __construct() method, so we can't
@@ -18,51 +15,45 @@ use Phalcon\Mvc\Model\Relation as PhalconRelation;
  * Responsible for handling various REST requests
  * Will load the correct model and entity and perform the correct action
  */
-class BaseController extends Injectable
+class BaseController extends Controller
 {
 
     /**
      * Store the default entity here
      *
-     * @var Entity
+     * @var \PhalconRest\API\Entity
      */
-    protected $entity = FALSE;
+    protected $entity;
 
     /**
      * Store the default model here
      *
-     * @var BaseModel
+     * @var \PhalconRest\API\BaseModel
      */
-    protected $model = FALSE;
+    protected $model;
 
     /**
-     * the name of the controller
-     * derived from inflection
+     * The name of the controller, derived from inflection
      *
      * @var string
      */
-    public $singularName = null;
+    public $singularName;
 
     /**
-     * plural version of controller name
-     * used for Ember compatible rest returns
+     * Plural version of controller name. Used for Ember-compatible REST returns
      *
      * @var string
      */
-    public $pluralName = null;
+    public $pluralName;
 
     /**
-     * Constructor, calls the parse method for the query string by default.
-     *
-     * @param boolean $parseQueryString
-     *            true Can be set to false if a controller needs to be called
-     *            from a different controller, bypassing the $allowedFields parse
+     * Includes the default Dependency Injector and loads the Entity.
      */
-    public function __construct($parseQueryString = true)
+    public function onConstruct()
     {
         $di = DI::getDefault();
         $this->setDI($di);
-        // initialize entity and set to class property
+        // initialize entity and set to class property (doing the same to the model property)
         $this->getEntity();
     }
 
@@ -101,6 +92,7 @@ class BaseController extends Injectable
      * Load a default entity unless one is already in place
      * return the currently loaded entity
      *
+     * @see $entity
      * @return \PhalconRest\API\Entity
      */
     public function getEntity()
@@ -162,7 +154,7 @@ class BaseController extends Injectable
     /**
      * catches incoming requests for groups of records
      *
-     * @return array Results formated by respond()
+     * @return \PhalconRest\Result\Result
      */
     public function get()
     {
@@ -177,7 +169,7 @@ class BaseController extends Injectable
      *
      * @param int $id
      * @throws HTTPException
-     * @return Result
+     * @return \PhalconRest\Result\Result
      */
     public function getOne($id)
     {
@@ -234,7 +226,6 @@ class BaseController extends Injectable
                 'code' => '1238510381861'
             ));
         } else {
-            // return $this->respond($search_result);
             return $result;
         }
     }
@@ -293,7 +284,6 @@ class BaseController extends Injectable
                 'code' => '1238510381861'
             ));
         } else {
-            // return $this->respond($search_result);
             return $result;
         }
     }
@@ -368,11 +358,9 @@ class BaseController extends Injectable
      * hook to be run before a controller calls it's save action
      * make it easier to extend default save logic
      *
-     * @param object $object the
-     *            data submitted to the server
-     * @param int|null $id
-     *            the pkid of the record to be updated, otherwise null on inserts
-     * @return object $object
+     * @param object $object the data submitted to the server
+     * @param int|null $id the pkid of the record to be updated, otherwise null on inserts
+     * @return object
      */
     public function beforeSave($object, $id = null)
     {
@@ -385,8 +373,7 @@ class BaseController extends Injectable
      * make it easier to extend default save logic
      *
      * @param object $object the data submitted to the server (not a model)
-     * @param int|null $id
-     *            the pkid of the record to be updated or inserted
+     * @param int|null $id the pkid of the record to be updated or inserted
      */
     public function afterSave($object, $id)
     {
@@ -416,9 +403,10 @@ class BaseController extends Injectable
     }
 
     /**
+     * alias for PUT
      *
      * @param int $id
-     * @return Result
+     * @return \PhalconRest\Result\Result
      */
     public function patch($id)
     {
@@ -461,50 +449,5 @@ class BaseController extends Injectable
         $response->setHeader('Access-Control-Allow-Headers', "origin, x-requested-with, content-type");
         $response->setHeader('Access-Control-Max-Age', '86400');
         return true;
-    }
-
-    /**
-     * Should be called by methods in the controllers that need to output results to the HTTP Response.
-     * Ensures that arrays conform to the patterns required by the Response objects.
-     *
-     * appends the controller name to each since that is what ember wants
-     * that logic should probably sit in the JSONReponse object but I'm
-     * not sure how to infer the controllers name from there maybe check
-     * in bootstrap... $app->after() to see if you can access the current controller?
-     *
-     * @param array $recordsResult
-     *            records to format as return output
-     * @throws HTTPException
-     * @return array Output array. If there are records (even 1), every record will be an array ex: array(array('id'=>1),array('id'=>2))
-     */
-    protected function respond($recordsResult)
-    {
-        if (!is_array($recordsResult)) {
-            // This is bad. Throw a 500. Responses should always be objects.
-            throw new HTTPException("An error occurred while retrieving records.", 500, [
-                'dev' => 'The records returned were malformed.',
-                'code' => '861681684364'
-            ]);
-        }
-
-        // modify results based on the number of records returned
-        $rowCount = count($recordsResult);
-        switch ($rowCount) {
-            // No records returned, so return an empty array
-            case 0:
-                return [];
-
-            // return single record within an array
-            case 1:
-                if (isset($recordsResult['meta'])) {
-                    return $recordsResult;
-                } else {
-                    $recordsResult[0]; //FIXME: sounds like a bug? this should be returned?
-                }
-
-            default:
-                return $recordsResult;
-                break;
-        }
     }
 }

@@ -1,4 +1,6 @@
 <?php
+use PhalconRest\Exception\HTTPException;
+use PhalconRest\Exception\ValidationException;
 
 /** @var array $config */
 
@@ -18,7 +20,7 @@ set_exception_handler(function ($exception) use ($app, $config) {
             break;
         default:
             // wow an unexpected exception
-            print_r($exception);
+            customErrorHandler($exception->getCode(), $exception->getMessage(), $exception->getFile(), $exception->getLine(), $exception, 'Unexpected ' . get_class($exception));
             break;
     }
 });
@@ -45,9 +47,22 @@ function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null
     $errorReport->detail = $errstr;
     $errorReport->context = $context;
 
-    // generate a simplified backtrace
-    //FIXME: shouldn't backtrace be shown only in debug mode?
-    $backTrace = debug_backtrace(true, 5);
+    if ($context instanceof Exception) {
+        if ($previous = $context->getPrevious()) {
+            $errorReport->context = '[Previous] ' . (string)$previous; //todo: could recurse the creation of exception details
+        } else {
+            $errorReport->context = null;
+        }
+        $backTrace = explode("\n", $context->getTraceAsString());
+        array_walk($backTrace, function (&$line) {
+            $line = preg_replace('/^#\d+ /', '', $line);
+        });
+    } else {
+        $errorReport->context = $context;
+        $backTrace = debug_backtrace(true, 5); //FIXME: shouldn't backtrace be shown only in debug mode?
+    }
+
+    // generates a simplified backtrace
     $backTraceLog = [];
     foreach ($backTrace as $record) {
         // clean out args since these can cause recursion problems and isn't all that valuable anyway

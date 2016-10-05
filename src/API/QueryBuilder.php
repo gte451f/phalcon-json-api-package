@@ -99,6 +99,13 @@ class QueryBuilder extends Injectable
         $columns = [];
         // join all active hasOne and belongTo instead of just the parent hasOne
         foreach ($this->entity->activeRelations as $relation) {
+
+            // be sure to skip any relationships that are marked for custom processing
+            $relationOptions = $relation->getOptions();
+            if (isset($relationOptions) && (array_key_exists('customProcessing', $relationOptions) && ($relationOptions['customProcessing'] === true))) {
+                continue;
+            }
+
             // refer to alias or model path to prefix each relationship
             // prefer alias over model path in case of collisions
             $alias = $relation->getAlias();
@@ -131,28 +138,26 @@ class QueryBuilder extends Injectable
                     }
                     break;
 
-                case Relation::HAS_MANY_THROUGH:
-                    $alias2 = $alias . '_intermediate';
-                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
-                    $right1 = "[$alias2]." . $relation->getIntermediateFields();
-                    $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
-
-                    $left2 = "[$alias2]." . $relation->getIntermediateReferencedFields();
-                    $right2 = "[$alias]." . $relation->getReferencedFields();
-                    $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
-                    break;
+                // stop processing these types of joins with the main query.  They might return "n" number of related records
+//                case Relation::HAS_MANY_THROUGH:
+//                    $alias2 = $alias . '_intermediate';
+//                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+//                    $right1 = "[$alias2]." . $relation->getIntermediateFields();
+//                    $query->leftJoin($relation->getIntermediateModel(), "$left1 = $right1", $alias2);
+//
+//                    $left2 = "[$alias2]." . $relation->getIntermediateReferencedFields();
+//                    $right2 = "[$alias]." . $relation->getReferencedFields();
+//                    $query->leftJoin($referencedModel, "$left2 = $right2", $alias);
+//                    break;
 
                 default:
                     $this->di->get('logger')->warning("Relationship was ignored during join: {$this->model->getModelName()}.$alias, type #$type");
             }
 
-            // process feature flag for belongsTo
             // attempt to join in side loaded belongsTo records
-            if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
-                // add all parent AND hasOne joins to the column list
-                if ($type == Relation::BELONGS_TO) {
-                    $columns[] = "[$alias].*";
-                }
+            // add all parent AND hasOne joins to the column list
+            if ($type == Relation::BELONGS_TO) {
+                $columns[] = "[$alias].*";
             }
         }
         $query->columns($columns);
@@ -556,7 +561,7 @@ class QueryBuilder extends Injectable
         $rawSort = $this->searchHelper->getSort('sql');
 
         // detect the correct name space for sort string
-        // notice this might be a fieldname with a sort suffix
+        // notice this might be a field name with a sort suffix
         $fieldBits = explode(' ', $rawSort);
         if (count($fieldBits) > 1) {
             // isolate just the field name

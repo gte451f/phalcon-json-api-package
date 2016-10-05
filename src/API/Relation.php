@@ -199,7 +199,7 @@ class Relation
     }
 
     /**
-     * get a list of hasOne tables, simlar to getParent but more inclusive
+     * get a list of hasOne tables, similar to getParent but more inclusive
      *
      * @return string or false
      */

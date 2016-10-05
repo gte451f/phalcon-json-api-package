@@ -123,8 +123,8 @@ class Authenticator extends Injectable implements AuthenticatorInterface
     }
 
     /**
-     * will return the local profile object
-     *  (non-PHPdoc)
+     * will return a valid userProfile object for a pre-loaded profile
+     * (non-PHPdoc)
      *
      * @see \PhalconRest\Authentication\AuthenticatorInterface::getProfile()
      */

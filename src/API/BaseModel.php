@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Exception\HTTPException;
+use \PhalconRest\Exception\ValidationException;
 
 /**
  * placeholder for future work
@@ -73,6 +73,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * hold a list of MODEL columns that can be published to the api
      * this array is not directly modified but rather inferred
      * should work, even when side-loading data
+     * !should not store parent columns!
      *
      * start as null to detect and only load once
      * all columns - block columns = allow columns
@@ -120,6 +121,28 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $parentModels = null;
 
     /**
+     * BaseModel property that allows for two different behaviors on {@link save()} calls:
+     * When true, a {@link ValidationException} will be thrown on errors.
+     * When false, a boolean false will be returned - the original {@link \Phalcon\Mvc\Model::save()} behavior.
+     * @see save()
+     * @see throwOnNextSave
+     * @var bool
+     */
+    public static $throwOnSave = false;
+
+    /**
+     * Instance counterpart of {@link $throwOnSave}. Resets after one save() call.
+     * If this is true, on save errors an exception will be thrown.
+     * If false, errors will be returned instead (original Phalcon behavior).
+     * If it's null, it'll obbey the global {@link $throwOnSave} flag.
+     * @see $throwOnSave
+     * @see throwOnNextSave()
+     * @see save()
+     * @var bool|null
+     */
+    public $throwOnNextSave = null;
+
+    /**
      * auto populate a few key values
      */
     public function initialize()
@@ -130,7 +153,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * provided to lazy load the model's name
      *
-     * @param string type singular|plural
+     * @param string $type singular|plural
      * @return string
      */
     public function getModelName($type = 'plural')
@@ -156,7 +179,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             return $this->singularName;
         }
 
-        // todo throw and error here?
+        // todo throw an error here?
         return false;
     }
 
@@ -203,6 +226,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * default behavior is to expect plural table names in schema
      *
+     * @todo maybe we should be on the safe side and verify the argument, or return an error in the end if nothing happens?
      * @param string $type
      * @return string
      */
@@ -236,7 +260,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function getPrimaryKeyValue()
     {
         $key = $this->getPrimaryKeyName();
-        return $this->$key;
+        return isset($this->$key) ? $this->$key : null;
     }
 
     /**
@@ -296,6 +320,21 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function loadBlockColumns()
     {
         $blockColumns = [];
+        $class = get_class($this);
+        $parentModelName = $class::$parentModel;
+
+        if ($parentModelName) {
+            /** @var BaseModel $parentModel */
+            $parentModelNameSpace = "\\PhalconRest\\Models\\" . $parentModelName;
+            $parentModel = new $parentModelNameSpace();
+            $blockColumns = $parentModel->getBlockColumns();
+
+            // the parent model may return null, let's catch and change to an empty array
+            // thus indicated that block columns have been "loaded" even if they are blank
+            if ($blockColumns == null) {
+                $blockColumns = [];
+            }
+        }
         $this->setBlockColumns($blockColumns, true);
     }
 
@@ -340,6 +379,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
             if ($parentModel) {
+                /** @var BaseModel $parentModel */
                 $parentModel = new $parentModel();
                 $parentColumns = $parentModel->getBlockColumns(true);
 
@@ -406,6 +446,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
             if ($parentModel) {
+                /** @var BaseModel $parentModel */
                 $parentModel = new $parentModel();
                 $parentColumns = $parentModel->getAllowedColumns(false, $includeParent);
 
@@ -424,6 +465,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * return what should be a full set of columns for the model
      * if requested, return parent columns as well
      *
+     * @todo sounds similar to getAllowedColumns() and loadBlockColumns()... maybe both could be merged and get DRY?
      * @param bool $includeParent - should the list include parent columns?
      * @return array
      */
@@ -440,6 +482,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
             if ($parentModel) {
+                /** @var BaseModel $parentModel */
                 $parentModel = new $parentModel();
                 $parentColumns = $parentModel->getAllColumns(true);
 
@@ -458,15 +501,18 @@ class BaseModel extends \Phalcon\Mvc\Model
      * ask this entity for all parents from the model and up the chain
      * lazy load and cache
      *
-     * @param bool $nameSpace
+     * @param bool $withNamespace
      * should the parent names be formatted as a full namespace?
      *
      * @return array|boolean list of parent models or false
      */
-    public function getParentModels($nameSpace = false)
+    public function getParentModels($withNamespace = false)
     {
+        $modelNameSpace = null;
+
         // first load parentModels
         if (!isset($parentModels)) {
+            /** @var BaseModel $path */
             $config = $this->getDI()->get('config');
             $modelNameSpace = $config['namespaces']['models'];
             $path = $modelNameSpace . $this->getModelName();
@@ -487,7 +533,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         }
 
         // reset name space if it was not asked for
-        if (!$nameSpace) {
+        if (!$withNamespace) {
             $modelNameSpace = null;
         }
 
@@ -502,11 +548,12 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * get the model name or full namespace
      *
-     * @param boolean $nameSpace return the namespace or just the name
+     * @param boolean $withNamespace return the namespace or just the name
      * @return mixed either a model namespace or model name, false if not defined
      */
-    public function getParentModel($nameSpace = false)
+    public function getParentModel($withNamespace = false)
     {
+        /** @var BaseModel $path */
         $config = $this->getDI()->get('config');
         $modelNameSpace = $config['namespaces']['models'];
         $path = $modelNameSpace . $this->getModelName();
@@ -516,10 +563,63 @@ class BaseModel extends \Phalcon\Mvc\Model
             return false;
         }
 
-        if ($nameSpace) {
-            return $modelNameSpace . $parentModelName;
-        } else {
-            return $parentModelName;
-        }
+        return $withNamespace ? $modelNameSpace . $parentModelName : $parentModelName;
     }
+
+    /**
+     * Overrides the original save method by throwing a ValidationException on save failures.
+     * This behavior can be skipped all the times or once by using {@link $throwOnSave} and {@link $throwOnNextSave}.
+     * @see $throwOnSave
+     * @see $throwOnNextSave
+     * @see \Phalcon\Mvc\Model::save()
+     * @param null $data
+     * @param null $whiteList
+     * @return int|bool Returns false on failures (if throw behavior is disabled) and the PKID on success calls.
+     *                  May return true if the PKID cannot be found (on {@link getPrimaryKeyValue()),
+     *                  but the save worked nonetheless.
+     * @throws ValidationException
+     */
+    public function save($data = null, $whiteList = null)
+    {
+        $result = parent::save($data, $whiteList);
+        // if the save failed, gather errors and return a validation failure if enabled
+
+        if (!$result) {
+            //default behavior is: return the value.
+            //throwOnNextSave has higher priority. if it's truthy, lets throw.
+            //if it's not set, the global flag takes precedence.
+            $throw = false;
+            if ($this->throwOnNextSave) {
+                $throw = true;
+                $this->throwOnNextSave = null;
+            } elseif (is_null($this->throwOnNextSave) && self::$throwOnSave) {
+                $throw = true;
+            }
+
+            if ($throw) {
+                throw new ValidationException('Validation Errors Encountered', [
+                    'code' => '50986904809',
+                    'dev' => get_called_class() . '::save() failed'
+                ], $this->getMessages());
+            }
+        } else { //it worked! let's return something more useful than a boolean: the ID, if possible
+            //an ID might not be found if there's something odd with the model's PK (hidden, for instance)
+            return $this->getPrimaryKeyValue() ?: true;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Simple chainable method to make {@link save()} calls a bit easier.
+     * @see $throwOnNextSave
+     * @param $bool
+     * @return $this
+     */
+    public function throwOnNextSave($bool = true)
+    {
+        $this->throwOnNextSave = $bool;
+        return $this;
+    }
+
 }

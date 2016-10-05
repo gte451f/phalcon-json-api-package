@@ -14,9 +14,9 @@ use Phalcon\Text;
  */
 class UserProfile extends Injectable
 {
-
     /**
      * holds the user identifier, populated by child application
+     * @var string
      */
     public $userName;
 
@@ -49,8 +49,7 @@ class UserProfile extends Injectable
     }
 
     /**
-     * issue an expiration datetime stamp
-     * replace with your own logic
+     * issue an expiration datetime stamp or replace with your own logic
      */
     public function generateExpiration()
     {
@@ -84,6 +83,7 @@ class UserProfile extends Injectable
 
     /**
      * take an array of profile data and return something the API can use
+     *
      * @param array $profile
      * @return \PhalconRest\Result\Result
      */

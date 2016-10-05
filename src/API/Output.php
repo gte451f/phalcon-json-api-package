@@ -46,8 +46,8 @@ class Output extends \Phalcon\DI\Injectable
      * format result set for output to web browser
      * add any final meta data
      *
-     * @param $result
-     * @return $this
+     * @param \PhalconRest\Result\Result $result
+     * @return void
      */
     public function send(\PhalconRest\Result\Result $result)
     {
@@ -117,8 +117,7 @@ class Output extends \Phalcon\DI\Injectable
      *
      * @param string $message
      */
-    private
-    function _send($message)
+    private function _send($message)
     {
         // Error's come from HTTPException. This helps set the proper envelope data
         $response = $this->di->get('response');
@@ -139,8 +138,7 @@ class Output extends \Phalcon\DI\Injectable
      * @param bool $envelope
      * @return object $this
      */
-    public
-    function useEnvelope($envelope)
+    public function useEnvelope($envelope)
     {
         $this->envelope = (bool)$envelope;
         return $this; // for method chaining
@@ -152,8 +150,7 @@ class Output extends \Phalcon\DI\Injectable
      * @param int $code
      * @param string $message
      */
-    public
-    function setStatusCode($code, $message)
+    public function setStatusCode($code, $message)
     {
         $this->httpCode = $code;
         $this->httpMessage = $message;

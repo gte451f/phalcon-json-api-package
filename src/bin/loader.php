@@ -57,8 +57,12 @@ $loader->register();
 // now init Phalcon DI object with services required by the core API
 require_once "services.php";
 
-// load logic to bootstrap the app
-require_once "bootstrap.php";
+// load logic to bootstrap the web app
+if (PHP_SAPI == 'cli') {
+    require_once 'bootstrap/cli.php';
+} else {
+    require_once 'bootstrap/web.php';
 
-// include special error handling logic
-require "errorHandler.php";
+    // include special error handling logic for JSON output
+    require "errorHandler.php";
+}
