@@ -141,24 +141,23 @@ class Entity extends Injectable
     }
 
     /**
-     * empty function intended to be replaced by a child function
+     * Hook intended to be overridden, that should execute anything related to {@link searchHelper}.
      */
     public function configureSearchHelper()
     {
     }
 
     /**
-     * for a given search query, perform find + load related records for each!
+     * For a given search query, performs a find + loading of related records
      *
-     * @param null $suppliedParameters
      * @return Result
      **/
-    public function find($suppliedParameters = null)
+    public function find()
     {
         // tell the result object what type of result to generate
         $this->result->outputMode = 'multiple';
 
-        $baseRecords = $this->runSearch($suppliedParameters);
+        $baseRecords = $this->runSearch();
 
         $foundSet = 0;
         if ($this->di->get('config')['application']['debugApp'] == true) {
@@ -258,9 +257,7 @@ class Entity extends Injectable
         // prep for a special kind of search
         $this->searchHelper->entityLimit = 1;
         $searchField = $this->model->getPrimaryKeyName();
-        $this->searchHelper->entitySearchFields = array(
-            $searchField => $id
-        );
+        $this->searchHelper->entitySearchFields = [$searchField => $id];
 
         $baseRecords = $this->runSearch();
 
@@ -287,7 +284,6 @@ class Entity extends Injectable
             // hook for manipulating the base record after processing relationships
             $this->afterProcessRelationships($baseResult);
 
-            // $this->restResponse[$this->model->getTableName('singular')][] = $this->baseRecord;
             $this->result->addData($this->baseRecord);
             $foundSet++;
         }
@@ -334,53 +330,30 @@ class Entity extends Injectable
     }
 
     /**
-     * will run a search, but forks to either do a PHQL based query
-     * or simple query depending on suppliedParameters
+     * coordinating action that performs a search based on underlying query builder
      *
-     * TODO do we need to support suppliedParameter anymore?
-     *
-     * @param string $suppliedParameters
      * @return mixed
      */
-    public function runSearch($suppliedParameters = null)
+    public function runSearch()
     {
-
         // hook before query in case entity needs to act
         $this->beforeQueryBuilderHook();
+        // run this once for the count
+        $query = $this->queryBuilder->build('count');
+        // access hook after queryBuilder in case entity needs to act on the query
+        $query = $this->afterQueryBuilderHook($query);
 
-        // run a simple search if parameters are supplied,
-        // this would only happen if another part of the app was calling this entity directly
-        // not sure we need this, it might be better to work directly on the searchHelper?
-        if (is_null($suppliedParameters)) {
-            // construct using PHQL
+        $result = $query->getQuery()->getSingleResult();
+        $this->recordCount = intval($result->count);
 
-            // run this once for the count
-            // access hook after queryBuilder in case entity needs to act on the query
-            $query = $this->queryBuilder->build('count');
+        if (!$this->searchHelper->isCount) {
+            // now run the real query with the same hooks
+            $this->beforeQueryBuilderHook();
+            $query = $this->queryBuilder->build();
             $query = $this->afterQueryBuilderHook($query);
-
-            $result = $query->getQuery()->getSingleResult();
-            $this->recordCount = intval($result->count);
-
-            if (!$this->searchHelper->isCount) {
-                // now run the real query
-                // access hook after queryBuilder in case entity needs to act on the query
-                $query = $this->queryBuilder->build();
-                $query = $this->afterQueryBuilderHook($query);
-
-                $result = $query->getQuery()->execute();
-                return $result;
-            } else {
-                return array();
-            }
+            return $query->getQuery()->execute();
         } else {
-            // strip out column filter since Phalcon doesn't return a full object then
-            if (isset($suppliedParameters['columns'])) {
-                unset($suppliedParameters['columns']);
-            }
-
-            // send back the search results
-            return $this->model->find($suppliedParameters);
+            return [];
         }
     }
 
@@ -389,16 +362,17 @@ class Entity extends Injectable
      * for a given base record, build an array to represent a single row including merged tables
      * strip out extra merge rows and return a single result record
      *
-     * @param mixed $baseRecord
+     * @param BaseModel $baseRecord
      * @return void
      */
     public function extractMainRow($baseRecord)
     {
         $class = get_class($baseRecord);
+
         // basically check for parent records and pull them out
         if ($class == 'Phalcon\Mvc\Model\Row') {
             // hold the combined and normalized array of data fields
-            $baseArray = array();
+            $baseArray = [];
             $primaryModel = $this->model->getModelNameSpace();
 
             foreach ($baseRecord as $record) {
@@ -425,11 +399,12 @@ class Entity extends Injectable
     }
 
     /**
-     * for a given record, load any related values
-     * called from both find and findFirst
-     *
-     * @param array|\Phalcon\Mvc\Model\Row $baseRecord the base record to decorate
-     * @return array $baseRecord the base record, but decorated
+     * For a given record, load any related values. Runs inside {@link find()} and {@link findFirst()}.
+     * @see processCustomRelationships()
+     * @see processStandardRelationships()
+     * @see $baseRecord
+     * @param \Phalcon\Mvc\Model\Row $baseRecord the base record to decorate
+     * @return bool Results are put together on {@link $baseRecord}
      */
     public function processRelationships($baseRecord)
     {
@@ -440,7 +415,9 @@ class Entity extends Injectable
         foreach ($this->activeRelations as $relation) {
             // check if this relationship has been flagged for custom processing
             $relationOptions = $relation->getOptions();
-            if (isset($relationOptions) && (array_key_exists('customProcessing', $relationOptions) && ($relationOptions['customProcessing'] === true))) {
+            if (isset($relationOptions) && (array_key_exists('customProcessing',
+                        $relationOptions) && ($relationOptions['customProcessing'] === true))
+            ) {
                 $this->processCustomRelationships($relation, $baseRecord);
             } else {
                 $this->processStandardRelationships($relation, $baseRecord);
@@ -472,6 +449,7 @@ class Entity extends Injectable
      * @param array $baseRecord
      * @throws HTTPException
      * @return mixed
+     * @fixme this method contains some odd return points
      */
     protected function processStandardRelationships($relation, $baseRecord)
     {
@@ -508,10 +486,16 @@ class Entity extends Injectable
                 case PhalconRelation::HAS_MANY_THROUGH:
                     $this->getHasManyToManyRecords($relation);
                     break;
-                default:
+
+                case PhalconRelation::HAS_MANY:
                     // register a future record request to be processed later
                     $this->registerHasManyRequest($relation);
+
                     break;
+
+                default:
+                    // wah!
+                    throw new HTTPException('Unknown relationship submitted', 500, ['code' => '4984846846849494']);
             }
             return true;
         }
@@ -519,7 +503,7 @@ class Entity extends Injectable
 
     /**
      * hook for an entity to act before queryBuilder runs
-     * no query object supplied this is is before one is generated
+     * no query object supplied since this occurs before one yet exists
      *
      * @return void
      */
@@ -553,6 +537,7 @@ class Entity extends Injectable
 
         $refModelNameSpace = $relation->getReferencedModel();
 
+        /** @var BaseModel $refModel */
         // store a copy of all related record (PKIDs)
         // this must be attached w/ the parent records for joining purposes
         $relatedRecordIds = null;
@@ -564,21 +549,21 @@ class Entity extends Injectable
             switch ($refType) {
                 // process hasOne records as well
                 case PhalconRelation::HAS_ONE:
-                    // do nothin w/ hasOne since these are auto merged into the main record
+                    // do nothing w/ hasOne since these are auto merged into the main record
                     break;
                 case PhalconRelation::BELONGS_TO:
                     // this doesn't seem right, why are they occasionally showing up inside an array?
                     if (isset($relatedRecords[$primaryKeyName])) {
                         $relatedRecordIds = $relatedRecords[$primaryKeyName];
                         // wrap in array so we can store multiple hasOnes from many different main records
-                        $relatedRecords = array($relatedRecords);
+                        $relatedRecords = [$relatedRecords];
                     } else {
                         $relatedRecordIds = $relatedRecords[0][$primaryKeyName];
                     }
                     break;
 
                 default:
-                    $relatedRecordIds = array();
+                    $relatedRecordIds = [];
                     foreach ($relatedRecords as $rec) {
                         $relatedRecordIds[] = $rec[$primaryKeyName];
                     }
@@ -666,22 +651,27 @@ class Entity extends Injectable
      * this works with each resultset's model to get a list of allowed columns
      * hence the similar method signature
      *
-     * @param \PhalconRest\API\BaseModel $resultSet
+     * @param BaseModel $resultSet
      * @param bool $nameSpace
      * @param bool $includeParent
      * @return array
      */
     protected function loadAllowedColumns(BaseModel $resultSet, $nameSpace = true, $includeParent = true)
     {
-        $record = array();
+        $record = [];
         $allowedFields = $resultSet->getAllowedColumns($nameSpace, $includeParent);
         foreach ($allowedFields as $field) {
             if (isset($resultSet->$field)) {
                 $record[$field] = $resultSet->$field;
             } else {
-                // error, field doesn't exist on resultSet!
-                // don't set to null, just leave it alone
-                $record[$field] = null;
+                $getter = 'get' . ucfirst($field);
+                if (method_exists($resultSet, $getter)) {
+                    $record[$field] = $resultSet->$getter();
+                } else {
+                    // error, field doesn't exist on resultSet!
+                    // don't set to null, just leave it alone
+                    $record[$field] = null;
+                }
             }
         }
         return $record;
@@ -692,9 +682,9 @@ class Entity extends Injectable
      * in cases where the related record itself refers to a parent record,
      * write a custom query to load the related record including it's parent
      *
-     * depends on the existence of a primaryKeyValue
+     * depends on the existance of a primaryKeyValue
      *
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      * @return array
      */
     protected function getHasManyRecords(Relation $relation)
@@ -712,7 +702,7 @@ class Entity extends Injectable
     /**
      * store away a request for a record in a child table
      * this registry is later processed to side load found records
-     * @param Relation $relation
+     * @param Relation|PhalconRelation $relation
      */
     protected function registerHasManyRequest(Relation $relation)
     {
@@ -751,7 +741,8 @@ class Entity extends Injectable
         // since this record has already been loaded, we only need to link to current record
         //...or maybe not if it's already connected
         if ($existingRecord) {
-            $this->baseRecord->addRelationship($relation->getTableName('singular'), $existingRecord->getId(), $tableName);
+            $this->baseRecord->addRelationship($relation->getTableName('singular'), $existingRecord->getId(),
+                $tableName);
         } else {
             // query uses model prefix to avoid ambiguous queries
             $query->where("{$relation->getReferencedModel()}.{$referencedField} = \"{$this->baseRecord->attributes[$foreignKey]}\"");
@@ -782,15 +773,18 @@ class Entity extends Injectable
         $modelNameSpace = $config['namespaces']['models'];
         $mm = $this->getDI()->get('modelsManager');
 
+        /** @var \Phalcon\Mvc\Model\Query\Builder $query */
         $query = $mm->createBuilder()
             ->from($intermediateModelNameSpace)
-            ->join($refModelNameSpace, $refModelNameSpace . ".$referencedField = " . $intermediateModelNameSpace . ".$intermediateFields");
+            ->join($refModelNameSpace,
+                $refModelNameSpace . ".$referencedField = " . $intermediateModelNameSpace . ".$intermediateFields");
 
-        $columns = array();
+        $columns = [];
 
         // join in parent record if one is detected
         $parentName = $relation->getParent();
         if ($parentName) {
+            /** @var BaseModel $parentModel */
             // load parent model
             $parentModelNameSpace = $modelNameSpace . $parentName;
             $parentModel = new $refModelNameSpace();
@@ -811,10 +805,11 @@ class Entity extends Injectable
             $fieldValue = $this->baseRecord->attributes[$field];
         } else {
             // required search field isn't found
-            throw new HTTPException("Bad ManyToMany relationship encountered.  Missing required search field.", 404, array(
-                'dev' => "Expecting $field to be present in baseRecord->attributes",
-                'code' => '239049827359827394'
-            ));
+            throw new HTTPException("Bad ManyToMany relationship encountered.  Missing required search field.", 404,
+                array(
+                    'dev' => "Expecting $field to be present in baseRecord->attributes",
+                    'code' => '239049827359827394'
+                ));
         }
 
         $whereField = $intermediateModelNameSpace . '.' . $relation->getIntermediateFields();
@@ -831,10 +826,11 @@ class Entity extends Injectable
      */
     private function buildRelationQuery(Relation $relation)
     {
+        /** @var \Phalcon\Mvc\Model\Query\Builder $query */
         $refModelNameSpace = $relation->getReferencedModel();
         $mm = $this->getDI()->get('modelsManager');
         $query = $mm->createBuilder()->from($refModelNameSpace);
-        $columns = array();
+        $columns = [];
 
         // hasOnes are auto merged
         // todo should this be controlled by entityWith?
@@ -859,7 +855,7 @@ class Entity extends Injectable
      * @param Relation $relation
      * @param boolean $before is this being run before or after all baseRecords were loaded?
      */
-    protected function loadRelationRecords($relatedRecords, \PhalconRest\API\Relation $relation, $before = true)
+    protected function loadRelationRecords($relatedRecords, Relation $relation, $before = true)
     {
         foreach ($relatedRecords as $relatedRecord) {
             // reset for each run
@@ -878,6 +874,7 @@ class Entity extends Injectable
                             continue;
                         }
                     }
+                    // we don't ask for parent fields here because they are already included in the complex $result
                     $relatedRecArray = array_merge($this->loadAllowedColumns($rec, false, false), $relatedRecArray);
                 }
             } else {
@@ -904,12 +901,12 @@ class Entity extends Injectable
             $newInclude = new Data($relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray);
 
             if ($before) {
-                $this->baseRecord->addRelationship($relationshipName, $relatedRecArray['id'], $relation->getTableName('plural'));
-                // $newInclude->addRelationship('accounts', $this->baseRecord->getId());
+                $this->baseRecord->addRelationship($relationshipName, $relatedRecArray['id'],
+                    $relation->getTableName('plural'));
             } else {
                 // load relationship after baseRecords have been processed
-                $this->result->addRelationship($relatedRecArray[$relation->getReferencedFields()], $relationshipName, $relatedRecArray['id'], $relation->getTableName('plural'));
-                // $newInclude->addRelationship('accounts', $relatedRecArray[$relation->getReferencedFields()]);
+                $this->result->addRelationship($relatedRecArray[$relation->getReferencedFields()], $relationshipName,
+                    $relatedRecArray['id'], $relation->getTableName('plural'));
             }
             $this->result->addIncluded($newInclude);
         }
@@ -927,16 +924,16 @@ class Entity extends Injectable
      * all = load all possible relationships
      * csv,list = load only these relationships
      *
-     * @return bool
+     * @return bool|void
      */
     final public function loadActiveRelationships()
     {
         // no need to run this multiple times
         if (!is_null($this->activeRelations)) {
-            return;
+            return null;
         }
 
-        $this->activeRelations = array();
+        $this->activeRelations = [];
         $requestedRelationships = $this->searchHelper->getWith();
         $parentModels = $this->model->getParentModels(false);
         $modelRelationships = $this->model->getRelations();
@@ -948,11 +945,7 @@ class Entity extends Injectable
             case 'none':
                 $all = false;
                 // gotta load parents if there are any
-                if ($parentModels) {
-                    $requestedRelationships = $parentModels;
-                } else {
-                    $requestedRelationships = array();
-                }
+                $requestedRelationships = $parentModels ? $parentModels : [];
                 break;
             case 'all':
                 $all = true;
@@ -969,6 +962,7 @@ class Entity extends Injectable
                 break;
         }
 
+        //FIXME: there's a lot of repeated code here. Simplify this!
         if ($all) {
             // load all defined relationships regardless of what was requested
             foreach ($modelRelationships as $relation) {
@@ -1081,20 +1075,16 @@ class Entity extends Injectable
                 foreach ($this->model->getMessages() as $message) {
                     $messageBag->set($message->getMessage());
                 }
-                throw new HTTPException("Error deleting record #$id.", 500, array(
-                    'code' => '66498419846816'
-                ));
+                throw new HTTPException("Error deleting record #$id.", 500, ['code' => '66498419846816']);
             }
         } else {
             // no record found to delete
-            throw new HTTPException("Could not find record #$id to delete.", 404, array(
+            throw new HTTPException("Could not find record #$id to delete.", 404, [
                 'dev' => "No record was found to delete",
                 'code' => '2343467699'
-            ));
+            ]);
         }
-
         $this->afterDelete($modelToDelete);
-
         return true;
     }
 
@@ -1104,7 +1094,7 @@ class Entity extends Injectable
      *
      * @param BaseModel $model the record to be deleted
      */
-    public function beforeDelete(\PhalconRest\API\BaseModel $model)
+    public function beforeDelete(BaseModel $model)
     {
         // extend me in child class
     }
@@ -1123,7 +1113,7 @@ class Entity extends Injectable
     /**
      * hook to be run before an entity is saved make it easier to extend default save logic
      *
-     * @param array $object the data submitted to the server
+     * @param object $object the data submitted to the server
      * @param int|null $id the pkid of the record to be updated, otherwise null on inserts
      * @return object $object
      */
@@ -1166,7 +1156,7 @@ class Entity extends Injectable
      * @param int $id the pkid of the record to be updated, otherwise null on inserts
      * @return int the PKID of the record in question
      */
-    public function save($formData, $id = NULL)
+    public function save($formData, $id = null)
     {
         // $inflector = new Inflector();
 
@@ -1175,6 +1165,13 @@ class Entity extends Injectable
             $this->saveMode = 'insert';
             // pre-save hook placed after saveMode
             $formData = $this->beforeSave($formData, $id);
+
+            //need to create a new model since this is an insert
+            $modelNameSpace = $this->model->getModelNameSpace();
+            $this->model = new $modelNameSpace($this->di);
+            // re-init the model to pick up any special options
+            $this->model->initialize();
+
             // load a model including potential parents
             $primaryModel = $this->loadParentModel($this->model, $formData);
         } else {
@@ -1206,7 +1203,8 @@ class Entity extends Injectable
             // }
         }
 
-        $result = $this->simpleSave($primaryModel);
+        // no need to pass in formdata since it was already loaded in $this->loadParentModel
+        $result = $primaryModel->save();
 
         // if still blank, pull from recently created $result
         if (is_null($id)) {
@@ -1225,15 +1223,15 @@ class Entity extends Injectable
 
     /**
      * for a given model, load the parent if it exists
-     * return the final definitive parent model
+     * return the final definitive parent model,
      * along with loading client submitted data into each model
      *
      *
      * @param BaseModel $model
      * @param object $object
-     * @return object $model
+     * @return bool|object $model
      */
-    public function loadParentModel($model, $object)
+    public function loadParentModel(BaseModel $model, $object)
     {
 
         // invalid first param, return false though it won't do much good
@@ -1300,23 +1298,15 @@ class Entity extends Injectable
     }
 
     /**
-     * save a model and collect any error messages that may be returned
-     * return the model PKID whether insert or update
-     *
+     * Simple alias for {@link BaseModel::save()}.
+     * Used to do more stuff that now happens inside the model. Replace with <code>$model->save()</code>.
+     * @deprecated
      * @param BaseModel $model
      * @throws ValidationException
-     * @return int
+     * @return int|false
      */
     function simpleSave($model)
     {
-        $result = $model->save();
-        // if the save failed, gather errors and return a validation failure
-        if ($result == false) {
-            throw new ValidationException("Validation Errors Encountered", array(
-                'code' => '7894181864684',
-                'dev' => 'entity->simpleSave failed to save model'
-            ), $model->getMessages());
-        }
-        return $model->getPrimaryKeyValue();
+        return $model->save();
     }
 }

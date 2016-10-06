@@ -134,7 +134,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * Instance counterpart of {@link $throwOnSave}. Resets after one save() call.
      * If this is true, on save errors an exception will be thrown.
      * If false, errors will be returned instead (original Phalcon behavior).
-     * If it's null, it'll obbey the global {@link $throwOnSave} flag.
+     * If it's null, it'll obey the global {@link $throwOnSave} flag.
      * @see $throwOnSave
      * @see throwOnNextSave()
      * @see save()
