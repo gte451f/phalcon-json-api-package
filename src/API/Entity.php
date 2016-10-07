@@ -1169,8 +1169,11 @@ class Entity extends Injectable
             //need to create a new model since this is an insert
             $modelNameSpace = $this->model->getModelNameSpace();
             $this->model = new $modelNameSpace($this->di);
-            // re-init the model to pick up any special options
-            $this->model->initialize();
+            // i want to re-init the model to pick up any special options
+            // but this will cause occasional errors by loading duplicate copies of some relationships
+            // TODO move this logic into some sort of entity->reset() function so libraries
+            // can call it when they use the entity multiple times
+            // $this->model->initialize();
 
             // load a model including potential parents
             $primaryModel = $this->loadParentModel($this->model, $formData);

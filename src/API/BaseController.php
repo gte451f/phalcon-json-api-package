@@ -318,7 +318,6 @@ class BaseController extends Controller
             // go through model relationships and look for foreign keys
             $modelRelations = $this->model->getRelations();
             foreach ($modelRelations as $relation) {
-
                 switch ($relation->getType()) {
                     case PhalconRelation::HAS_ONE:
                     case PhalconRelation::BELONGS_TO:

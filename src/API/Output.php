@@ -91,7 +91,7 @@ class Output extends \Phalcon\DI\Injectable
 
                 $fieldName = $inflector->normalize($validation->getField(), $this->di->get('config')['application']['propertyFormatTo']);
 
-                $source->pointer = "data/atttributes/$fieldName";
+                $source->pointer = "data/attributes/$fieldName";
                 $result['errors'][] = ['detail' => $validation->getMessage(), 'source' => $source, 'status' => $this->httpCode];
             }
         } else {
