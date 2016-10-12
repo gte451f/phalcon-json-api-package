@@ -735,7 +735,8 @@ class Entity extends Injectable
         // can take a shortcut here,
         // check to see if this record has already been loaded
         $tableName = $relation->getTableName();
-        $foreignKeyValue = $baseRecord->Attendees->$referencedField;
+        $modelName = $relation->getModelName();
+        $foreignKeyValue = $baseRecord->$modelName->$referencedField;
         $existingRecord = $this->result->getInclude($tableName, $foreignKeyValue);
 
         // since this record has already been loaded, we only need to link to current record
