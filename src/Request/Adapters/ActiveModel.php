@@ -15,7 +15,7 @@ class ActiveModel extends Request
 {
 
     /**
-     * pull data from a JSON API supplied POST/PUT
+     * pull data from a supplied POST/PUT
      * Will either return the whole input as an array otherwise, will return an individual property
      * supports existing case conversion logic
      * TODO: Filter
@@ -29,11 +29,12 @@ class ActiveModel extends Request
         // normalize name to all lower case
         $inflector = new Inflector();
         $name = $inflector->underscore($name);
-        $json = $this->getJsonRawBody();
 
-        $request = null;
+        // $raw = $this->getRawBody();
+        $json = $this->getJsonRawBody();
+        $request = NULL;
         if (is_object($json)) {
-            if ($name != null) {
+            if ($name != NULL) {
                 if (isset($json->$name)) {
                     $request = $json->$name;
                 } else {

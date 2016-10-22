@@ -71,18 +71,14 @@ $overridePath = APPLICATION_PATH . 'config/config.php';
 if (file_exists($overridePath)) {
     $config = array_merge_recursive_replace($config, require($overridePath));
 } else {
-    throw new HTTPException("Fatal Exception Caught.", 500, array(
-        'dev' => "Invalid Environmental Config!  Could not load the specific config file.  Your environment is: "
-            . APPLICATION_ENV . " but not matching file was found in /app/config/",
-        'code' => '23897293759275'
-    ));
+    throw new Exception("Invalid Environmental Config!  Could not load the specific config file. Your environment is:"
+        . APPLICATION_ENV . " but not matching file was found in /app/config/", 23897293759275);
 }
 
+// makes no sense to convert from like to like
+// can't throw Exception, not sure why
 if ($config['application']['propertyFormatTo'] == $config['application']['propertyFormatFrom']) {
-    throw new HTTPException('Invalid nomalization requested', 404, array(
-        'dev' => 'The API attempted to normalize from one format to the same format',
-        'code' => '9879486448949497977'
-    ));
+    throw new Exception('The API attempted to normalize from one format to the same format', 21345);
 }
 
 return new \Phalcon\Config($config);
