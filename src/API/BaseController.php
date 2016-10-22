@@ -3,7 +3,6 @@ namespace PhalconRest\API;
 
 use Phalcon\DI;
 use Phalcon\Mvc\Controller;
-use Phalcon\Mvc\Model\Relation as PhalconRelation;
 use PhalconRest\Exception\HTTPException;
 
 /**
@@ -130,7 +129,7 @@ class BaseController extends Controller
     {
         if ($type == 'singular') {
             // auto calc if not already set
-            if ($this->singularName == NULL) {
+            if ($this->singularName == null) {
                 $className = get_called_class();
                 $config = $this->getDI()->get('config');
                 $className = str_replace($config['namespaces']['controllers'], '', $className);
@@ -140,7 +139,7 @@ class BaseController extends Controller
             return $this->singularName;
         } elseif ($type == 'plural') {
             // auto calc most common plural
-            if ($this->pluralName == NULL) {
+            if ($this->pluralName == null) {
                 // this could be better, just adding an s by default
                 $this->pluralName = $this->getControllerName('singular') . 's';
             }
@@ -196,7 +195,7 @@ class BaseController extends Controller
     public function post()
     {
         $request = $this->getDI()->get('request');
-        $post = $this->mungeSubmittedData($request->getJson());
+        $post = $request->mungeData($request->getJson(), $this->model);
 
         if (!$post) {
             throw new HTTPException("There was an error adding new record.  Missing POST data.", 400, array(
@@ -255,7 +254,7 @@ class BaseController extends Controller
     {
         $request = $this->getDI()->get('request');
         // load up the expected object based on the controller name
-        $put = $this->mungeSubmittedData($request->getJson());
+        $put = $request->mungeData($request->getJson(), $this->model);
 
         if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(
@@ -288,70 +287,6 @@ class BaseController extends Controller
         }
     }
 
-
-    /**
-     * will disentangle the mess JSON API submits down to something our API can work with
-     *
-     * @param $post
-     * @return mixed
-     * @throws HTTPException
-     */
-    public function mungeSubmittedData($post)
-    {
-        // munge a bit so it works for internal data handling
-        if (!isset($post->attributes)) {
-            // error here, all posts require an attributes tag
-            throw new HTTPException("The API received a malformed API request", 400, [
-                'dev' => 'Bad or incomplete attributes property submitted to the api',
-                'code' => '894168146168168168161'
-            ]);
-        } else {
-            $data = $post->attributes;
-        }
-
-        if (isset($post->id)) {
-            $data->id = $post->id;
-        }
-
-        // pull out relationships and convert to simple FKs
-        if (isset($post->relationships)) {
-            // go through model relationships and look for foreign keys
-            $modelRelations = $this->model->getRelations();
-            foreach ($modelRelations as $relation) {
-                switch ($relation->getType()) {
-                    case PhalconRelation::HAS_ONE:
-                    case PhalconRelation::BELONGS_TO:
-                        // pull from singular
-                        $name = $relation->getTableName('singular');
-                        if (isset($post->relationships->$name)) {
-                            $fk = $relation->getFields();
-                            if (isset($post->relationships->$name->data->id)) {
-                                $data->$fk = $post->relationships->$name->data->id;
-                            } else {
-                                // A bad or incomplete relationship record was submitted
-                                // this isn't always an error, it might be that an empty relationship was submitted
-
-                                // throw new HTTPException("An error occurred saving this record.", 400, [
-                                //    'dev' => 'Bad or incomplete relationship record posted to the api.',
-                                //    'code' => '4894681316189'
-                                // ]);
-                            }
-                        }
-                        break;
-
-                    case PhalconRelation::HAS_MANY:
-                        // pull plural?
-
-                        break;
-                    default:
-
-                        break;
-                }
-            }
-        }
-
-        return $data;
-    }
 
     /**
      * hook to be run before a controller calls it's save action

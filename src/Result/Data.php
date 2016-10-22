@@ -8,17 +8,20 @@ use Phalcon\Mvc\Model\Relation as PhalconRelation;
  * Basic object to store a single Data object, one or more data objects are strung together for
  * a complete JSON API response
  */
-class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
+abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
 {
 
     /**
      * @var int
      */
-    private $id;
+    protected $id;
+
     /**
+     * this maps to a model or table name?
+     *
      * @var string
      */
-    private $type;
+    protected $type;
 
     /**
      * the list of related attributes for this resource
@@ -37,6 +40,14 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      */
     public $relationships;
 
+    /**
+     * Data constructor.
+     *
+     * @param int $id
+     * @param string $type
+     * @param array $attributes
+     * @param array $relationships
+     */
     public function __construct($id, $type, array $attributes = [], array $relationships = [])
     {
         $di = \Phalcon\DI::getDefault();
@@ -50,39 +61,6 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         unset($attributes['id']);
         $this->attributes = $attributes;
         $this->relationships = $relationships;
-    }
-
-    /**
-     * hook to describe how to encode this class for JSON
-     *
-     * @return array
-     */
-    public function JsonSerialize()
-    {
-        // if formatting is requested, well then format baby!
-        $config = $this->di->get('config');
-        if ($config['application']['propertyFormatTo'] == 'none') {
-            $attributes = $this->attributes;
-        } else {
-            $inflector = $this->di->get('inflector');
-            $attributes = [];
-            foreach ($this->attributes as $key => $value) {
-                $attributes[$inflector->normalize($key,
-                    $config['application']['propertyFormatTo'])] = $value;
-            }
-        }
-
-        $result = [
-            'id' => $this->id,
-            'type' => $this->type,
-            'attributes' => $attributes
-        ];
-
-        if ($this->relationships) {
-            $result['relationships'] = $this->relationships;
-        }
-
-        return $result;
     }
 
     /**
@@ -113,9 +91,10 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         if (isset($this->relationships[$relationshipName])) {
             if ($relationship->getType() == PhalconRelation::HAS_ONE OR $relationship->getType() == PhalconRelation::BELONGS_TO) {
                 // this is a problem, attempting to load multiple records into a relationship designed for one record
-                throw new HTTPException("Attempting to load multiple records into a relationships defined for a single record!", 500, array(
-                    'code' => '3894646846313546467974974'
-                ));
+                throw new HTTPException("Attempting to load multiple records into a relationships defined for a single record!",
+                    500, array(
+                        'code' => '3894646846313546467974974'
+                    ));
             }
             $this->relationships[$relationshipName]['data'][] = ['id' => $id, 'type' => $type];
         } else {
@@ -129,14 +108,19 @@ class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         }
     }
 
-    /*
+    /**
      * simple getters and setters
+     * @return int
      */
     public function getId()
     {
         return $this->id;
     }
 
+    /**
+     * return the data's type property
+     * @return string
+     */
     public function getType()
     {
         return $this->type;

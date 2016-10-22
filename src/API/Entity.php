@@ -395,7 +395,8 @@ class Entity extends Injectable
         } else {
             $baseArray = $this->loadAllowedColumns($baseRecord, false, false);
         }
-        $this->baseRecord = new Data($baseArray['id'], $this->model->getTableName('plural'), $baseArray);
+        $this->baseRecord = $this->di->get('data',
+            [$baseArray['id'], $this->model->getTableName('plural'), $baseArray]);
     }
 
     /**
@@ -642,7 +643,7 @@ class Entity extends Injectable
     protected function updateRestResponse($table, $records)
     {
         foreach ($records as $record) {
-            $this->result->addIncluded(new Data($record['id'], $table, $record));
+            $this->result->addIncluded($this->di->get('data', [$record['id'], $table, $record]));
         }
     }
 
@@ -899,7 +900,9 @@ class Entity extends Injectable
             } else {
                 $relationshipName = $relation->getTableName('plural');
             }
-            $newInclude = new Data($relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray);
+
+            $newInclude = $this->di->get('data',
+                [$relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray]);
 
             if ($before) {
                 $this->baseRecord->addRelationship($relationshipName, $relatedRecArray['id'],

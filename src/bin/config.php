@@ -33,16 +33,18 @@ $config = [
         // where should app generated logs be stored?
         'loggingDir' => '/tmp/',
 
-        // how should property names be formatted?
+        // how should property names be formatted in results?
         // possible values are camel, snake, dash and none
         // none means perform no processing on the final output
         'propertyFormatTo' => 'dash',
 
         // how are your existing database field name formatted?
         // possible values are camel, snake, dash
-        // this value is ignored if property_format_to is set to none
-        'propertyFormatFrom' => 'snake'
+        // none means perform no processing on the incoming values
+        'propertyFormatFrom' => 'snake',
 
+        // would also accept any FOLDER name in Result\Adapters
+        'outputFormat' => 'JsonApi'
     ],
 
     // location to various code sources

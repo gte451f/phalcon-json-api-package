@@ -5,7 +5,7 @@
 use Phalcon\DI;
 
 // PhalconRest libraries
-use PhalconRest\API\Request as Request;
+use PhalconRest\Request\Request as Request;
 use PhalconRest\Util\Inflector;
 
 // for password and credit card encryption
@@ -24,11 +24,16 @@ $T->start('Booting App');
 
 $di = (PHP_SAPI == 'cli') ? new DI\FactoryDefault\Cli : new DI\FactoryDefault;
 
-$di->setShared('request', function () {
-    // $request = new \PhalconRest\Libraries\Request\Request();
-    $request = new Request();
-    // we expect inputs to be camel, so we convert to snake for server side
-    $request->defaultCaseFormat = 'snake';
+// load the proper request object depending on the specified format
+$di->setShared('request', function () use ($config) {
+    if (isset($config['application']['outputFormat'])) {
+        $outputFormat = $config['application']['outputFormat'];
+    } else {
+        $outputFormat = 'JsonApi';
+    }
+    $classpath = '\PhalconRest\Request\Adapters\\' . $outputFormat;
+    $request = new $classpath();
+    $request->defaultCaseFormat = $config['application']['propertyFormatFrom'];
     return $request;
 });
 
@@ -86,6 +91,33 @@ $di->setShared('cache', function () use ($config) {
 });
 
 
+// load a result adapter based on what is configured in the app
+$di->setShared('result', function () use ($config) {
+    if (isset($config['application']['outputFormat'])) {
+        $outputFormat = $config['application']['outputFormat'];
+    } else {
+        $outputFormat = 'JsonApi';
+    }
+    $classpath = '\PhalconRest\Result\Adapters\\' . $outputFormat . '\Result';
+    return new $classpath();
+});
+
+
+// load a data adapter based on what is configured in the app
+$di->set(
+    "data",
+    [
+        "className" => "\\PhalconRest\\Result\\Adapters\\" . $config['application']['outputFormat'] . "\\Data",
+        "arguments" => [
+            ["type" => "parameter"],
+            ["type" => "parameter"],
+            ["type" => "parameter"],
+            ["type" => "parameter"]
+        ]
+    ]
+);
+
+
 $di->setShared('modelsManager', function () {
     return new \Phalcon\Mvc\Model\Manager();
 });
@@ -118,12 +150,6 @@ $di->setShared('inflector', function () {
     return new Inflector();
 });
 
-//
-$di->setShared('result', function () {
-    return new \PhalconRest\Result\Result();
-});
-
-
 /**
  * If our request contains a body, it has to be valid JSON.
  * This parses the body into a standard Object and makes that available from the DI.
@@ -132,15 +158,16 @@ $di->setShared('result', function () {
  */
 $di->setShared('requestBody', function () {
     $in = file_get_contents('php://input');
-    $in = json_decode($in, FALSE);
+    $in = json_decode($in, false);
 
     // JSON body could not be parsed, throw exception
     if ($in === null) {
-        throw new HTTPException('There was a problem understanding the data sent to the server by the application.', 409, array(
-            'dev' => 'The JSON body sent to the server was unable to be parsed.',
-            'code' => '5',
-            'more' => ''
-        ));
+        throw new HTTPException('There was a problem understanding the data sent to the server by the application.',
+            409, array(
+                'dev' => 'The JSON body sent to the server was unable to be parsed.',
+                'code' => '5',
+                'more' => ''
+            ));
     }
     return $in;
 });

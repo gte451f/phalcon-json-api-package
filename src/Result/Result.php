@@ -10,19 +10,19 @@ use PhalconRest\Result\Data;
  * This result object is designed specifically for use in JSON API and is not intended
  * as a general purpose result collection
  */
-class Result extends \Phalcon\DI\Injectable
+abstract class Result extends \Phalcon\DI\Injectable
 {
 
     // a collection of individual data objects
-    private $data = [];
-    private $meta = false;
-    private $errors = [];
+    protected $data = [];
+    protected $meta = false;
+    protected $errors = [];
     // store a collection of data like items
-    private $included = [];
+    protected $included = [];
 
     // store the list of relationships for a "main" record type
     // each data object will refer to this when formatting data objects
-    private $relationshipRegistry = [];
+    protected $relationshipRegistry = [];
 
     /**
      * @var string is the result going to output a single result or an array of results?
@@ -85,11 +85,25 @@ class Result extends \Phalcon\DI\Injectable
         }
     }
 
+    /**
+     * push new data objects into the data array
+     *
+     * @param Data $newData
+     */
     public function addData(Data $newData)
     {
         $this->data[] = $newData;
     }
 
+
+    /**
+     * @param $id
+     * @param null $status
+     * @param null $code
+     * @param null $title
+     * @param null $detail
+     * @param array $meta
+     */
     public function addErrors($id, $status = null, $code = null, $title = null, $detail = null, array $meta = [])
     {
         $this->outputMode = 'error';
@@ -101,6 +115,10 @@ class Result extends \Phalcon\DI\Injectable
         $this->included[] = $newData;
     }
 
+    /**
+     * @param $key
+     * @param $value
+     */
     public function addMeta($key, $value)
     {
         // flag for initial use
@@ -110,34 +128,12 @@ class Result extends \Phalcon\DI\Injectable
         $this->meta->$key = $value;
     }
 
-    public function outputJSON()
-    {
-        $result = new \stdClass();
-        if ($this->outputMode != 'error') {
-            if ($this->outputMode == 'single') {
-                $result->data = $this->data[0];
-            } elseif ($this->outputMode == 'multiple') {
-                $result->data = $this->data;
-            } else {
-                throw new HTTPException("Error generating output.  Unknown output mode submitted.", 500, array(
-                    'code' => '894684684646846816161'
-                ));
-            }
-
-            if (count($this->included) > 0) {
-                $result->included = $this->included;
-            }
-        } else {
-            $result->errors = $this->errors;
-        }
-        // only include if it has valid data
-        if ($this->meta) {
-            $result->meta = $this->meta;
-        }
-
-        // return json_encode($result);
-        return $result;
-    }
+    /**
+     * to be implemented by each adapter
+     *
+     * @return mixed
+     */
+    abstract public function outputJSON();
 
     /**
      * for a supplied primary id and related id, create a relationship
@@ -154,7 +150,6 @@ class Result extends \Phalcon\DI\Injectable
                 $this->data[$key]->addRelationship($relationship, $related_id, $type);
                 return true;
             }
-
         }
         return false;
     }
@@ -162,6 +157,8 @@ class Result extends \Phalcon\DI\Injectable
 
     /**
      * return the number of records stored in the result object
+     *
+     * @return int
      */
     public function countResults()
     {
@@ -170,11 +167,11 @@ class Result extends \Phalcon\DI\Injectable
 
 
     /**
-     * for a given relationship and id, return the matching included record
+     * for a given reltionship and id, return the matching included record
+     *
      * @param $relationshipName
-     * @param $referencedField
      * @param $id
-     * @return bool
+     * @return bool|mixed
      */
     public function getInclude($relationshipName, $id)
     {
