@@ -737,7 +737,8 @@ class Entity extends Injectable
         // check to see if this record has already been loaded
         $tableName = $relation->getTableName();
         $modelName = $relation->getModelName();
-        $foreignKeyValue = $baseRecord->$modelName->$referencedField;
+        $aliasName = $relation->getAlias();
+        $foreignKeyValue = $baseRecord->$aliasName->$referencedField;
         $existingRecord = $this->result->getInclude($tableName, $foreignKeyValue);
 
         // since this record has already been loaded, we only need to link to current record
@@ -747,7 +748,7 @@ class Entity extends Injectable
                 $tableName);
         } else {
             // query uses model prefix to avoid ambiguous queries
-            $query->where("{$relation->getReferencedModel()}.{$referencedField} = \"{$this->baseRecord->attributes[$foreignKey]}\"");
+            $query->where("{$relation->getReferencedModel()}.{$referencedField} = \"{$this->baseRecord->getFieldValue($foreignKey)}\"");
             $result = $query->getQuery()->execute();
             return $this->loadRelationRecords($result, $relation);
         }
@@ -802,18 +803,7 @@ class Entity extends Injectable
         // Load the main record field at the end, so they are not overwritten
         $columns[] = $refModelNameSpace . ".*, " . $intermediateModelNameSpace . ".*";
         $query->columns($columns);
-
-        if (isset($this->baseRecord->attributes[$field])) {
-            $fieldValue = $this->baseRecord->attributes[$field];
-        } else {
-            // required search field isn't found
-            throw new HTTPException("Bad ManyToMany relationship encountered.  Missing required search field.", 404,
-                array(
-                    'dev' => "Expecting $field to be present in baseRecord->attributes",
-                    'code' => '239049827359827394'
-                ));
-        }
-
+        $fieldValue = $this->baseRecord->getFieldValue($field);
         $whereField = $intermediateModelNameSpace . '.' . $relation->getIntermediateFields();
         $query->where("{$whereField} = \"$fieldValue\"");
         $result = $query->getQuery()->execute();

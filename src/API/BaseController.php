@@ -195,7 +195,7 @@ class BaseController extends Controller
     public function post()
     {
         $request = $this->getDI()->get('request');
-        $post = $request->mungeData($request->getJson(), $this->model);
+        $post = $request->mungeData($request->getJson($this->getControllerName('singular')), $this->model);
 
         if (!$post) {
             throw new HTTPException("There was an error adding new record.  Missing POST data.", 400, array(
@@ -254,7 +254,7 @@ class BaseController extends Controller
     {
         $request = $this->getDI()->get('request');
         // load up the expected object based on the controller name
-        $put = $request->mungeData($request->getJson(), $this->model);
+        $put = $request->mungeData($request->getJson($this->getControllerName('singular')), $this->model);
 
         if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(

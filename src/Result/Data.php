@@ -89,13 +89,16 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         $type = $inflector->normalize($type, $config['application']['propertyFormatTo']);
 
         if (isset($this->relationships[$relationshipName])) {
-            if ($relationship->getType() == PhalconRelation::HAS_ONE OR $relationship->getType() == PhalconRelation::BELONGS_TO) {
-                // this is a problem, attempting to load multiple records into a relationship designed for one record
-                throw new HTTPException("Attempting to load multiple records into a relationships defined for a single record!",
-                    500, array(
-                        'code' => '3894646846313546467974974'
-                    ));
-            }
+
+            // surprisingly this can be valid when for example there are multiple belongsTo relationships defined between the same two tables
+            // ie. document -> created_by AND document -> edited_by AND document -> owned_by
+            // if ($relationship->getType() == PhalconRelation::HAS_ONE OR $relationship->getType() == PhalconRelation::BELONGS_TO) {
+            // this is a problem, attempting to load multiple records into a relationship designed for one record
+            //throw new HTTPException("Attempting to load multiple records into a relationships defined for a single record!",
+            //    500, array(
+            //        'code' => '3894646846313546467974974'
+            //    ));
+            // }
             $this->relationships[$relationshipName]['data'][] = ['id' => $id, 'type' => $type];
         } else {
             if ($relationship->getType() == PhalconRelation::HAS_ONE OR $relationship->getType() == PhalconRelation::BELONGS_TO) {
@@ -124,5 +127,38 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
     public function getType()
     {
         return $this->type;
+    }
+
+
+    /**
+     * @param $type
+     */
+    public function setType($type)
+    {
+        $this->type = $type;
+    }
+
+
+    /**
+     * return the value for a given field name
+     *
+     * @param $name
+     * @return mixed
+     * @throws HTTPException
+     */
+    public function getFieldValue($name)
+    {
+
+
+        if ($name == 'id') {
+            return $this->id;
+        } elseif (array_key_exists($name, $this->attributes)) {
+            return $this->attributes[$name];
+        } else {
+            throw new HTTPException('No matching field name found.', 500, array(
+                'dev' => "The API requested a field name that doesn't existing in this data object: $name",
+                'code' => '8794793549444'
+            ));
+        }
     }
 }
