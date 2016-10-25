@@ -92,15 +92,26 @@ $di->setShared('cache', function () use ($config) {
 
 
 // load a result adapter based on what is configured in the app
-$di->setShared('result', function () use ($config) {
-    if (isset($config['application']['outputFormat'])) {
-        $outputFormat = $config['application']['outputFormat'];
-    } else {
-        $outputFormat = 'JsonApi';
-    }
-    $classpath = '\PhalconRest\Result\Adapters\\' . $outputFormat . '\Result';
-    return new $classpath();
-});
+//$di->setShared('result', function () use ($config) {
+//    if (isset($config['application']['outputFormat'])) {
+//        $outputFormat = $config['application']['outputFormat'];
+//    } else {
+//        $outputFormat = 'JsonApi';
+//    }
+//    $classpath = '\PhalconRest\Result\Adapters\\' . $outputFormat . '\Result';
+//    return new $classpath();
+//});
+
+$di->setShared(
+    "result",
+    [
+        "className" => "\\PhalconRest\\Result\\Adapters\\" . $config['application']['outputFormat'] . "\\Result",
+        "arguments" => [
+            ["type" => "parameter"]
+        ]
+    ]
+);
+
 
 
 // load a data adapter based on what is configured in the app

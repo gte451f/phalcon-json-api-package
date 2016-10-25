@@ -12,6 +12,9 @@ use PhalconRest\Result\Data;
  */
 abstract class Result extends \Phalcon\DI\Injectable
 {
+    // store the primary record type, this is probably similar to what is stored in individual data objects
+    // but might be used by adapters for their own purposes
+    protected $type;
 
     // a collection of individual data objects
     protected $data = [];
@@ -30,10 +33,15 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public $outputMode = 'error';
 
-    public function __construct()
+    /**
+     * Result constructor.
+     * @param $type
+     */
+    public function __construct($type)
     {
         $di = \Phalcon\DI::getDefault();
         $this->setDI($di);
+        $this->type = $type;
     }
 
 
@@ -167,7 +175,7 @@ abstract class Result extends \Phalcon\DI\Injectable
 
 
     /**
-     * for a given reltionship and id, return the matching included record
+     * for a given relationship and id, return the matching included record
      *
      * @param $relationshipName
      * @param $id
@@ -180,9 +188,15 @@ abstract class Result extends \Phalcon\DI\Injectable
                 return $item;
             }
         }
-
         return false;
-
     }
 
+    /**
+     * get a copy of all loaded data in the result object
+     * @return array
+     */
+    public function getData()
+    {
+        return $this->data;
+    }
 }

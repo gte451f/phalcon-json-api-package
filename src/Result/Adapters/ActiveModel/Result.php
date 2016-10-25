@@ -12,11 +12,12 @@ class Result extends \PhalconRest\Result\Result
     public function outputJSON()
     {
         $result = new \stdClass();
+        $result->{$this->type} = [];
         if ($this->outputMode != 'error') {
             if ($this->outputMode == 'single') {
                 $data = $this->data[0];
                 $type = $data->getType();
-                $result->$type = [$data];
+                $result->$type = $data;
             } elseif ($this->outputMode == 'multiple') {
                 // push all data records into the result set
                 foreach ($this->data as $data) {
@@ -31,6 +32,9 @@ class Result extends \PhalconRest\Result\Result
                     'code' => '894684684646846816161'
                 ));
             }
+
+            //load all requested relationshships
+
 
             // push all includes into the result set
             foreach ($this->included as $data) {

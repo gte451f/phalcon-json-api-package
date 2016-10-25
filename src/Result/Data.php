@@ -148,8 +148,6 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      */
     public function getFieldValue($name)
     {
-
-
         if ($name == 'id') {
             return $this->id;
         } elseif (array_key_exists($name, $this->attributes)) {
