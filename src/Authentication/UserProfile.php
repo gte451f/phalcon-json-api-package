@@ -100,7 +100,6 @@ class UserProfile extends Injectable
 
         $id = (isset($profile['id'])) ? $profile['id'] : 1;
         $data = $di->get('data', [$id, 'profile', $profile]);
-        // $data = New \PhalconRest\Result\Data($id, 'profile', $profile);
         $result->addData($data);
         return $result;
     }

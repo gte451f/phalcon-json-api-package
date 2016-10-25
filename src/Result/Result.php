@@ -14,12 +14,20 @@ abstract class Result extends \Phalcon\DI\Injectable
 {
     // store the primary record type, this is probably similar to what is stored in individual data objects
     // but might be used by adapters for their own purposes
-    protected $type;
+    protected $type = false;
 
     // a collection of individual data objects
     protected $data = [];
+
+    // meta data describing the request or data collected
     protected $meta = false;
+
+    // store errors to be returned to the client
     protected $errors = [];
+
+    // store any simple non-namespaced data that is to be included in the output
+    protected $plain = [];
+
     // store a collection of data like items
     protected $included = [];
 
@@ -29,7 +37,7 @@ abstract class Result extends \Phalcon\DI\Injectable
 
     /**
      * @var string is the result going to output a single result or an array of results?
-     * single | multiple | error
+     * single | multiple | error | other
      */
     public $outputMode = 'error';
 
@@ -37,7 +45,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      * Result constructor.
      * @param $type
      */
-    public function __construct($type)
+    public function __construct($type = false)
     {
         $di = \Phalcon\DI::getDefault();
         $this->setDI($di);
@@ -199,4 +207,38 @@ abstract class Result extends \Phalcon\DI\Injectable
     {
         return $this->data;
     }
+
+    /**
+     * this is a simple set function to store values in an array which is intended to be included in api responses
+     *
+     * @todo expand with dot.notaction to store nested values
+     *
+     * @param $key
+     * @param $value
+     */
+    public function setPlain($key, $value)
+    {
+        $this->plain[$key] = $value;
+    }
+
+
+    /**
+     * provide access to the plain array
+     *
+     * @param bool $key
+     * @return array|mixed
+     */
+    public function getPlain($key = false)
+    {
+        if ($key) {
+            if (isset($this->plain[$key])) {
+                $this->plain[$key];
+            } else {
+                return null;
+            }
+        } else {
+            return $this->plain;
+        }
+    }
+
 }
