@@ -1,6 +1,7 @@
 <?php
 namespace PhalconRest\Exception;
 
+use PhalconRest\API\Output;
 use PhalconRest\Exception\ErrorStore;
 
 /**
@@ -18,13 +19,6 @@ class HTTPException extends \Exception
     private $di;
 
     /**
-     * http response code
-     *
-     * @var int
-     */
-    protected $code;
-
-    /**
      * hold a valid errorStore object
      *
      * @var \PhalconRest\Exception\ErrorStore
@@ -32,50 +26,45 @@ class HTTPException extends \Exception
     protected $errorStore;
 
     /**
-     *
-     * @param string title
-     *            required user friendly message to return to the requestor
-     * @param string $code
-     *            required HTTP response code
-     * @param array $errorList
-     *            list of optional properties to set on the error object
+     * @param string $title    required user friendly message to return to the requestor
+     * @param int $code        required HTTP response code
+     * @param array $errorList list of optional properties to set on the error object
+     * @param \Throwable $previous previous exception, if any
      */
-    public function __construct($title, $code, $errorList)
+    public function __construct($title, $code, $errorList = [], \Throwable $previous = null)
     {
+        //attaching local code to Exception message in case it's catch somewhere else
+        $localCode = $errorList['code'] ?? $code;
+
+        parent::__construct("[$localCode] $title", $code, $previous);
+
         // store general error data
         $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
 
-        // store HTTP specific data
-        $this->code = $code;
-
-        $this->response = $this->getResponseDescription($code);
         $this->di = \Phalcon\DI::getDefault();
     }
 
     /**
-     *
-     * @return void|boolean
+     * Calls out {@link Output::sendError()} with the appropriate values.
+     * @return boolean
      */
     public function send()
     {
-        $output = new \PhalconRest\API\Output();
-        $output->setStatusCode($this->code, $this->response);
+        $output = new Output();
+        $output->setStatusCode($this->code, $this->getResponseDescription($this->code));
         $output->sendError($this->errorStore);
         return true;
     }
 
     /**
-     *
-     * see also: https://developer.yahoo.com/social/rest_api_guide/http-response-codes.html
-     *
-     * @param unknown $code
+     * @see https://developer.yahoo.com/social/rest_api_guide/http-response-codes.html
+     * @param int $code
      * @return string
      */
-    protected function getResponseDescription($code)
+    protected function getResponseDescription(int $code):string
     {
-        $codes = array(
-
+        $codes = [
             // Informational 1xx
             100 => 'Continue',
             101 => 'Switching Protocols',
@@ -129,10 +118,8 @@ class HTTPException extends \Exception
             504 => 'Gateway Timeout',
             505 => 'HTTP Version Not Supported',
             509 => 'Bandwidth Limit Exceeded'
-        );
+        ];
 
-        $result = (isset($codes[$code])) ? $codes[$code] : 'Unknown Status Code';
-
-        return $result;
+        return $codes[$code] ?? 'Unknown Status Code';
     }
 }

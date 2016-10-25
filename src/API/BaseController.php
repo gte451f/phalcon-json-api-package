@@ -239,8 +239,7 @@ class BaseController extends Controller
     }
 
     /**
-     * Pass through to entity so it can perform extra logic if needed
-     * most of the time...
+     * Pass through to entity so it can perform extra logic if needed most of the time...
      *
      * @param int $id
      * @return mixed return valid Apache code, could be an error, maybe not
@@ -257,7 +256,7 @@ class BaseController extends Controller
      *
      * @param int $id
      * @throws HTTPException
-     * @return multitype:string
+     * @return \PhalconRest\Result\Result
      */
     public function put($id)
     {
@@ -353,7 +352,7 @@ class BaseController extends Controller
      */
     public function patch($id)
     {
-        // route though PUT logic
+        // route through PUT logic
         return $this->put($id);
     }
 

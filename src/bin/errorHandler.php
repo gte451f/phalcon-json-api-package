@@ -1,6 +1,5 @@
 <?php
 use PhalconRest\Exception\HTTPException;
-use PhalconRest\Exception\ValidationException;
 
 /** @var array $config */
 
@@ -10,18 +9,21 @@ use PhalconRest\Exception\ValidationException;
  * TODO: Improve this.
  * TODO: Kept here due to dependency on $app
  */
-set_exception_handler(function ($exception) use ($app, $config) {
-    switch (get_class($exception)) {
-        case 'PhalconRest\Exception\HTTPException':
-        case 'PhalconRest\Exception\DatabaseException':
-        case 'PhalconRest\Exception\ValidationException':
-            error_log($exception);
-            $exception->send();
-            break;
-        default:
-            // wow an unexpected exception
-            customErrorHandler($exception->getCode(), $exception->getMessage(), $exception->getFile(), $exception->getLine(), $exception, 'Unexpected ' . get_class($exception));
-            break;
+set_exception_handler(function (\Throwable $thrown) use ($app, $config) {
+    if ($thrown instanceof HTTPException) {
+        //DatabaseException and ValidationException are also HTTPExceptions
+        error_log($thrown);
+        $thrown->send();
+    } else {
+        // wow an unexpected exception
+        customErrorHandler(
+            $thrown->getCode(),
+            $thrown->getMessage(),
+            $thrown->getFile(),
+            $thrown->getLine(),
+            $thrown,
+            'Unexpected '.get_class($thrown)
+        );
     }
 });
 
@@ -32,7 +34,7 @@ set_exception_handler(function ($exception) use ($app, $config) {
  * @param $errstr
  * @param $errfile
  * @param $errline
- * @param mixed $context
+ * @param \Throwable|mixed $context
  * @param string $title
  */
 function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null, $title = 'Fatal Error Occurred')
@@ -47,7 +49,7 @@ function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null
     $errorReport->detail = $errstr;
     $errorReport->context = $context;
 
-    if ($context instanceof Exception) {
+    if ($context instanceof \Throwable) {
         if ($previous = $context->getPrevious()) {
             $errorReport->context = '[Previous] ' . (string)$previous; //todo: could recurse the creation of exception details
         } else {
@@ -79,12 +81,10 @@ function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null
     ];
 
     // connect this to the default way of handling errors?
-    $errors = new stdClass();
-    $errors->errors = [$errorReport];
-    $errorOutput = json_encode($errors);
+    $errorOutput = json_encode(['errors' => [$errorReport]]);
     if ($errorOutput == false) {
         // a little meta, but the error function produced an error generating the json response
-        echo "Error generating error code.  Ironic right?  " . json_last_error_msg();
+        echo 'Error generating error code.  Ironic right?  ' . json_last_error_msg();
     }
 
     http_response_code(500);
@@ -101,7 +101,8 @@ function shutDownFunction()
 {
     $error = error_get_last();
     if ($error) {
-        customErrorHandler($error['type'], $error['message'], $error['file'], $error['line'], null, errorTypeStr($error['type']));
+        $errorType = errorTypeStr($error['type']);
+        customErrorHandler($error['type'], $error['message'], $error['file'], $error['line'], null, $errorType);
     }
 }
 

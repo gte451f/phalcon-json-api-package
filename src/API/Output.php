@@ -1,6 +1,9 @@
 <?php
 namespace PhalconRest\API;
 
+use PhalconRest\Exception\ErrorStore;
+use PhalconRest\Result\Result;
+
 /**
  * Gather the results of script execution and output for browser consumption
  * Assumes JSON API is only output option
@@ -20,7 +23,7 @@ class Output extends \Phalcon\DI\Injectable
     /**
      * hold a valid errorStore object
      *
-     * @var \PhalconRest\Exception\ErrorStore
+     * @var ErrorStore
      */
     public $errorStore = false;
 
@@ -46,10 +49,10 @@ class Output extends \Phalcon\DI\Injectable
      * format result set for output to web browser
      * add any final meta data
      *
-     * @param \PhalconRest\Result\Result $result
+     * @param Result $result
      * @return void
      */
-    public function send(\PhalconRest\Result\Result $result)
+    public function send(Result $result)
     {
         // stop timer and add to meta
         if ($this->di->get('config')['application']['debugApp'] == true) {
@@ -76,10 +79,10 @@ class Output extends \Phalcon\DI\Injectable
      * an errorStore contains a single error message so the single error is wrapped up into an array
      * in order to conform to JSON API spec
      *
-     * @param \PhalconRest\Exception\ErrorStore $errorStore
+     * @param ErrorStore $errorStore
      * @return \PhalconRest\API\Output
      */
-    public function sendError(\PhalconRest\Exception\ErrorStore $errorStore)
+    public function sendError(ErrorStore $errorStore)
     {
         // TODO deal with validation
         if (count($errorStore->validationList) > 0) {
@@ -121,7 +124,6 @@ class Output extends \Phalcon\DI\Injectable
     {
         // Error's come from HTTPException. This helps set the proper envelope data
         $response = $this->di->get('response');
-        $response->setContentType('application/json');
         $response->setStatusCode($this->httpCode, $this->httpMessage)->sendHeaders();
 
         // HEAD requests are detected in the parent constructor.

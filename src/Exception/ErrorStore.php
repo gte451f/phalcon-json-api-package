@@ -45,7 +45,7 @@ class ErrorStore
     /**
      * a list of phalcon validation objects
      *
-     * @var param
+     * @var array
      */
     public $validationList = [];
 
