@@ -38,23 +38,29 @@ $T->lap('Processing Request');
  * This is not strictly REST compliant, but it helps to base API documentation off of.
  * By calling this, you can quickly see a list of all routes and their methods.
  */
-$app->get('/', function () use ($app) {
+$app->get('/', function () use ($app, $di) {
     $routes = $app->getRouter()
         ->getRoutes();
-    $routeDefinitions = array(
-        'GET' => array(),
-        'POST' => array(),
-        'PUT' => array(),
-        'PATCH' => array(),
-        'DELETE' => array(),
-        'HEAD' => array(),
-        'OPTIONS' => array()
-    );
+    $routeDefinitions = [
+        'GET' => [],
+        'POST' => [],
+        'PUT' => [],
+        'PATCH' => [],
+        'DELETE' => [],
+        'HEAD' => [],
+        'OPTIONS' => []
+    ];
     foreach ($routes as $route) {
         $method = $route->getHttpMethods();
         $routeDefinitions[$method][] = $route->getPattern();
     }
-    return $routeDefinitions;
+    $result = $di->get('result', []);
+    $result->outputMode = 'other';
+
+    foreach ($routeDefinitions as $key => $value) {
+        $result->setPlain($key, $value);
+    }
+    return $result;
 });
 
 /**
