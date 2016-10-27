@@ -36,14 +36,6 @@ class Entity extends Injectable
     public $result;
 
     /**
-     * store the name the endpoint should advertise
-     * if nothing is defined, one will be auto detected
-     *
-     * @var string
-     */
-    public $endpointName = null;
-
-    /**
      * keep a copy of the entity records PKID
      *
      * @var int

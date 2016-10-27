@@ -88,7 +88,7 @@ class BaseController extends Controller
     }
 
     /**
-     * Load a default entity unless one is already in place
+     * Load a default entity unless a custom version is detected
      * return the currently loaded entity
      *
      * @see $entity
@@ -101,7 +101,15 @@ class BaseController extends Controller
             $model = $this->getModel();
             $searchHelper = $this->getSearchHelper();
             $entity = $config['namespaces']['entities'] . $this->getControllerName('singular') . 'Entity';
-            $entity = new $entity($model, $searchHelper);
+            $entityPath = $config['application']['entitiesDir'] . $this->getControllerName('singular') . 'Entity.php';
+            $defaultEntityNameSpace = $config['namespaces']['defaultEntity'];
+
+            //check for file, otherwise load generic entity - it should work just fine
+            if (file_exists($entityPath)) {
+                $entity = new $entity($model, $searchHelper);
+            } else {
+                $entity = new $defaultEntityNameSpace($model, $searchHelper);
+            }
             $this->entity = $this->configureEntity($entity);
         }
         return $this->entity;
@@ -195,7 +203,8 @@ class BaseController extends Controller
     public function post()
     {
         $request = $this->getDI()->get('request');
-        $post = $request->mungeData($request->getJson($this->getControllerName('singular')), $this->model);
+        // supply everything the request object could possibly need to fullfill the request
+        $post = $request->getJson($this->getControllerName('singular'), $this->model);
 
         if (!$post) {
             throw new HTTPException("There was an error adding new record.  Missing POST data.", 400, array(
@@ -253,8 +262,8 @@ class BaseController extends Controller
     public function put($id)
     {
         $request = $this->getDI()->get('request');
-        // load up the expected object based on the controller name
-        $put = $request->mungeData($request->getJson($this->getControllerName('singular')), $this->model);
+        // supply everything the request object could possibly need to fullfill the request
+        $put = $request->getJson($this->getControllerName('singular'), $this->model);
 
         if (!$put) {
             throw new HTTPException("There was an error updating an existing record.", 500, array(

@@ -52,7 +52,10 @@ $config = [
         'models' => 'PhalconRest\Models\\',
         'controllers' => 'PhalconRest\Controllers\\',
         'libraries' => 'PhalconRest\Libraries\\',
-        'entities' => 'PhalconRest\Entities\\'
+        'entities' => 'PhalconRest\Entities\\',
+
+        // what is the default entity to be loaded when no other is specified?
+        'defaultEntity' => '\PhalconRest\API\Entity'
     ],
 
     // is security enabled for this app?
