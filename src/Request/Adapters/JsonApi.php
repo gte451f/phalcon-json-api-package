@@ -2,63 +2,41 @@
 namespace PhalconRest\Request\Adapters;
 
 use PhalconRest\Exception\HTTPException;
-use PhalconRest\Util\Inflector;
 use PhalconRest\Request\Request;
 use PhalconRest\API\BaseModel;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
 
 /**
- * extend to provide easy case conversion on incoming data
- * take json data and convert to either snake or camel case
- * depends on CaesConversion library
+ * allow each adapter to deal with the various oddities that adapter wants
  */
 class JsonApi extends Request
 {
 
     /**
      * pull data from a JSON API supplied POST/PUT
-     * Will either return the whole input as an array otherwise, will return an individual property
+     * design goal is to return a single json api post, but properly munged to work with the API
      * supports existing case conversion logic
-     * TODO: Filter
      *
      * @param string $name
-     * @throws HTTPException
-     * @return mixed the requested JSON property otherwise false
+     * @param BaseModel $model
+     * @return \stdClass requested JSON property otherwise false
      */
-    public function getJson($name = null)
+    public function getJson($name, \PhalconRest\API\BaseModel $model)
     {
-        // normalize name to all lower case
-        $inflector = new Inflector();
-        $name = $inflector->underscore($name);
-        // $name = strtolower($name);
-
         // $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
 
         $request = null;
         if (is_object($json)) {
-            if ($name != null) {
-                if (isset($json->$name)) {
-                    $request = $json->$name;
-                } else {
-                    // expected name not found
-                    throw new HTTPException("Could not find expected json data.", 500, array(
-                        'dev' => json_encode($json),
-                        'code' => '112928308402707'
-                    ));
-                    return false;
-                }
-            } else {
-                // return the entire result set
-                $request = $json->data;
-                unset($json);
-            }
+            // return the entire result set
+            $request = $json->data;
         } else {
             // invalid json detected
             return false;
         }
         // give convert a chance to run
-        return $this->convertCase($request);
+        $request = $this->convertCase($request);
+        return $this->mungeData($request, $model);
     }
 
 
@@ -67,7 +45,7 @@ class JsonApi extends Request
      *
      * @param $post
      * @param BaseModel $model
-     * @return mixed
+     * @return \stdClass
      * @throws HTTPException
      */
 
@@ -117,7 +95,6 @@ class JsonApi extends Request
                 }
             }
         }
-
         return $data;
     }
 

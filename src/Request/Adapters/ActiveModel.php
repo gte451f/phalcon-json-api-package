@@ -7,9 +7,7 @@ use PhalconRest\Request\Request;
 use PhalconRest\API\BaseModel;
 
 /**
- * extend to provide easy case conversion on incoming data
- * take json data and convert to either snake or camel case
- * depends on CaesConversion library
+ * allow each adapter to deal with the various oddities that adapter wants
  */
 class ActiveModel extends Request
 {
@@ -20,11 +18,12 @@ class ActiveModel extends Request
      * supports existing case conversion logic
      * TODO: Filter
      *
-     * @param string $name
+     * @param $name
+     * @param BaseModel $model
+     * @return \stdClass|bool  the requested JSON property otherwise false
      * @throws HTTPException
-     * @return mixed the requested JSON property otherwise false
      */
-    public function getJson($name = null)
+    public function getJson($name, \PhalconRest\API\BaseModel $model)
     {
         // normalize name to all lower case
         $inflector = new Inflector();
@@ -32,16 +31,16 @@ class ActiveModel extends Request
 
         // $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
-        $request = NULL;
+        $request = null;
         if (is_object($json)) {
-            if ($name != NULL) {
+            if ($name != null) {
                 if (isset($json->$name)) {
                     $request = $json->$name;
                 } else {
                     // expected name not found
                     throw new HTTPException("Could not find expected json data.", 500, array(
                         'dev' => json_encode($json),
-                        'code' => '112928308402707'
+                        'code' => '4684646464684'
                     ));
                     return false;
                 }
@@ -55,19 +54,18 @@ class ActiveModel extends Request
             return false;
         }
         // give convert a chance to run
-        return $this->convertCase($request);
+        $request = $this->convertCase($request);
+        return $this->mungeData($request, $model);
     }
 
 
     /**
-     * will disentangle the mess JSON API submits down to something our API can work with
+     * not much to do here in activemodel
      *
      * @param $post
      * @param BaseModel $model
      * @return mixed
-     * @throws HTTPException
      */
-
     public function mungeData($post, BaseModel $model)
     {
         return $post;

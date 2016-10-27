@@ -32,10 +32,11 @@ abstract class Request extends \Phalcon\Http\Request
     abstract function mungeData($post, BaseModel $model);
 
     /**
-     * @param null $name
+     * @param $name
+     * @param BaseModel $model
      * @return mixed
      */
-    abstract function getJson($name = null);
+    abstract function getJson($name, \PhalconRest\API\BaseModel $model);
 
 
     /**
