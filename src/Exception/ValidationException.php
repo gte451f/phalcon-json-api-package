@@ -8,7 +8,7 @@ use Phalcon\Mvc\Model\Message as Message;
  *
  * @author jjenkins
  */
-class ValidationException extends HttpException
+class ValidationException extends HTTPException
 {
 
     /**
@@ -21,7 +21,7 @@ class ValidationException extends HttpException
      */
     public function __construct($title, $errorList, $validationList, \Throwable $previous = null)
     {
-        parent::__construct($title, 422, $validationList, $previous);
+        parent::__construct($title, 422, $errorList, $previous);
 
         $mergedValidations = [];
         foreach ($validationList as $key => $validation) {

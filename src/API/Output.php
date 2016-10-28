@@ -1,6 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
+use Phalcon\Mvc\Model\Message;
 use PhalconRest\Exception\ErrorStore;
 use PhalconRest\Result\Result;
 
@@ -75,40 +76,49 @@ class Output extends \Phalcon\DI\Injectable
     }
 
     /**
-     * process an errorStore into a simple message
-     * an errorStore contains a single error message so the single error is wrapped up into an array
-     * in order to conform to JSON API spec
+     * Process an errorStore into a simple message.
+     * An errorStore may contains a single error message; in such cases, the single message is wrapped up into an array
+     * in order to conform to the JSON API spec.
+     * Validation errors, otherwise, can possibly yield multiple objects inside the array, with details on each
+     * field's errors.
      *
      * @param ErrorStore $errorStore
      * @return \PhalconRest\API\Output
      */
     public function sendError(ErrorStore $errorStore)
     {
-        // TODO deal with validation
+        $appConfig = $this->di->get('config')['application'];
+
         if (count($errorStore->validationList) > 0) {
-            $result = ['errors' => []];
             $inflector = $this->di->get('inflector');
 
-            foreach ($errorStore->validationList as $validation) {
-                $source = new \stdClass;
-
-                $fieldName = $inflector->normalize($validation->getField(), $this->di->get('config')['application']['propertyFormatTo']);
-
-                $source->pointer = "data/attributes/$fieldName";
-                $result['errors'][] = ['detail' => $validation->getMessage(), 'source' => $source, 'status' => $this->httpCode];
-            }
+            $result = [
+                'errors' => array_map(function(Message $validation) use ($errorStore, $appConfig, $inflector) {
+                    $field = $inflector->normalize($validation->getField(), $appConfig['propertyFormatTo']);
+                    return [
+    //                    'status' => $this->httpCode, //FIXME: is this even needed?
+                        'code'   => $errorStore->code,
+                        'title'  => $errorStore->title,
+                        'detail' => $validation->getMessage(),
+                        'source' => ['pointer' => "/data/attributes/$field"],
+                        'meta'   => ['field' => $field]
+                    ];
+                }, $errorStore->validationList)
+            ];
         } else {
-            $singleError['title'] = $errorStore->title;
-            $singleError['code'] = $errorStore->code;
-            $singleError['detail'] = $errorStore->more;
-            $singleError['status'] = $this->httpCode;
-            $config = $this->di->get('config');
-            if ($config['application']['debugApp'] == true and isset($errorStore->dev)) {
-                $singleError['meta']['developer_message'] = $errorStore->dev;
+            $error = [
+                'title'  => $errorStore->title,
+                'code'   => $errorStore->code,
+                'detail' => $errorStore->more,
+                'status' => $this->httpCode
+            ];
+
+            if ($appConfig['debugApp'] && isset($errorStore->dev)) {
+                $error['meta'] = ['developer_message' => $errorStore->dev];
             }
 
-            // wrap single error into array key'd by "errors"
-            $result = ['errors' => [$singleError]];
+            // wrap single error into an object key'd by "errors", conforming to JSON-API spec
+            $result = ['errors' => [$error]];
         }
 
         $this->_send($result);
