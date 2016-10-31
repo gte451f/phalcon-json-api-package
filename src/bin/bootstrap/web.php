@@ -1,7 +1,6 @@
 <?php
 
-use Phalcon\Mvc\Micro\Collection;
-use \PhalconRest\Exception\HTTPException;
+use PhalconRest\Exception\HTTPException;
 
 /**
  * Our application is a Micro application, so we must explicitly define all the routes.
@@ -39,8 +38,7 @@ $T->lap('Processing Request');
  * By calling this, you can quickly see a list of all routes and their methods.
  */
 $app->get('/', function () use ($app, $di) {
-    $routes = $app->getRouter()
-        ->getRoutes();
+    $routes = $app->getRouter()->getRoutes();
     $routeDefinitions = [
         'GET' => [],
         'POST' => [],
@@ -82,13 +80,14 @@ $app->after(function () use ($app) {
             return;
             break;
 
-        case 'DELETE':
+        case 'DELETE': //FIXME: usually this is true, but not all DELETE requests would come without content
             $app->response->setStatusCode('204', 'No Content');
             $app->response->send();
             return;
             break;
 
         case 'POST':
+            //FIXME: not all POST requests actually create a new resource. 200 should be used otherwise
             $output->setStatusCode('201', 'Created');
             break;
     }
@@ -102,9 +101,9 @@ $app->after(function () use ($app) {
  * We set a 404 here unless there's a suppress error codes.
  */
 $app->notFound(function () use ($app) {
-    throw new HTTPException('Not Found.', 404, array(
+    throw new HTTPException('Not Found.', 404, [
         'dev' => 'That route was not found on the server.',
         'code' => '4',
         'more' => 'Check route for misspellings.'
-    ));
+    ]);
 });

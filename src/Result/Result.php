@@ -37,9 +37,14 @@ abstract class Result extends \Phalcon\DI\Injectable
 
     /**
      * @var string is the result going to output a single result or an array of results?
-     * single | multiple | error | other
+     *             One of the MODE_* constants.
      */
-    public $outputMode = 'error';
+    public $outputMode = self::MODE_ERROR;
+
+    const MODE_SINGLE   = 'single';
+    const MODE_MULTIPLE = 'multiple';
+    const MODE_ERROR    = 'error';
+    const MODE_OTHER    = 'other';
 
     /**
      * Result constructor.
@@ -78,9 +83,9 @@ abstract class Result extends \Phalcon\DI\Injectable
                 break;
             default:
                 // throw error for bad type
-                throw new HTTPException("A Bad Relationship Type was supplied!", 500, array(
+                throw new HTTPException('A Bad Relationship Type was supplied!', 500, [
                     'code' => '8948616164789797'
-                ));
+                ]);
                 break;
         }
         $this->relationshipRegistry[strtolower($name)] = $relation;
@@ -122,7 +127,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function addErrors($id, $status = null, $code = null, $title = null, $detail = null, array $meta = [])
     {
-        $this->outputMode = 'error';
+        $this->outputMode = self::MODE_ERROR;
         $this->errors[] = new Error($id, $status, $code, $title, $detail, $meta);
     }
 

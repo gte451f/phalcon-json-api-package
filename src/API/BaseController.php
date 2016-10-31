@@ -265,10 +265,10 @@ class BaseController extends Controller
         $put = $request->getJson($this->getControllerName('singular'), $this->model);
 
         if (!$put) {
-            throw new HTTPException("There was an error updating an existing record.", 500, array(
+            throw new HTTPException('There was an error updating an existing record.', 500, [
                 'dev' => "Invalid data posted to the server",
                 'code' => '568136818916816'
-            ));
+            ]);
         }
 
         // filter out any block columns from the posted data
@@ -286,10 +286,10 @@ class BaseController extends Controller
 
         if ($result->countResults() == 0) {
             // This is bad. Throw a 500. Responses should always be objects.
-            throw new HTTPException("There was an error retrieving the newly created record.", 500, array(
-                'dev' => 'The resource you requested is not available after it was just created',
+            throw new HTTPException('There was an error retrieving the just updated record.', 500, [
+                'dev' => 'The resource you requested is not available after it was just updated',
                 'code' => '1238510381861'
-            ));
+            ]);
         } else {
             return $result;
         }

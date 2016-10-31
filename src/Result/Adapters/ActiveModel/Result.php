@@ -8,8 +8,8 @@ class Result extends \PhalconRest\Result\Result
 
     /**
      * will convert the intermediate data result data into ActiveModel compatible result object
-     *
      * @return \stdClass
+     * @throws HTTPException
      */
     public function outputJSON()
     {
@@ -20,31 +20,38 @@ class Result extends \PhalconRest\Result\Result
             $result->{$this->type} = [];
         }
 
-        if ($this->outputMode != 'error') {
-            if ($this->outputMode == 'single' AND count($this->data) > 0) {
-                $data = $this->data[0];
-                $type = $data->getType();
-                $result->$type = $data;
-            } elseif ($this->outputMode == 'multiple') {
-                // push all data records into the result set
-                foreach ($this->data as $data) {
-                    $type = $data->getType();
-                    if (!isset($result->$type)) {
-                        $result->$type = [];
+        if ($this->outputMode != self::MODE_ERROR) {
+            switch ($this->outputMode) {
+                case self::MODE_SINGLE:
+                    if (count($this->data)) {
+                        $data = $this->data[0];
+                        $type = $data->getType();
+                        $result->$type = $data;
                     }
-                    array_push($result->$type, $data);
-                }
-            } elseif ('other') {
-                // do nothing for this output mode
-            } else {
-                throw new HTTPException("Error generating output.  Could not match output mode with data set.", 500,
-                    array(
+                    break;
+
+                case self::MODE_MULTIPLE:
+                    // push all data records into the result set
+                    foreach ($this->data as $data) {
+                        $type = $data->getType();
+                        if (!isset($result->$type)) {
+                            $result->$type = [];
+                        }
+                        array_push($result->$type, $data);
+                    }
+                    break;
+
+                case self::MODE_OTHER:
+                    // do nothing for this output mode
+                    break;
+
+                default:
+                    throw new HTTPException('Error generating output.  Cannot match output mode with data set.', 500, [
                         'code' => '894684684646846816161'
-                    ));
+                    ]);
             }
 
-            // push all includes into the result set
-            // for the purpose of active model, they look just like data records
+            // push all includes into the result set. for the purpose of active model, they look just like data records
             foreach ($this->included as $data) {
                 $type = $data->getType();
                 if (!isset($result->$type)) {
