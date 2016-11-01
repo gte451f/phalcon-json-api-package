@@ -19,16 +19,16 @@ abstract class Result extends \Phalcon\DI\Injectable
     /** a collection of individual data objects */
     protected $data = [];
 
-    /** meta data describing the request or data collected */
+    /** @var Data[] meta data describing the request or data collected */
     protected $meta = [];
 
-    /** store errors to be returned to the client */
+    /** @var ErrorStore[] Store errors to be returned to the client */
     protected $errors = [];
 
     /** store any simple non-namespaced data that is to be included in the output */
     protected $plain = [];
 
-    /** store a collection of data like items */
+    /** @var Data[] store a collection of data like items */
     protected $included = [];
 
     /** store the list of relationships for a "main" record type
@@ -43,7 +43,7 @@ abstract class Result extends \Phalcon\DI\Injectable
     // possible outputModes, useful for some adapter types
     const MODE_SINGLE = 'single';  // return a single result
     const MODE_MULTIPLE = 'multiple'; // return "n" results
-    const MODE_ERROR = 'error'; // indicate one or more errors occured
+    const MODE_ERROR = 'error'; // indicate one or more errors occurred
     const MODE_OTHER = 'other'; // return custom data of some type
 
     /**
