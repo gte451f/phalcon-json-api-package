@@ -1144,8 +1144,6 @@ class Entity extends Injectable
      */
     public function save($formData, $id = null)
     {
-        // $inflector = new Inflector();
-
         // check if inserting a new record and account for any parent records
         if (is_null($id)) {
             $this->saveMode = 'insert';
@@ -1177,7 +1175,8 @@ class Entity extends Injectable
             $this->primaryKeyValue = $id;
 
             // need parent logic here
-            $primaryModel = $this->loadParentModel(($this->model)::findFirst($id), $formData);
+            $this->model = ($this->model)::findFirst($id);
+            $primaryModel = $this->loadParentModel($this->model, $formData);
 
             // // TODO this only works with 1 parent so far....
             // $parentModelName = $model::$parentModel;
@@ -1190,7 +1189,7 @@ class Entity extends Injectable
             // }
         }
 
-        // no need to pass in formdata since it was already loaded in $this->loadParentModel
+        // no need to pass in formData since it was already loaded in $this->loadParentModel
         $result = $primaryModel->save();
 
         // if still blank, pull from recently created $result
@@ -1199,10 +1198,10 @@ class Entity extends Injectable
         }
 
         // post save hook that is called before relationships have been saved
-        $this->afterSave($this->model, $id);
+        $this->afterSave($formData, $id);
 
         // post save hook that is called after all relations have been saved as well
-        $this->afterSaveRelations($this->model, $id);
+        $this->afterSaveRelations($formData, $id);
 
         $this->saveMode = null; // revert since save is finished
         return $this->primaryKeyValue;
