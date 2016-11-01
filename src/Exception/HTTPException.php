@@ -5,7 +5,8 @@ use PhalconRest\API\Output;
 use PhalconRest\Exception\ErrorStore;
 
 /**
- * Validation Exception Handler
+ * General HTTP Exception Handler
+ * contains helpful functions for dealing with a single error kept in $this->errorStore
  *
  * @author jjenkins
  *
@@ -26,8 +27,8 @@ class HTTPException extends \Exception
     protected $errorStore;
 
     /**
-     * @param string $title    required user friendly message to return to the requestor
-     * @param int $code        required HTTP response code
+     * @param string $title required user friendly message to return to the requestor
+     * @param int $code required HTTP response code
      * @param array $errorList list of optional properties to set on the error object
      * @param \Throwable $previous previous exception, if any
      */
@@ -53,8 +54,11 @@ class HTTPException extends \Exception
     {
         $output = new Output();
         $output->setStatusCode($this->code, $this->getResponseDescription($this->code));
-        $output->sendError($this->errorStore);
-        return true;
+
+        //push errorStore into $result object for proper handling
+        $result = $this->di->get('result', []);
+        $result->addError($this->errorStore);
+        return $output->send($result);
     }
 
     /**

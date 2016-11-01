@@ -17,7 +17,7 @@ class ErrorStore
      *
      * @var string
      */
-    public $title = '';
+    public $title = null;
 
     /**
      * a numerical error code used to track down the error in source code
@@ -29,7 +29,6 @@ class ErrorStore
 
     /**
      * additional details over and above the error title
-     * shows up as detail in json response
      *
      * @var string
      */
@@ -44,7 +43,8 @@ class ErrorStore
     public $dev;
 
     /**
-     * a list of phalcon validation objects
+     * a list of field validation objects
+     * this is only used for ValiatinExceptions
      *
      * @var \Phalcon\Mvc\Model\Message[]
      */
@@ -57,16 +57,35 @@ class ErrorStore
      */
     public $errorCode;
 
+
+    /**
+     * store the full error stack the error generated
+     * @var
+     */
+    public $stack;
+
+    // not sure what this is
+    public $context;
+    // store where the error occurred
+    public $line;
+    public $file;
+
+
     /**
      * construct with supplied standard array
-     * break list down into smaller properites
+     * break list down into smaller properties
      *
      * @param array $errorList
      */
     public function __construct($errorList)
     {
-        $this->code = $errorList['code'] ?? 'XX';
+        $this->line = $errorList['line'] ?? '';
+        $this->file = $errorList['file'] ?? '';
+        $this->stack = $errorList['stack'] ?? '';
+        $this->context = $errorList['context'] ?? '';
         $this->more = $errorList['more'] ?? '';
+        $this->title = $errorList['title'] ?? 'No Title Supplied';
+        $this->code = $errorList['code'] ?? 'XX';
         $this->dev = $errorList['dev'] ?? DI::getDefault()->getMessageBag()->getString();
     }
 }

@@ -5,6 +5,9 @@ use Phalcon\Mvc\Model\Message as Message;
 
 /**
  * where caught Validation Exceptions go to die
+ * contains helpful functions for dealing with a single Validation exception
+ * error kept in $this->errorStore
+ * this version also populates a list of one or more validation messages
  *
  * @author jjenkins
  */

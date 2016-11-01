@@ -11,7 +11,7 @@ class Result extends \PhalconRest\Result\Result
      * @return \stdClass
      * @throws HTTPException
      */
-    public function outputJSON()
+    protected function formatJSON()
     {
         $result = new \stdClass();
 

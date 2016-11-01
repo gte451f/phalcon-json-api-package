@@ -6,7 +6,7 @@ use PhalconRest\Exception\HTTPException;
 class Result extends \PhalconRest\Result\Result
 {
 
-    public function outputJSON()
+    protected function formatJSON()
     {
         $result = new \stdClass();
 
@@ -35,6 +35,7 @@ class Result extends \PhalconRest\Result\Result
                 $result->included = $this->included;
             }
         } else {
+            // process expected error results here
             $result->errors = $this->errors;
         }
 

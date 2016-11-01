@@ -1,110 +1,100 @@
 <?php
 use PhalconRest\Exception\HTTPException;
+use PhalconRest\API\Output;
+
+// ***************************************************************
+// this set of functions hooks custom handling for
+// 1) Exceptions via set_exception_handler
+// 2) General Errors via set_error_handler
+// 3) PHP Fatal Errors via register_shutdown_function
+//
+// the general goal is to always return json formatted errors via a
+// $result object stuffed with one or more ErrorStore objects
+// ***************************************************************
+
 
 /** @var array $config */
 
 /**
- * If the application throws an HTTPException, send it on to the client as json.
- * Elsewise, just log it.
+ * use this function to route Exceptions to their proper handlers for eventual output on screen
+ *
  * TODO: Improve this.
  * TODO: Kept here due to dependency on $app
  */
-set_exception_handler(function (\Throwable $thrown) use ($app, $config) {
+set_exception_handler(function (\Throwable $thrown) use ($app, $config, $di) {
+
+    // if the application throws an HTTPException, DatabaseException or ValidationException
+    // use that class's internal handling to output results to server
     if ($thrown instanceof HTTPException) {
-        //DatabaseException and ValidationException are also HTTPExceptions
         error_log($thrown);
         $thrown->send();
     } else {
-        // wow an unexpected exception
-        customErrorHandler(
-            $thrown->getCode(),
-            $thrown->getMessage(),
-            $thrown->getFile(),
-            $thrown->getLine(),
-            $thrown,
-            'Unexpected '.get_class($thrown)
-        );
+        // create an errorStore
+        $errorStore = new PhalconRest\Exception\ErrorStore([
+            'code' => $thrown->getCode(),
+            'detail' => $thrown->getMessage(),
+            'file' => $thrown->getFile(),
+            'line' => $thrown->getLine(),
+            'title' => 'Unexpected ' . get_class($thrown),
+            'stack' => $thrown->getTrace()
+        ]);
+
+        if ($thrown->getPrevious()) {
+            $errorStore->context = '[Previous] ' . (string)$thrown->getPrevious();
+        }
+
+        // push to result
+        $result = $di->get('result', []);
+        $result->addError($errorStore);
+
+        // send to output
+        $output = new Output();
+        return $output->send($result);
     }
 });
 
-/**
- * custom error handler function to always return 500 on errors
- *
- * @param $errno
- * @param $errstr
- * @param $errfile
- * @param $errline
- * @param \Throwable|mixed $context
- * @param string $title
- */
-function customErrorHandler($errno, $errstr, $errfile, $errline, $context = null, $title = 'Fatal Error Occurred')
-{
-    // clean any pre-existing error text output to the screen
-    ob_clean();
-
-    $errorReport = new stdClass();
-    $errorReport->id = 'root API package error handler';
-    $errorReport->code = $errno;
-    $errorReport->title = is_string($title) ? $title : 'Fatal Error Occurred and bad $title given';
-    $errorReport->detail = $errstr;
-    $errorReport->context = $context;
-
-    if ($context instanceof \Throwable) {
-        if ($previous = $context->getPrevious()) {
-            $errorReport->context = '[Previous] ' . (string)$previous; //todo: could recurse the creation of exception details
-        } else {
-            $errorReport->context = null;
-        }
-        $backTrace = explode("\n", $context->getTraceAsString());
-        array_walk($backTrace, function (&$line) {
-            $line = preg_replace('/^#\d+ /', '', $line);
-        });
-    } else {
-        $errorReport->context = $context;
-        $backTrace = debug_backtrace(true, 5); //FIXME: shouldn't backtrace be shown only in debug mode?
-    }
-
-    // generates a simplified backtrace
-    $backTraceLog = [];
-    foreach ($backTrace as $record) {
-        // clean out args since these can cause recursion problems and isn't all that valuable anyway
-        if (isset($record['args'])) {
-            unset($record['args']);
-        }
-        $backTraceLog[] = $record;
-    }
-
-    $errorReport->meta = [
-        'line' => $errline,
-        'file' => $errfile,
-        'stack' => $backTraceLog
-    ];
-
-    // connect this to the default way of handling errors?
-    $errorOutput = json_encode(['errors' => [$errorReport]]);
-    if ($errorOutput == false) {
-        // a little meta, but the error function produced an error generating the json response
-        echo 'Error generating error code.  Ironic right?  ' . json_last_error_msg();
-    }
-
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo $errorOutput;
-    exit(1);
-
-}
 
 /**
  * this is a small function to connect fatal PHP errors to global error handling
  */
-function shutDownFunction()
-{
+register_shutdown_function(function () use ($app, $config, $di) {
     $error = error_get_last();
     if ($error) {
-        $errorType = errorTypeStr($error['type']);
-        customErrorHandler($error['type'], $error['message'], $error['file'], $error['line'], null, $errorType);
+        // clean any pre-existing error text output to the screen
+        ob_clean();
+
+        $errorStore = new \PhalconRest\Exception\ErrorStore([
+            'code' => '8273492734598729347598237',
+            'title' => $error['type'] . ' - ' . errorTypeStr($error['type']),
+            'more' => $error['message'],
+            'line' => $error['line'],
+            'file' => $error['file']
+        ]);
+
+        $backTrace = debug_backtrace(true, 5);
+
+        // generates a simplified backtrace
+        $backTraceLog = [];
+        foreach ($backTrace as $record) {
+            // clean out args since these can cause recursion problems and isn't all that valuable anyway
+            if (isset($record['args'])) {
+                unset($record['args']);
+            }
+            $backTraceLog[] = $record;
+        }
+        $errorStore->stack = $backTraceLog;
+
+        // push to result
+        $result = $di->get('result', []);
+        $result->addError($errorStore);
+
+        // send to output
+        $output = new Output();
+        return $output->send($result);
+
     }
-}
+});
+
 
 /**
  * Translates PHP's bit error codes into actual human text
@@ -149,8 +139,67 @@ function errorTypeStr($code)
     }
 }
 
-// set to the user defined error handler
-set_error_handler("customErrorHandler");
+/**
+ * custom error handler function will process regular PHP errors
+ * and convert them to ErrorStore objects then run them through our regular api processing
+ *
+ * @param $errno
+ * @param $errstr
+ * @param $errfile
+ * @param $errline
+ * @param \Throwable|mixed $context
+ * @param string $title
+ */
 
-// provide function to catch fatal errors
-register_shutdown_function('shutDownFunction');
+set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null, $title = 'Fatal Error Occurred') use (
+    $app,
+    $config,
+    $di
+) {
+    // clean any pre-existing error text output to the screen
+    ob_clean();
+
+    $errorStore = new \PhalconRest\Exception\ErrorStore([
+        'code' => $errno,
+        'title' => is_string($title) ? $title : 'Fatal Error Occurred and bad $title given',
+        'more' => $errstr,
+        'context' => $context,
+        'line' => $errline,
+        'file' => $errfile
+    ]);
+
+
+    if ($context instanceof \Throwable) {
+        if ($previous = $context->getPrevious()) {
+            $errorStore->context = '[Previous] ' . (string)$previous; //todo: could recurse the creation of exception details
+        } else {
+            $errorStore->context = null;
+        }
+        $backTrace = explode("\n", $context->getTraceAsString());
+        array_walk($backTrace, function (&$line) {
+            $line = preg_replace('/^#\d+ /', '', $line);
+        });
+    } else {
+        $errorStore->context = $context;
+        $backTrace = debug_backtrace(true, 5); //FIXME: shouldn't backtrace be shown only in debug mode?
+    }
+
+    // generates a simplified backtrace
+    $backTraceLog = [];
+    foreach ($backTrace as $record) {
+        // clean out args since these can cause recursion problems and isn't all that valuable anyway
+        if (isset($record['args'])) {
+            unset($record['args']);
+        }
+        $backTraceLog[] = $record;
+    }
+    $errorStore->stack = $backTraceLog;
+
+    // push to result
+    $result = $di->get('result', []);
+    $result->addError($errorStore);
+
+    // send to output
+    $output = new Output();
+    return $output->send($result);
+});

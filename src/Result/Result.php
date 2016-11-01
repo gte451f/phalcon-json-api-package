@@ -12,39 +12,39 @@ use PhalconRest\Result\Data;
  */
 abstract class Result extends \Phalcon\DI\Injectable
 {
-    // store the primary record type, this is probably similar to what is stored in individual data objects
-    // but might be used by adapters for their own purposes
+    /** @var string store the primary record type, this is probably similar to what is stored in individual data objects
+     * but might be used by adapters for their own purposes */
     protected $type = false;
 
-    // a collection of individual data objects
+    /** a collection of individual data objects */
     protected $data = [];
 
-    // meta data describing the request or data collected
-    protected $meta = false;
+    /** meta data describing the request or data collected */
+    protected $meta = [];
 
-    // store errors to be returned to the client
+    /** store errors to be returned to the client */
     protected $errors = [];
 
-    // store any simple non-namespaced data that is to be included in the output
+    /** store any simple non-namespaced data that is to be included in the output */
     protected $plain = [];
 
-    // store a collection of data like items
+    /** store a collection of data like items */
     protected $included = [];
 
-    // store the list of relationships for a "main" record type
-    // each data object will refer to this when formatting data objects
+    /** store the list of relationships for a "main" record type
+     * each data object will refer to this when formatting data objects */
     protected $relationshipRegistry = [];
 
     /**
-     * @var string is the result going to output a single result or an array of results?
-     *             One of the MODE_* constants.
+     * @var string describe what type of result should be returned, should be constrained to one of the MODE_* constants
      */
-    public $outputMode = self::MODE_ERROR;
+    public $outputMode = self::MODE_OTHER;
 
-    const MODE_SINGLE   = 'single';
-    const MODE_MULTIPLE = 'multiple';
-    const MODE_ERROR    = 'error';
-    const MODE_OTHER    = 'other';
+    // possible outputModes, useful for some adapter types
+    const MODE_SINGLE = 'single';  // return a single result
+    const MODE_MULTIPLE = 'multiple'; // return "n" results
+    const MODE_ERROR = 'error'; // indicate one or more errors occured
+    const MODE_OTHER = 'other'; // return custom data of some type
 
     /**
      * Result constructor.
@@ -116,48 +116,44 @@ abstract class Result extends \Phalcon\DI\Injectable
         $this->data[] = $newData;
     }
 
-
     /**
-     * @param $id
-     * @param null $status
-     * @param null $code
-     * @param null $title
-     * @param null $detail
-     * @param array $meta
+     * add an error store object to the Result payload
+     *
+     * @param \PhalconRest\Exception\ErrorStore $Error
      */
-    public function addErrors($id, $status = null, $code = null, $title = null, $detail = null, array $meta = [])
+    public function addError(\PhalconRest\Exception\ErrorStore $Error)
     {
         $this->outputMode = self::MODE_ERROR;
-        $this->errors[] = new Error($id, $status, $code, $title, $detail, $meta);
+        $this->errors[] = $Error;
     }
 
+
+    /**
+     * add a Data object to include array on result payload
+     *
+     * @param \PhalconRest\Result\Data $newData
+     */
     public function addIncluded(Data $newData)
     {
         $this->included[] = $newData;
     }
 
     /**
+     * add a simple key/value pair to the meta object
+     *
+     * @todo expand with dot.notation to store nested values
+     *
      * @param $key
      * @param $value
      */
     public function addMeta($key, $value)
     {
-        // flag for initial use
-        if (!$this->meta) {
-            $this->meta = new \stdClass();
-        }
-        $this->meta->$key = $value;
+        $this->meta[$key] = $value;
     }
 
     /**
-     * to be implemented by each adapter
-     *
-     * @return mixed
-     */
-    abstract public function outputJSON();
-
-    /**
      * for a supplied primary id and related id, create a relationship
+     *
      * @param $id
      * @param $relationship
      * @param $related_id
@@ -175,6 +171,41 @@ abstract class Result extends \Phalcon\DI\Injectable
         return false;
     }
 
+    /**
+     * this is a simple set function to store values in an array which is intended to be included in api responses
+     *
+     * @todo expand with dot.notation to store nested values
+     *
+     * @param $key
+     * @param $value
+     */
+    public function addPlain($key, $value)
+    {
+        $this->Plain[$key] = $value;
+    }
+
+
+    /**
+     * used this function to perform some final checks on the result set before passing to the adapter
+     *
+     * @return mixed
+     * @throws \Exception
+     */
+    public function outputJSON()
+    {
+        if (count($this->data) > 1 && $this->outputMode == self::MODE_SINGLE) {
+            throw new \Exception('multiple records returned, but outputmod is single?');
+        }
+        return $this->formatJSON();
+    }
+
+    /**
+     * to be implemented by each adapter
+     *
+     * @return mixed
+     */
+    abstract protected function formatJSON();
+
 
     /**
      * return the number of records stored in the result object
@@ -186,6 +217,17 @@ abstract class Result extends \Phalcon\DI\Injectable
         return count($this->data);
     }
 
+    /**
+     * kept here to preserve backwards comparability but will be removed at a later date
+     *
+     * @deprecated - use addPlain so we use the same function name for other properties
+     * @param $key
+     * @param $value
+     */
+    public function setPlain($key, $value)
+    {
+        return $this->addPlain($key, $value);
+    }
 
     /**
      * for a given relationship and id, return the matching included record
@@ -212,20 +254,6 @@ abstract class Result extends \Phalcon\DI\Injectable
     {
         return $this->data;
     }
-
-    /**
-     * this is a simple set function to store values in an array which is intended to be included in api responses
-     *
-     * @todo expand with dot.notaction to store nested values
-     *
-     * @param $key
-     * @param $value
-     */
-    public function setPlain($key, $value)
-    {
-        $this->plain[$key] = $value;
-    }
-
 
     /**
      * provide access to the plain array
