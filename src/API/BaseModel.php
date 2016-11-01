@@ -142,9 +142,6 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public $throwOnNextSave = null;
 
-    /**
-     * auto populate a few key values
-     */
     public function initialize()
     {
         $this->loadBlockColumns();
@@ -597,9 +594,15 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
 
             if ($throw) {
+                $class = get_called_class();
+                $class = ltrim(substr($class, strrpos($class, '\\')), '\\');
                 throw new ValidationException('Validation Errors Encountered', [
                     'code' => '50986904809',
-                    'dev' => get_called_class() . '::save() failed'
+                    'dev' => $class.'::save() failed',
+                    'more' => [
+                        'attributes' => $this->toArray(),
+                        'map' => method_exists($this, 'columnMap')? $this->columnMap() : null,
+                    ]
                 ], $this->getMessages());
             }
         } else { //it worked! let's return something more useful than a boolean: the ID, if possible

@@ -338,7 +338,7 @@ class Entity extends Injectable
         $result = $query->getQuery()->getSingleResult();
         $this->recordCount = intval($result->count);
 
-        if (!$this->searchHelper->isCount) {
+        if (!$this->searchHelper->isCount && $this->recordCount) {
             // now run the real query with the same hooks
             $this->beforeQueryBuilderHook();
             $query = $this->queryBuilder->build();
@@ -1171,15 +1171,13 @@ class Entity extends Injectable
             $formData = $this->beforeSave($formData, $id);
 
             // make sure that the PKID is always stored in the formData
-            $name = $this->model->getPrimaryKeyName();
-            $formData->$name = $id;
+            $keyName = $this->model->getPrimaryKeyName();
+            $formData->$keyName = $id;
 
             $this->primaryKeyValue = $id;
 
             // need parent logic here
-            $model = $this->model;
-            $primaryModel = $model::findFirst($id);
-            $primaryModel = $this->loadParentModel($primaryModel, $formData);
+            $primaryModel = $this->loadParentModel(($this->model)::findFirst($id), $formData);
 
             // // TODO this only works with 1 parent so far....
             // $parentModelName = $model::$parentModel;
@@ -1201,10 +1199,10 @@ class Entity extends Injectable
         }
 
         // post save hook that is called before relationships have been saved
-        $this->afterSave($formData, $id);
+        $this->afterSave($this->model, $id);
 
         // post save hook that is called after all relations have been saved as well
-        $this->afterSaveRelations($formData, $id);
+        $this->afterSaveRelations($this->model, $id);
 
         $this->saveMode = null; // revert since save is finished
         return $this->primaryKeyValue;

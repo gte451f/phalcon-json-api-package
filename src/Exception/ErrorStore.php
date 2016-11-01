@@ -1,6 +1,8 @@
 <?php
 namespace PhalconRest\Exception;
 
+use Phalcon\DI;
+
 /**
  * class to standardize what properties the API stores in each error
  *
@@ -19,8 +21,7 @@ class ErrorStore
 
     /**
      * a numerical error code used to track down the error in source code
-     * ie.
-     * 2837493479739457
+     * ie. 2837493479739457
      *
      * @var string
      */
@@ -45,7 +46,7 @@ class ErrorStore
     /**
      * a list of phalcon validation objects
      *
-     * @var param
+     * @var \Phalcon\Mvc\Model\Message[]
      */
     public $validationList = [];
 
@@ -64,22 +65,8 @@ class ErrorStore
      */
     public function __construct($errorList)
     {
-        $di = \Phalcon\DI::getDefault();
-
-        if (isset($errorList['dev'])) {
-            $this->dev = @$errorList['dev'];
-        }
-
-        $this->code = @$errorList['code'];
-
-        if (isset($errorList['more'])) {
-            $this->more = @$errorList['more'];
-        }
-
-        // pull from messageBag if no explicit devMessage is provided
-        if (is_null($this->dev)) {
-            $messageBag = $di->getMessageBag();
-            $this->dev = $messageBag->getString();
-        }
+        $this->code = $errorList['code'] ?? 'XX';
+        $this->more = $errorList['more'] ?? '';
+        $this->dev = $errorList['dev'] ?? DI::getDefault()->getMessageBag()->getString();
     }
 }
