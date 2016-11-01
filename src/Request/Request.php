@@ -21,31 +21,17 @@ abstract class Request extends \Phalcon\Http\Request
      */
     public $defaultCaseFormat = false;
 
-
-    /**
-     * function that should be implemented to perform additional processing that "fixes" data
-     *
-     * @param $post
-     * * @param BaseModel $model
-     * @return mixed
-     */
-    abstract function mungeData($post, BaseModel $model);
-
     /**
      * @param $name
      * @param BaseModel $model
-     * @return mixed
+     * @return \stdClass
      */
-    abstract function getJson($name, \PhalconRest\API\BaseModel $model);
-
+    abstract function getJson($name, BaseModel $model);
 
     /**
      * extend to hook up possible case conversion
      *
-     * @param string $name
-     * @param string $filters
-     * @param string $defaultValue
-     * @return multiple
+     * {@inheritdoc}
      */
     public function getPut(
         $name = null,
@@ -55,7 +41,7 @@ abstract class Request extends \Phalcon\Http\Request
         $noRecursive = null
     ) {
         // perform parent function
-        $request = parent::getPut($name, $filters, $defaultValue);
+        $request = parent::getPut($name, $filters, $defaultValue, $notAllowEmpty, $noRecursive);
 
         // special handling for array requests, for individual inputs return what is request
         if (is_array($request) and $this->defaultCaseFormat != false) {
@@ -89,8 +75,8 @@ abstract class Request extends \Phalcon\Http\Request
     /**
      * for a given array of values, convert cases to the defaultCaseFormat
      *
-     * @param array $request
-     * @return array
+     * @param array|object $request
+     * @return array|object
      */
     protected function convertCase($request)
     {

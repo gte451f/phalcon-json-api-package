@@ -1,9 +1,9 @@
 <?php
 namespace PhalconRest\Result;
 
+use PhalconRest\Exception\ErrorStore;
 use \PhalconRest\Exception\HTTPException;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
-use PhalconRest\Result\Data;
 
 /**
  * The object used to store intermediate api results before they are sent to the client
@@ -66,7 +66,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      * // 1 = hasOne 0 = belongsTo 2 = hasMany
      *
      * @throws HTTPException
-     * @param $relation
+     * @param \PhalconRest\Api\Relation|PhalconRelation $relation
      */
     public function registerRelationshipDefinitions($relation)
     {
@@ -119,12 +119,12 @@ abstract class Result extends \Phalcon\DI\Injectable
     /**
      * add an error store object to the Result payload
      *
-     * @param \PhalconRest\Exception\ErrorStore $Error
+     * @param ErrorStore $error
      */
-    public function addError(\PhalconRest\Exception\ErrorStore $Error)
+    public function addError(ErrorStore $error)
     {
         $this->outputMode = self::MODE_ERROR;
-        $this->errors[] = $Error;
+        $this->errors[] = $error;
     }
 
 
@@ -181,7 +181,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function addPlain($key, $value)
     {
-        $this->Plain[$key] = $value;
+        $this->plain[$key] = $value;
     }
 
 
@@ -265,7 +265,7 @@ abstract class Result extends \Phalcon\DI\Injectable
     {
         if ($key) {
             if (isset($this->plain[$key])) {
-                $this->plain[$key];
+                return $this->plain[$key];
             } else {
                 return null;
             }

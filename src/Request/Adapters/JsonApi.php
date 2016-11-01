@@ -19,9 +19,9 @@ class JsonApi extends Request
      *
      * @param string $name
      * @param BaseModel $model
-     * @return \stdClass requested JSON property otherwise false
+     * @return \stdClass requested JSON property otherwise null
      */
-    public function getJson($name, \PhalconRest\API\BaseModel $model)
+    public function getJson($name, BaseModel $model)
     {
         // $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
@@ -32,7 +32,7 @@ class JsonApi extends Request
             $request = $json->data;
         } else {
             // invalid json detected
-            return false;
+            return null; //todo: throw an error instead?
         }
         // give convert a chance to run
         $request = $this->convertCase($request);
@@ -49,13 +49,13 @@ class JsonApi extends Request
      * @throws HTTPException
      */
 
-    public function mungeData($post, BaseModel $model)
+    public function mungeData($post, BaseModel $model):\stdClass
     {
         // munge a bit so it works for internal data handling
         if (!isset($post->attributes)) {
             // error here, all posts require an attributes tag
-            throw new HTTPException("The API received a malformed API request", 400, [
-                'dev' => 'Bad or incomplete attributes property submitted to the api',
+            throw new HTTPException('The API received a malformed request', 400, [
+                'dev' => 'Bad or incomplete attributes property submitted to the API',
                 'code' => '894168146168168168161'
             ]);
         } else {
@@ -88,13 +88,14 @@ class JsonApi extends Request
                         break;
 
                     case PhalconRelation::HAS_MANY:
-                        // pull plural?
+                        //TODO: pull plural?
                         break;
                     default:
                         break;
                 }
             }
         }
+
         return $data;
     }
 

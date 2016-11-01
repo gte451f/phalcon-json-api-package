@@ -20,10 +20,10 @@ class ActiveModel extends Request
      *
      * @param $name
      * @param BaseModel $model
-     * @return \stdClass|bool  the requested JSON property otherwise false
+     * @return \stdClass the requested JSON property otherwise null
      * @throws HTTPException
      */
-    public function getJson($name, \PhalconRest\API\BaseModel $model)
+    public function getJson($name, BaseModel $model)
     {
         // normalize name to all lower case
         $inflector = new Inflector();
@@ -31,44 +31,28 @@ class ActiveModel extends Request
 
         // $raw = $this->getRawBody();
         $json = $this->getJsonRawBody();
-        $request = null;
         if (is_object($json)) {
-            if ($name != null) {
+            if ($name) {
                 if (isset($json->$name)) {
                     $request = $json->$name;
                 } else {
                     // expected name not found
-                    throw new HTTPException("Could not find expected json data.", 500, array(
+                    throw new HTTPException('Could not find expected json data.', 500, [
                         'dev' => json_encode($json),
                         'code' => '4684646464684'
-                    ));
-                    return false;
+                    ]);
                 }
             } else {
                 // return the entire result set
                 $request = $json;
-                unset($json);
             }
         } else {
             // invalid json detected
-            return false;
+            return null;
         }
+
         // give convert a chance to run
-        $request = $this->convertCase($request);
-        return $this->mungeData($request, $model);
-    }
-
-
-    /**
-     * not much to do here in activemodel
-     *
-     * @param $post
-     * @param BaseModel $model
-     * @return mixed
-     */
-    public function mungeData($post, BaseModel $model)
-    {
-        return $post;
+        return $this->convertCase($request);
     }
 
 }
