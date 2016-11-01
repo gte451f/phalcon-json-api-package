@@ -367,14 +367,13 @@ class Inflector
     /**
      * In-Place, recursive conversion of array keys in snake_Case to camelCase
      *
-     * @param array $snakeArray
-     *            Array with snake_keys
-     * @return no return value, array is edited in place
+     * @param array $snakeArray Array with snake_keys
+     * @return array
      */
     final public function arrayKeysToCamel(array $snakeArray)
     {
         // hold the array of new values
-        $camelArray = array();
+        $camelArray = [];
         foreach ($snakeArray as $key => $value) {
             // tricky recursive
             if (is_array($value)) {
@@ -383,32 +382,29 @@ class Inflector
             $camelArray[$this->camelize($key)] = $value;
             unset($snakeArray[$key]);
         }
-        unset($snakeArray);
         return $camelArray;
     }
 
     /**
      * In-Place, recursive conversion of stdClass keys in snake_Case to camelCase
      *
-     * @param stdClass $snakeObject
-     *            Object with snake_properties
-     * @return no return value, array is edited in place
+     * @param object $snakeObject Object with snake_properties
+     * @return object
      */
     final public function objectPropertiesToCamel($snakeObject)
     {
-        // hold the array of new values
+        // hold the object of new values
         $camelObject = new \stdClass();
         foreach ($snakeObject as $key => $value) {
             // tricky recursive for objects or arrays
             if (is_object($value)) {
-                $value = $this->objectKeysToCamel($value);
+                $value = $this->objectPropertiesToCamel($value);
             } elseif (is_array($value)) {
                 $value = $this->arrayKeysToCamel($value);
             }
             $camelObject->{$this->camelize($key)} = $value;
             unset($snakeObject[$key]);
         }
-        unset($snakeObject);
         return $camelObject;
     }
 
@@ -416,13 +412,12 @@ class Inflector
      * In-Place, recursive conversion of array keys in camelCase to snake_Case
      *
      * @param array $camelArray
-     *            Array with camelArray
      * @return array
      */
     final public function arrayKeysToSnake(array $camelArray)
     {
         // hold the array of new values
-        $snakeArray = array();
+        $snakeArray = [];
         foreach ($camelArray as $key => $value) {
             // tricky recursive
             if (is_array($value)) {
@@ -438,11 +433,10 @@ class Inflector
     /**
      * In-Place, recursive conversion of object properties in camelCase to snake_Case
      *
-     * @param stdClass $camelObject
-     *            Object with camelObject
+     * @param object $camelObject
      * @return object
      */
-    final public function objectPropertiesToSnake($camelObject, $parent_key = "root")
+    final public function objectPropertiesToSnake($camelObject, $parent_key = 'root')
     {
         // hold the array of new values
         $snakeObject = new \stdClass();
@@ -503,7 +497,6 @@ class Inflector
                 }
             }
         }
-        unset($camelObject);
         return $snakeObject;
     }
 }

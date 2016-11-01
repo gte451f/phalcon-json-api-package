@@ -78,13 +78,11 @@ $app->after(function () use ($app) {
             $app->response->setStatusCode('200', 'OK');
             $app->response->send();
             return;
-            break;
 
         case 'DELETE': //FIXME: usually this is true, but not all DELETE requests would come without content
             $app->response->setStatusCode('204', 'No Content');
             $app->response->send();
             return;
-            break;
 
         case 'POST':
             //FIXME: not all POST requests actually create a new resource. 200 should be used otherwise

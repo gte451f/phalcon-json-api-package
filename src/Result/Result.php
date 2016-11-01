@@ -1,9 +1,9 @@
 <?php
 namespace PhalconRest\Result;
 
+use PhalconRest\Exception\ErrorStore;
 use \PhalconRest\Exception\HTTPException;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
-use PhalconRest\Result\Data;
 
 /**
  * The object used to store intermediate api results before they are sent to the client
@@ -19,16 +19,16 @@ abstract class Result extends \Phalcon\DI\Injectable
     /** a collection of individual data objects */
     protected $data = [];
 
-    /** meta data describing the request or data collected */
+    /** @var Data[] meta data describing the request or data collected */
     protected $meta = [];
 
-    /** store errors to be returned to the client */
+    /** @var ErrorStore[] Store errors to be returned to the client */
     protected $errors = [];
 
     /** store any simple non-namespaced data that is to be included in the output */
     protected $plain = [];
 
-    /** store a collection of data like items */
+    /** @var Data[] store a collection of data like items */
     protected $included = [];
 
     /** store the list of relationships for a "main" record type
@@ -43,7 +43,7 @@ abstract class Result extends \Phalcon\DI\Injectable
     // possible outputModes, useful for some adapter types
     const MODE_SINGLE = 'single';  // return a single result
     const MODE_MULTIPLE = 'multiple'; // return "n" results
-    const MODE_ERROR = 'error'; // indicate one or more errors occured
+    const MODE_ERROR = 'error'; // indicate one or more errors occurred
     const MODE_OTHER = 'other'; // return custom data of some type
 
     /**
@@ -66,7 +66,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      * // 1 = hasOne 0 = belongsTo 2 = hasMany
      *
      * @throws HTTPException
-     * @param $relation
+     * @param \PhalconRest\Api\Relation|PhalconRelation $relation
      */
     public function registerRelationshipDefinitions($relation)
     {
@@ -119,12 +119,12 @@ abstract class Result extends \Phalcon\DI\Injectable
     /**
      * add an error store object to the Result payload
      *
-     * @param \PhalconRest\Exception\ErrorStore $Error
+     * @param ErrorStore $error
      */
-    public function addError(\PhalconRest\Exception\ErrorStore $Error)
+    public function addError(ErrorStore $error)
     {
         $this->outputMode = self::MODE_ERROR;
-        $this->errors[] = $Error;
+        $this->errors[] = $error;
     }
 
 
@@ -181,7 +181,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function addPlain($key, $value)
     {
-        $this->Plain[$key] = $value;
+        $this->plain[$key] = $value;
     }
 
 
@@ -265,7 +265,7 @@ abstract class Result extends \Phalcon\DI\Injectable
     {
         if ($key) {
             if (isset($this->plain[$key])) {
-                $this->plain[$key];
+                return $this->plain[$key];
             } else {
                 return null;
             }
