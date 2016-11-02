@@ -16,14 +16,15 @@ class Result extends \PhalconRest\Result\Result
     {
         $result = new \stdClass;
 
-        // this is used to ensure there is at least a blank array when requesting records
-        if ($this->type !== false) {
-            $result->{$this->type} = [];
-        }
-
         if ($this->outputMode == self::MODE_ERROR) {
             $this->formatFailure($result);
         } else {
+
+            // this is used to ensure there is at least a blank array when requesting records
+            if ($this->type !== false) {
+                $result->{$this->type} = [];
+            }
+
             $this->formatSuccess($result);
         }
 
@@ -35,6 +36,11 @@ class Result extends \PhalconRest\Result\Result
         return $result;
     }
 
+    /**
+     * handle situations where an error occurred
+     *
+     * @param $result
+     */
     protected function formatFailure($result)
     {
         $appConfig = $this->di->get('config')['application'];

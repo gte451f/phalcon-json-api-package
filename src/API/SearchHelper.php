@@ -17,7 +17,7 @@ class SearchHelper
 
     /**
      * can be any of the following:
-     * comma, seperated, list
+     * comma, separated, list
      * requested relationships that may only be overridden by the entity if relationships are blocked
      *
      * default
@@ -52,7 +52,7 @@ class SearchHelper
      * can be any of the following
      *
      * block
-     * prevent any relationships from being sideloaded regardless
+     * prevent any relationships from being side-loaded regardless
      * of what the client asked for
      *
      * comma, separated, list

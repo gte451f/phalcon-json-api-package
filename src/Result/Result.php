@@ -154,9 +154,9 @@ abstract class Result extends \Phalcon\DI\Injectable
     /**
      * for a supplied primary id and related id, create a relationship
      *
-     * @param $id
+     * @param $id - the id of the primary record
      * @param $relationship
-     * @param $related_id
+     * @param $related_id - the primary id of the related record
      * @type mixed $type just pass through to data
      * @return boolean
      */
