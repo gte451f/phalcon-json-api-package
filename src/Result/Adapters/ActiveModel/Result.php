@@ -1,7 +1,6 @@
 <?php
 namespace PhalconRest\Result\Adapters\ActiveModel;
 
-use Phalcon\Mvc\Model\Message;
 use PhalconRest\Exception\HTTPException;
 
 class Result extends \PhalconRest\Result\Result
@@ -16,14 +15,15 @@ class Result extends \PhalconRest\Result\Result
     {
         $result = new \stdClass;
 
-        // this is used to ensure there is at least a blank array when requesting records
-        if ($this->type !== false) {
-            $result->{$this->type} = [];
-        }
-
         if ($this->outputMode == self::MODE_ERROR) {
             $this->formatFailure($result);
         } else {
+
+            // this is used to ensure there is at least a blank array when requesting records
+            if ($this->type !== false) {
+                $result->{$this->type} = [];
+            }
+
             $this->formatSuccess($result);
         }
 

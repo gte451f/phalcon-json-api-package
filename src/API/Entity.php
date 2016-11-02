@@ -378,7 +378,12 @@ class Entity extends Injectable
                     $refType = $relation->getType();
                     $relationName = $relation->getModelName('plural');
                     if ($refType == PhalconRelation::HAS_ONE AND $relationName == $modelName) {
-                        $baseArray = array_merge($this->loadAllowedColumns($record, false, false), $baseArray);
+                        // if a valid related record is found, merge it in
+                        // ie, if the related record is missing if FK, then skip it
+                        $relatedField = $relation->getReferencedFields();
+                        if ($record->$relatedField > 0) {
+                            $baseArray = array_merge($this->loadAllowedColumns($record, false, false), $baseArray);
+                        }
                     }
                 }
             }
@@ -675,7 +680,7 @@ class Entity extends Injectable
      * in cases where the related record itself refers to a parent record,
      * write a custom query to load the related record including it's parent
      *
-     * depends on the existance of a primaryKeyValue
+     * depends on the existence of a primaryKeyValue
      *
      * @param Relation|PhalconRelation $relation
      * @return array
@@ -842,35 +847,8 @@ class Entity extends Injectable
     protected function loadRelationRecords($relatedRecords, Relation $relation, $before = true)
     {
         foreach ($relatedRecords as $relatedRecord) {
-            // reset for each run
-            $relatedRecArray = array();
-            // when a related record contains hasOne or a parent, merge in those fields as part of side load response
-            $parent = $relation->getParent();
-            $classType = get_class($relatedRecord);
-            if (($parent AND $classType == 'Phalcon\Mvc\Model\Row') or $classType == 'Phalcon\Mvc\Model\Row') {
-                // process records that include joined in parent records
-                foreach ($relatedRecord as $rec) {
-                    // filter manyHasMany differently than other relationships
-                    if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
-                        // only interested in the "end" relationship, not the intermediate
-                        $intermediateModelNameSpace = $relation->getIntermediateModel();
-                        if ($intermediateModelNameSpace == get_class($rec)) {
-                            continue;
-                        }
-                    }
-                    // we don't ask for parent fields here because they are already included in the complex $result
-                    $relatedRecArray = array_merge($this->loadAllowedColumns($rec, false, false), $relatedRecArray);
-                }
-            } else {
-                // reset for each run
-                $relatedRecArray = false;
-                // let's inspect this for basic validity and ignore out empty records
-                // think of a join on optional table
-                $primaryKeyName = $relatedRecord->getPrimaryKeyName();
-                if (isset($relatedRecord->$primaryKeyName) AND $relatedRecord->$primaryKeyName != null) {
-                    $relatedRecArray = $this->loadAllowedColumns($relatedRecord, false, false);
-                }
-            }
+            // leverage helper function to extract the complete related record as an array
+            $relatedRecArray = $this->getRelatedRecord($relatedRecord, $relation);
 
             // if record appears to be invalid, skip
             if (!$relatedRecArray) {
@@ -897,6 +875,50 @@ class Entity extends Injectable
             $this->result->addIncluded($newInclude);
         }
     }
+
+
+    /**
+     * a small function that when given a relatedRecord and the relation
+     * will extract the complete record as an array
+     *
+     * @param $relatedRecord
+     * @param Relation $relation
+     * @return array|boolean
+     */
+    protected function getRelatedRecord($relatedRecord, Relation $relation)
+    {
+        // reset for each run
+        $relatedRecArray = [];
+        // when a related record contains hasOne or a parent, merge in those fields as part of side load response
+        $parent = $relation->getParent();
+        $classType = get_class($relatedRecord);
+        if (($parent AND $classType == 'Phalcon\Mvc\Model\Row') or $classType == 'Phalcon\Mvc\Model\Row') {
+            // process records that include joined in parent records
+            foreach ($relatedRecord as $rec) {
+                // filter manyHasMany differently than other relationships
+                if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
+                    // only interested in the "end" relationship, not the intermediate
+                    $intermediateModelNameSpace = $relation->getIntermediateModel();
+                    if ($intermediateModelNameSpace == get_class($rec)) {
+                        continue;
+                    }
+                }
+                // we don't ask for parent fields here because they are already included in the complex $result
+                $relatedRecArray = array_merge($this->loadAllowedColumns($rec, false, false), $relatedRecArray);
+            }
+        } else {
+            // reset for each run
+            $relatedRecArray = false;
+            // let's inspect this for basic validity and ignore out empty records
+            // think of a join on optional table
+            $primaryKeyName = $relatedRecord->getPrimaryKeyName();
+            if (isset($relatedRecord->$primaryKeyName) AND $relatedRecord->$primaryKeyName != null) {
+                $relatedRecArray = $this->loadAllowedColumns($relatedRecord, false, false);
+            }
+        }
+        return $relatedRecArray;
+    }
+
 
     /**
      * for a given set of relationships,

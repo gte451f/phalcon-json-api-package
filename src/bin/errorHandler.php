@@ -32,7 +32,7 @@ set_exception_handler(function (\Throwable $thrown) use ($app, $config, $di) {
         // create an errorStore
         $errorStore = new PhalconRest\Exception\ErrorStore([
             'code' => $thrown->getCode(),
-            'detail' => $thrown->getMessage(),
+            'more' => $thrown->getMessage(),
             'file' => $thrown->getFile(),
             'line' => $thrown->getLine(),
             'title' => 'Unexpected ' . get_class($thrown),
