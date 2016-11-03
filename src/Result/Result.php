@@ -179,11 +179,17 @@ abstract class Result extends \Phalcon\DI\Injectable
      * @param $key
      * @param $value
      */
-    public function addPlain($key, $value)
+    public function addPlain(string $key, $value)
     {
         $this->plain[$key] = $value;
     }
 
+    public function addPlains(array $list)
+    {
+        foreach ($list as $key => $value) {
+            $this->addPlain($key, $value);
+        }
+    }
 
     /**
      * used this function to perform some final checks on the result set before passing to the adapter
