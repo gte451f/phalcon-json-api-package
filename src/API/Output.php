@@ -47,27 +47,33 @@ class Output extends \Phalcon\DI\Injectable
      * format result set for output to web browser
      * add any final meta data
      *
-     * @param Result $result
+     * @param Result $result Could be null in case of 204 results
      * @return void
      */
-    public function send(Result $result)
+    public function send(Result $result = null)
     {
-        // stop timer and add to meta
-        if ($this->di->get('config')['application']['debugApp'] == true) {
-            $timer = $this->di->get('stopwatch');
-            $timer->end();
+        if ($result) {
+            // stop timer and add to meta
+            if ($this->di->get('config')['application']['debugApp'] == true) {
+                $timer = $this->di->get('stopwatch');
+                $timer->end();
 
-            $summary = [
-                'total_run_time' => round(($timer->endTime - $timer->startTime) * 1000, 2) . ' ms',
-                'laps' => []
-            ];
-            foreach ($timer->laps as $lap) {
-                $summary['laps'][$lap['name']] = round(($lap['end'] - $lap['start']) * 1000, 2) . ' ms';
+                $summary = [
+                    'total_run_time' => round(($timer->endTime - $timer->startTime) * 1000, 2) . ' ms',
+                    'laps' => []
+                ];
+                foreach ($timer->laps as $lap) {
+                    $summary['laps'][$lap['name']] = round(($lap['end'] - $lap['start']) * 1000, 2) . ' ms';
+                }
+                $result->addMeta('stopwatch', $summary);
             }
-            $result->addMeta('stopwatch', $summary);
+
+            $this->_send($result->outputJSON());
+        } else {
+            $this->setStatusCode(204, 'No Content');
+            $this->_send('');
         }
 
-        $this->_send($result->outputJSON());
         // shouldn't we get out now?
         exit();
     }
@@ -101,5 +107,10 @@ class Output extends \Phalcon\DI\Injectable
     {
         $this->httpCode = $code;
         $this->httpMessage = $message;
+    }
+
+    public function getStatusCode()
+    {
+        return $this->httpCode;
     }
 }
