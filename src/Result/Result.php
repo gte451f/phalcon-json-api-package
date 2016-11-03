@@ -235,6 +235,12 @@ abstract class Result extends \Phalcon\DI\Injectable
         return $this->addPlain($key, $value);
     }
 
+    // plain setter
+    public function setType($type)
+    {
+        $this->type = $type;
+    }
+
     /**
      * for a given relationship and id, return the matching included record
      *
