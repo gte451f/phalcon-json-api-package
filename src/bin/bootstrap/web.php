@@ -73,21 +73,23 @@ $app->after(function () use ($app) {
     $method = $app->request->getMethod();
     $output = new \PhalconRest\API\Output();
 
-    switch ($method) {
-        case 'OPTIONS':
-            $app->response->setStatusCode('200', 'OK');
-            $app->response->send();
-            return;
+    if ($output->getStatusCode() == 200) { //if it's still the default one, let's override in some cases
+        switch ($method) {
+            case 'OPTIONS':
+                $app->response->setStatusCode('200', 'OK');
+                $app->response->send();
+                return;
 
-        case 'DELETE': //FIXME: usually this is true, but not all DELETE requests would come without content
-            $app->response->setStatusCode('204', 'No Content');
-            $app->response->send();
-            return;
+            case 'DELETE': //FIXME: usually this is true, but not all DELETE requests would come without content
+                $app->response->setStatusCode('204', 'No Content');
+                $app->response->send();
+                return;
 
-        case 'POST':
-            //FIXME: not all POST requests actually create a new resource. 200 should be used otherwise
-            $output->setStatusCode('201', 'Created');
-            break;
+            case 'POST':
+                //FIXME: not all POST requests actually create a new resource. 200 should be used otherwise
+                $output->setStatusCode('201', 'Created');
+                break;
+        }
     }
 
     // Results returned from the route's controller passed to output class for delivery
