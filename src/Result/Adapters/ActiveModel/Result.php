@@ -18,12 +18,6 @@ class Result extends \PhalconRest\Result\Result
         if ($this->outputMode == self::MODE_ERROR) {
             $this->formatFailure($result);
         } else {
-
-            // this is used to ensure there is at least a blank array when requesting records
-            if ($this->type !== false) {
-                $result->{$this->type} = [];
-            }
-
             $this->formatSuccess($result);
         }
 
@@ -47,6 +41,11 @@ class Result extends \PhalconRest\Result\Result
                 break;
 
             case self::MODE_MULTIPLE:
+                // this is used to ensure there is at least a blank array when requesting multiple records
+                if ($this->type !== false) {
+                    $result->{$this->type} = [];
+                }
+
                 // push all data records into the result set
                 foreach ($this->data as $data) {
                     $type = $data->getType();
@@ -99,7 +98,7 @@ class Result extends \PhalconRest\Result\Result
                 foreach ($error->validationList as $validation) {
                     $field = $inflector->normalize($validation->getField(), $appConfig['propertyFormatTo']);
                     if (isset($details[$field])) {
-                        $details[$field] .= '. '.$validation->getMessage();
+                        $details[$field] .= '. ' . $validation->getMessage();
                     } else {
                         $details[$field] = $validation->getMessage();
                     }

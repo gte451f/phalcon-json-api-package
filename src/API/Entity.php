@@ -392,8 +392,10 @@ class Entity extends Injectable
         } else {
             $baseArray = $this->loadAllowedColumns($baseRecord, false, false);
         }
+        $primaryKeyId = $this->model->getPrimaryKeyName();
+
         $this->baseRecord = $this->di->get('data',
-            [$baseArray['id'], $this->model->getTableName('plural'), $baseArray]);
+            [$baseArray[$primaryKeyId], $this->model->getTableName('plural'), $baseArray]);
     }
 
     /**
