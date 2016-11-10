@@ -2,12 +2,10 @@
 namespace PhalconRest\API;
 
 use Phalcon\Di;
-use Phalcon\Registry;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
 use PhalconRest\Exception\HTTPException;
 use PhalconRest\Exception\ValidationException;
-use PhalconRest\Result\Data;
 use PhalconRest\Result\Result;
 
 
@@ -24,7 +22,7 @@ class Entity extends Injectable
      * store a list of all active relationships
      * not just a list of all possible relationships
      *
-     * @var Relation[]
+     * @var PhalconRelation[]|Relation[]
      */
     public $activeRelations = null;
 
@@ -354,7 +352,7 @@ class Entity extends Injectable
      * for a given base record, build an array to represent a single row including merged tables
      * strip out extra merge rows and return a single result record
      *
-     * @param BaseModel $baseRecord
+     * @param BaseModel|\Phalcon\Mvc\Model\Row|BaseModel[] $baseRecord
      * @return void
      */
     public function extractMainRow($baseRecord)
@@ -388,7 +386,7 @@ class Entity extends Injectable
                 }
             }
             // put this step in to make sure that primary fields always appear before related fields
-            $baseArray = array_merge($primaryArray, $baseArray);
+            $baseArray = array_merge($primaryArray ?? [], $baseArray);
         } else {
             $baseArray = $this->loadAllowedColumns($baseRecord, false, false);
         }
@@ -401,7 +399,7 @@ class Entity extends Injectable
      * @see processCustomRelationships()
      * @see processStandardRelationships()
      * @see $baseRecord
-     * @param \Phalcon\Mvc\Model\Row $baseRecord the base record to decorate
+     * @param \Phalcon\Mvc\Model\Row|BaseModel[] $baseRecord the base record to decorate
      * @return bool Results are put together on {@link $baseRecord}
      */
     public function processRelationships($baseRecord)
@@ -428,8 +426,8 @@ class Entity extends Injectable
      * This method is stubbed out here so that it can be extended and used in local Entity file
      * to do custom processing for certain endpoints
      *
-     * @param object $relation
-     * @param array $baseRecord
+     * @param PhalconRelation|Relation $relation
+     * @param \Phalcon\Mvc\Model\Row|BaseModel[] $baseRecord
      * @return boolean
      */
     protected function processCustomRelationships($relation, $baseRecord)
@@ -443,8 +441,8 @@ class Entity extends Injectable
      * 1) add them to the current data records
      * 2) normalize them for inclusion in the final response
      *
-     * @param Relation $relation
-     * @param array $baseRecord
+     * @param PhalconRelation|Relation $relation
+     * @param \Phalcon\Mvc\Model\Row|BaseModel[] $baseRecord
      * @throws HTTPException
      * @return mixed
      * @fixme this method contains some odd return points
@@ -524,9 +522,9 @@ class Entity extends Injectable
     /**
      * Normalize the related records so they can be added into the response object
      *
-     * @param object $baseRecord
+     * @param \Phalcon\Mvc\Model\Row|BaseModel[] $baseRecord
      * @param array $relatedRecords
-     * @param object $relation
+     * @param PhalconRelation|Relation $relation
      * @return boolean
      */
     protected function normalizeRelatedRecords($baseRecord, $relatedRecords, $relation)
@@ -592,43 +590,6 @@ class Entity extends Injectable
 
         return true;
     }
-
-    /**
-     * integrate in a batch of related records to their baseRecord
-     * tricky since the base record has already been written to the rest response...
-     *
-     * originally written to process a series of where IN records and attach to their parents via hasMany
-     *
-     * @param $relatedRecords
-     * @param Relation $relation
-     * @wtf remove this function?
-     */
-    private function updateBaseRecords($relatedRecords, $relation)
-    {
-        //process relatedRecords and stuff them into the rest response
-        $refModelNameSpace = $relation->getReferencedModel();
-
-        // store a copy of all related record (PKIDs)
-        // this must be attached w/ the parent records for joining purposes
-        $primaryKeyName = (new $refModelNameSpace())->getPrimaryKeyName();
-        $foreignKeyName = $relation->getReferencedFields();
-
-        // store a more friendly list of records by foreign_key
-        $intermediateRows = [];
-        foreach ($relatedRecords as $child) {
-            $intermediateRows[$child[$foreignKeyName]][] = $child[$primaryKeyName];
-        }
-
-        // populate the linked property or merge in additional records
-        // attempt to store the name similar to the table name
-        $name = $relation->getTableName('singular') . '_ids';
-        $modelTable = $this->model->getTableName();
-        $restKey = isset($this->restResponse[$modelTable]) ? $modelTable : $this->model->getTableName('singular');
-        foreach ($this->restResponse[$restKey] as &$record) {
-            $record[$name] = isset($intermediateRows[$record['id']]) ? $intermediateRows[$record['id']] : [];
-        }
-    }
-
 
     /**
      * load an array of records into the restResponse
@@ -720,7 +681,7 @@ class Entity extends Injectable
      * in cases where the related record itself refers to a parent record,
      * write a custom query to load the related record including it's parent (and has ones?)
      *
-     * @param Relation $relation
+     * @param PhalconRelation|Relation $relation
      * @param $baseRecord - expect this to be a complex result, otherwise why would you be here gathering belongsTo?
      * @return array
      */
@@ -756,7 +717,7 @@ class Entity extends Injectable
      * build most of the joins manually since by reference relationship in the model isn't working so well
      * this support joins to distant tables with parent models
      *
-     * @param Relation $relation
+     * @param PhalconRelation|Relation $relation
      * @return array
      */
     protected function getHasManyToManyRecords($relation)
@@ -810,7 +771,7 @@ class Entity extends Injectable
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
      *
-     * @param Relation $relation
+     * @param PhalconRelation|Relation $relation
      * @return object
      */
     private function buildRelationQuery(Relation $relation)
@@ -841,7 +802,7 @@ class Entity extends Injectable
      * will process a related record result and then update the result and current baseRecord objects
      *
      * @param array $relatedRecords
-     * @param Relation $relation
+     * @param PhalconRelation|Relation $relation
      * @param boolean $before is this being run before or after all baseRecords were loaded?
      */
     protected function loadRelationRecords($relatedRecords, Relation $relation, $before = true)
@@ -881,8 +842,8 @@ class Entity extends Injectable
      * a small function that when given a relatedRecord and the relation
      * will extract the complete record as an array
      *
-     * @param $relatedRecord
-     * @param Relation $relation
+     * @param BaseModel $relatedRecord
+     * @param PhalconRelation|Relation $relation
      * @return array|boolean
      */
     protected function getRelatedRecord($relatedRecord, Relation $relation)
