@@ -48,8 +48,7 @@ set_exception_handler(function (\Throwable $thrown) use ($app, $config, $di) {
         $result->addError($errorStore);
 
         // send to output
-        $output = new Output();
-        return $output->send($result);
+        (new Output)->send($result);
     }
 });
 
@@ -89,8 +88,7 @@ register_shutdown_function(function () use ($app, $config, $di) {
         $result->addError($errorStore);
 
         // send to output
-        $output = new Output();
-        return $output->send($result);
+        (new Output)->send($result);
 
     }
 });
@@ -151,7 +149,7 @@ function errorTypeStr($code)
  * @param string $title
  */
 
-set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null, $title = 'Fatal Error Occurred') use (
+set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null, string $title = '') use (
     $app,
     $config,
     $di
@@ -161,7 +159,7 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null
 
     $errorStore = new \PhalconRest\Exception\ErrorStore([
         'code' => $errno,
-        'title' => is_string($title) ? $title : 'Fatal Error Occurred and bad $title given',
+        'title' => $title?: 'Fatal Error Ocurred - ' . errorTypeStr($errno),
         'more' => $errstr,
         'context' => $context,
         'line' => $errline,
@@ -200,6 +198,5 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null
     $result->addError($errorStore);
 
     // send to output
-    $output = new Output();
-    return $output->send($result);
+    (new Output)->send($result);
 });
