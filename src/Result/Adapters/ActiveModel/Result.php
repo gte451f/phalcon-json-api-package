@@ -34,7 +34,7 @@ class Result extends \PhalconRest\Result\Result
         switch ($this->outputMode) {
             case self::MODE_SINGLE:
                 if (count($this->data)) {
-                    $data = $this->data[0];
+                    $data = current($this->data);
                     $type = $data->getType();
                     $result->$type = $data;
                 }

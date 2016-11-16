@@ -153,10 +153,10 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         } elseif (array_key_exists($name, $this->attributes)) {
             return $this->attributes[$name];
         } else {
-            throw new HTTPException('No matching field name found.', 500, array(
+            throw new HTTPException('No matching field name found.', 500, [
                 'dev' => "The API requested a field name that doesn't existing in this data object: $name",
                 'code' => '8794793549444'
-            ));
+            ]);
         }
     }
 }
