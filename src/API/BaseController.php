@@ -183,10 +183,10 @@ class BaseController extends Controller
         $result = $this->entity->findFirst($id);
         if ($result->countResults() == 0) {
             // This is bad. Throw a 500. Responses should always be objects.
-            throw new HTTPException('Resource not available.', 404, array(
+            throw new HTTPException('Resource not available.', 404, [
                 'dev' => 'The resource you requested is not available.',
                 'code' => '43758093745021'
-            ));
+            ]);
         } else {
             return $result;
         }
@@ -203,7 +203,7 @@ class BaseController extends Controller
     public function post()
     {
         $request = $this->getDI()->get('request');
-        // supply everything the request object could possibly need to fullfill the request
+        // supply everything the request object could possibly need to fulfill the request
         $post = $request->getJson($this->getControllerName('singular'), $this->model);
 
         if (!$post) {

@@ -1,6 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
+use Phalcon\Http\Response;
 use Phalcon\Mvc\Model\Message;
 use PhalconRest\Exception\ErrorStore;
 use PhalconRest\Result\Result;
@@ -70,7 +71,7 @@ class Output extends \Phalcon\DI\Injectable
 
             $this->_send($result->outputJSON());
         } else {
-            $this->setStatusCode(204, 'No Content');
+            $this->setStatusCode(204);
             $this->_send('');
         }
 
@@ -85,15 +86,19 @@ class Output extends \Phalcon\DI\Injectable
      */
     private function _send($message)
     {
-        // Error's come from HTTPException. This helps set the proper envelope data
+        // Errors come from HTTPException. This helps set the proper envelope data
+        /** @var Response $response */
         $response = $this->di->get('response');
-        $response->setStatusCode($this->httpCode, $this->httpMessage)->sendHeaders();
+        $response->setStatusCode($this->httpCode, $this->httpMessage);
 
-        // HEAD requests are detected in the parent constructor.
         // HEAD does everything exactly the same as GET, but contains no body
-        if (!$this->head) {
+        // empty responses (such as a 204 result) should also skip JSON configuration
+        if ($this->head || !$message) {
+            $response->setContentType(null); //forces content-type to not be sent
+        } else {
             $response->setJsonContent($message);
         }
+
         $response->send();
     }
 
@@ -103,7 +108,7 @@ class Output extends \Phalcon\DI\Injectable
      * @param int $code
      * @param string $message
      */
-    public function setStatusCode($code, $message)
+    public function setStatusCode($code, $message = null)
     {
         $this->httpCode = $code;
         $this->httpMessage = $message;

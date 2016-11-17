@@ -34,7 +34,7 @@ class Result extends \PhalconRest\Result\Result
         switch ($this->outputMode) {
             case self::MODE_SINGLE:
                 if (count($this->data)) {
-                    $data = $this->data[0];
+                    $data = current($this->data);
                     $type = $data->getType();
                     $result->$type = $data;
                 }
@@ -88,22 +88,22 @@ class Result extends \PhalconRest\Result\Result
 
         $result->errors = [];
         foreach ($this->errors as $error) {
+            $errorBlock = [];
+            if ($error->validationList) {
+                foreach ($error->validationList as $validation) {
+                    $field = $inflector->normalize($validation->getField(), $appConfig['propertyFormatTo']);
+                    if (!isset($errorBlock[$field])) {
+                        $errorBlock[$field] = [];
+                    }
+                    $errorBlock[$field][] = $validation->getMessage();
+                }
+            }
+
             $details = [
                 'title' => $error->title,
                 'code' => $error->code,
                 'details' => $error->more
             ];
-
-            if ($error->validationList) {
-                foreach ($error->validationList as $validation) {
-                    $field = $inflector->normalize($validation->getField(), $appConfig['propertyFormatTo']);
-                    if (isset($details[$field])) {
-                        $details[$field] .= '. ' . $validation->getMessage();
-                    } else {
-                        $details[$field] = $validation->getMessage();
-                    }
-                }
-            }
 
             if ($appConfig['debugApp']) {
                 $meta = array_filter([ //clears up empty keys
@@ -119,7 +119,7 @@ class Result extends \PhalconRest\Result\Result
                 }
             }
 
-            $result->errors[] = $details;
+            $result->errors[] = $errorBlock + ['additional_info' => $details];
         }
     }
 

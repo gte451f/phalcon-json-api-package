@@ -113,7 +113,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function addData(Data $newData)
     {
-        $this->data[] = $newData;
+        $this->data[$newData->getId()] = $newData;
     }
 
     /**
@@ -135,7 +135,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function addIncluded(Data $newData)
     {
-        $this->included[] = $newData;
+        $this->included[$newData->getId()] = $newData;
     }
 
     /**
