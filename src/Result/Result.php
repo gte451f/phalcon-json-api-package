@@ -29,7 +29,7 @@ abstract class Result extends \Phalcon\DI\Injectable
     protected $plain = [];
 
     /**
-     * @var Data[] store a collection of data like items
+     * @var Data[][] store a collection of data like items
      * array will namespace each record based on it's TYPE
      * this is to allow a result object to store include records from multiple related sources
      * while preventing duplicate records from being stored
@@ -89,11 +89,7 @@ abstract class Result extends \Phalcon\DI\Injectable
                 $name = $relation->getTableName('plural');
                 break;
             default:
-                // throw error for bad type
-                throw new HTTPException('A Bad Relationship Type was supplied!', 500, [
-                    'code' => '8948616164789797'
-                ]);
-                break;
+                throw new HTTPException('A Bad Relationship Type was supplied!', 500, ['code' => '8948616164789797']);
         }
         $this->relationshipRegistry[strtolower($name)] = $relation;
     }
@@ -106,11 +102,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function getRelationshipDefinition($name)
     {
-        if (isset($this->relationshipRegistry[$name])) {
-            return $this->relationshipRegistry[$name];
-        } else {
-            return 'Unknown';
-        }
+        return $this->relationshipRegistry[$name] ?? 'Unknown';
     }
 
     /**
@@ -207,7 +199,7 @@ abstract class Result extends \Phalcon\DI\Injectable
     public function outputJSON()
     {
         if (count($this->data) > 1 && $this->outputMode == self::MODE_SINGLE) {
-            throw new \Exception('multiple records returned, but outputmod is single?');
+            throw new \Exception('multiple records returned, but output-mode is single?');
         }
         return $this->formatJSON();
     }
@@ -253,18 +245,11 @@ abstract class Result extends \Phalcon\DI\Injectable
      *
      * @param $relationshipName
      * @param $id
-     * @return bool|mixed
+     * @return null|mixed
      */
     public function getInclude($relationshipName, $id)
     {
-        if (isset($this->included[$relationshipName])) {
-            foreach ($this->included[$relationshipName] as $item) {
-                if ($item->getId() === $id) {
-                    return $item;
-                }
-            }
-        }
-        return false;
+        return $this->included[$relationshipName][$id] ?? null;
     }
 
     /**
@@ -277,7 +262,7 @@ abstract class Result extends \Phalcon\DI\Injectable
     }
 
     /**
-     * provide access to the plain array
+     * provides access to the plain array
      *
      * @param bool $key
      * @return array|mixed
