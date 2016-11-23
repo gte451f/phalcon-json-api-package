@@ -1,8 +1,6 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
-
 /**
  * Assist Entity to query database and shape the response object
  * Will sit at the intersection of Entity field filters & URL supplied values
@@ -19,7 +17,7 @@ class SearchHelper
 
     /**
      * can be any of the following:
-     * comma, seperated, list
+     * comma, separated, list
      * requested relationships that may only be overridden by the entity if relationships are blocked
      *
      * default
@@ -54,7 +52,7 @@ class SearchHelper
      * can be any of the following
      *
      * block
-     * prevent any relationships from being sideloaded regardless
+     * prevent any relationships from being side-loaded regardless
      * of what the client asked for
      *
      * comma, separated, list
@@ -84,6 +82,7 @@ class SearchHelper
     // this only applies to GET requests
     private $reservedWords = array(
         'with',
+        'include',
         'sort',
         'sortField',
         'offset',
@@ -324,8 +323,11 @@ class SearchHelper
 
         // simple stuff first
         $with = $request->get('with', "string", null);
+        $include = $request->get('include', "string", null);
         if (!is_null($with)) {
             $this->suppliedWith = $with;
+        } elseif (!is_null($include)) {
+            $this->suppliedWith = $include;
         }
 
         // load possible sort values in the following order

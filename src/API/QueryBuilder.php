@@ -5,8 +5,7 @@ use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Query\BuilderInterface;
 use Phalcon\Mvc\Model\Relation;
-use \PhalconRest\Util\HTTPException;
-use \PhalconRest\Util\ValidationException;
+use PhalconRest\Exception\HTTPException;
 
 
 /**
@@ -115,20 +114,15 @@ class QueryBuilder extends Injectable
                 $alias = $referencedModel;
             }
 
-            // structure to always join in belongsTo just in case the query filters by a related field
             $type = $relation->getType();
             switch ($type) {
+                // structure to always join in belongsTo just in case the query filters by a related field
                 case Relation::BELONGS_TO:
-                    // process feature flag for belongsTo
-                    // attempt to join "simple" in side loaded belongsTo records that do not themselves have parents
-                    if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
-                        // create both sides of the join
-                        $left = "[$alias]." . $relation->getReferencedFields();
-                        $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
-                        // create and alias join
-                        $query->leftJoin($referencedModel, "$left = $right", $alias);
-                        $columns[] = "[$alias].*";
-                    }
+                    // create both sides of the join
+                    $left = "[$alias]." . $relation->getReferencedFields();
+                    $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    // create and alias join
+                    $query->leftJoin($referencedModel, "$left = $right", $alias);
                     break;
 
                 case Relation::HAS_ONE:
@@ -142,7 +136,7 @@ class QueryBuilder extends Injectable
                     $columns[] = "[$alias].*";
                     break;
 
-                    // stop processing these types of joins with the main query.  They might return "n" number of related records
+                // stop processing these types of joins with the main query.  They might return "n" number of related records
 //                case Relation::HAS_MANY_THROUGH:
 //                    $alias2 = $alias . '_intermediate';
 //                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
@@ -156,6 +150,12 @@ class QueryBuilder extends Injectable
 
                 default:
                     $this->di->get('logger')->warning("Relationship was ignored during join: {$this->model->getModelName()}.$alias, type #$type");
+            }
+
+            // attempt to join in side loaded belongsTo records
+            // add all parent AND hasOne joins to the column list
+            if ($type == Relation::BELONGS_TO) {
+                $columns[] = "[$alias].*";
             }
         }
         $query->columns($columns);
@@ -252,12 +252,14 @@ class QueryBuilder extends Injectable
                                 $marker = 'marker' . $count;
                                 $operator = $this->determineWhereOperator($fieldValue);
                                 $newFieldValue = $this->processFieldValue($fieldValue, $operator);
+
                                 if ($operator === 'IS NULL') {
                                     $queryArr[] = "$fieldName $operator";
                                 } else {
                                     $queryArr[] = "$fieldName $operator :$marker:";
                                     $valueArr[$marker] = $newFieldValue;
                                 }
+
                                 $count++;
                             }
                         }
@@ -271,7 +273,7 @@ class QueryBuilder extends Injectable
     }
 
     /**
-     * This method looks for the existence of syntax extentions to the api and attempts to
+     * This method looks for the existence of syntax extensions to the api and attempts to
      * adjust search inputs before subjecting them to the queryBuilder
      *
      * The 'or' operator || explodes the given parameter on that operator if found
@@ -325,6 +327,8 @@ class QueryBuilder extends Injectable
      * resources:child_table=note||subject
      *
      * A rather obscure feature of this implementation is that providing no table prefix often works correctly
+     *
+     * this function now checks parent models if not matching column is found in the primary table
      *
      *
      * @param string $fieldName

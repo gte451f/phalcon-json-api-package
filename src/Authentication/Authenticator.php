@@ -4,8 +4,16 @@ namespace PhalconRest\Authentication;
 use Phalcon\DI\Injectable;
 
 /**
- * Use one interface to perform work split between a userProfile object and a adapter to authenticate
  *
+ * This is one example class that implements an interface used to deal with common tasks around
+ * user authentication such as log in and log out
+ *
+ * work is split between a userProfile object and a adapter to authenticate
+ * the adapter's role is to compare a set of credentials against an access list (DB, A/D)
+ * the profile's role is to load a fully populated user account
+ *
+ * a few options are specified in the authentication class
+ * see inline comments
  *
  * This class makes a few assumptions:
  * adapters rely on a a pair of fields to identify a user
@@ -14,7 +22,7 @@ use Phalcon\DI\Injectable;
  *
  *
  * @author jjenkins
- *        
+ *
  */
 class Authenticator extends Injectable implements AuthenticatorInterface
 {
@@ -22,20 +30,26 @@ class Authenticator extends Injectable implements AuthenticatorInterface
     /**
      * the user profile
      *
-     * @var \stdClass
+     * @var \PhalconRest\Authentication\UserProfile
      */
     private $profile;
 
     private $adapter;
 
+    /**
+     * @var string what is the name of the attribute that stores a users token once they have been authenticated
+     */
     public $tokenFieldName = 'token';
 
+    /**
+     * @var string what is the name of the attribute of the user identifier?
+     */
     public $userNameFieldName = 'user_name';
 
     /**
      * is the user authenticated?
      *
-     * @var unknown
+     * @var boolean
      */
     public $authenticated = false;
 
@@ -61,7 +75,7 @@ class Authenticator extends Injectable implements AuthenticatorInterface
         if (strlen($token) == 0) {
             false;
         }
-        
+
         $this->authenticated = $this->profile->loadProfile("$this->tokenFieldName = '$token'");
         return $this->authenticated;
     }
@@ -78,7 +92,7 @@ class Authenticator extends Injectable implements AuthenticatorInterface
         if (strlen($token) == 0) {
             false;
         }
-        
+
         $result = $this->isLoggedIn($token);
         $this->beforeLogout($token);
         if ($result) {
@@ -92,8 +106,8 @@ class Authenticator extends Injectable implements AuthenticatorInterface
      * run a set of credentials against the adapters internal authenticate function
      * will retain a copy of the adapter provided profile
      *
-     * @param string $userName            
-     * @param string $password            
+     * @param string $userName
+     * @param string $password
      * @return boolean
      */
     public function authenticate($userName, $password)
@@ -122,36 +136,40 @@ class Authenticator extends Injectable implements AuthenticatorInterface
     /**
      * hook to call before a login attempt
      *
-     * @param string $userName            
-     * @param string $password            
+     * @param string $userName
+     * @param string $password
      */
     public function beforeLogin($userName, $password)
-    {}
+    {
+    }
 
     /**
      * hook to call after a login attempt
      *
-     * @param string $userName            
-     * @param string $password            
+     * @param string $userName
+     * @param string $password
      */
     public function afterLogin($userName, $password, $result)
-    {}
+    {
+    }
 
     /**
      * hook to call before a logout attempt
      *
-     * @param string $userName            
-     * @param string $password            
+     * @param string $userName
+     * @param string $password
      */
     public function beforeLogout($token)
-    {}
+    {
+    }
 
     /**
      * hook to call after a logout attempt
      *
-     * @param string $userName            
-     * @param string $password            
+     * @param string $userName
+     * @param string $password
      */
     public function afterLogout($token, $result)
-    {}
+    {
+    }
 }

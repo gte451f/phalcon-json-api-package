@@ -1,7 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
-use \PhalconRest\Util\HTTPException;
+use \PhalconRest\Exception\HTTPException;
 
 /**
  * Same base controller but checks for a valid token if security is enabled
@@ -35,7 +35,7 @@ class SecureController extends BaseController
                 break;
 
             case false:
-                // if security is off, then create a fake user profile
+                // if security is off, then create a fake user profile to trick the api
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
                 if ($auth->isLoggedIn('HACKYHACKERSON')) {
@@ -68,7 +68,7 @@ class SecureController extends BaseController
         $token = $this->request->getHeader('X_AUTHORIZATION');
         if (!$token) {
             $request = $this->getDI()->get('request');
-            $token = $request->getQuery('token')?: $request->getPost('token');
+            $token = $request->getQuery('token') ?: $request->getPost('token');
         }
 
         $token = trim(str_ireplace('Token:', '', $token));

@@ -3,16 +3,12 @@
 
 // Factory Default loads all services by default....
 use Phalcon\DI;
-use Phalcon\Loader;
-
 
 // PhalconRest libraries
-use PhalconRest\API\Request as Request;
+use PhalconRest\Request\Request as Request;
 use PhalconRest\Util\Inflector;
 
 // for password and credit card encryption
-use Phalcon\Crypt;
-use Phalcon\Security;
 use PHPBenchTime\Timer;
 use Phalcon\Logger\Adapter\File as FileLogger;
 
@@ -26,13 +22,18 @@ $T->start('Booting App');
  * @var $di DI\FactoryDefault\Cli|DI\FactoryDefault
  */
 
-$di = (PHP_SAPI == 'cli')? new DI\FactoryDefault\Cli : new DI\FactoryDefault;
+$di = (PHP_SAPI == 'cli') ? new DI\FactoryDefault\Cli : new DI\FactoryDefault;
 
-$di->setShared('request', function () {
-    // $request = new \PhalconRest\Libraries\Request\Request();
-    $request = new Request();
-    // we expect inputs to be camel, so we convert to snake for server side
-    $request->defaultCaseFormat = 'snake';
+// load the proper request object depending on the specified format
+$di->setShared('request', function () use ($config) {
+    if (isset($config['application']['outputFormat'])) {
+        $outputFormat = $config['application']['outputFormat'];
+    } else {
+        $outputFormat = 'JsonApi';
+    }
+    $classpath = '\PhalconRest\Request\Adapters\\' . $outputFormat;
+    $request = new $classpath();
+    $request->defaultCaseFormat = $config['application']['propertyFormatFrom'];
     return $request;
 });
 
@@ -90,6 +91,44 @@ $di->setShared('cache', function () use ($config) {
 });
 
 
+// load a result adapter based on what is configured in the app
+//$di->setShared('result', function () use ($config) {
+//    if (isset($config['application']['outputFormat'])) {
+//        $outputFormat = $config['application']['outputFormat'];
+//    } else {
+//        $outputFormat = 'JsonApi';
+//    }
+//    $classpath = '\PhalconRest\Result\Adapters\\' . $outputFormat . '\Result';
+//    return new $classpath();
+//});
+
+$di->setShared(
+    "result",
+    [
+        "className" => "\\PhalconRest\\Result\\Adapters\\" . $config['application']['outputFormat'] . "\\Result",
+        "arguments" => [
+            ["type" => "parameter"]
+        ]
+    ]
+);
+
+
+
+// load a data adapter based on what is configured in the app
+$di->set(
+    "data",
+    [
+        "className" => "\\PhalconRest\\Result\\Adapters\\" . $config['application']['outputFormat'] . "\\Data",
+        "arguments" => [
+            ["type" => "parameter"],
+            ["type" => "parameter"],
+            ["type" => "parameter"],
+            ["type" => "parameter"]
+        ]
+    ]
+);
+
+
 $di->setShared('modelsManager', function () {
     return new \Phalcon\Mvc\Model\Manager();
 });
@@ -130,16 +169,16 @@ $di->setShared('inflector', function () {
  */
 $di->setShared('requestBody', function () {
     $in = file_get_contents('php://input');
-    $in = json_decode($in, FALSE);
+    $in = json_decode($in, false);
 
     // JSON body could not be parsed, throw exception
     if ($in === null) {
-        throw new HTTPException('There was a problem understanding the data sent to the server by the application.', 409, array(
-            'dev' => 'The JSON body sent to the server was unable to be parsed.',
-            'code' => '5',
-            'more' => ''
-        ));
+        throw new HTTPException('There was a problem understanding the data sent to the server by the application.',
+            409, array(
+                'dev' => 'The JSON body sent to the server was unable to be parsed.',
+                'code' => '5',
+                'more' => ''
+            ));
     }
-
     return $in;
 });

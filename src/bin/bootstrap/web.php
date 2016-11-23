@@ -1,5 +1,6 @@
 <?php
-use Phalcon\Mvc\Micro\Collection;
+
+use PhalconRest\Exception\HTTPException;
 
 /**
  * Our application is a Micro application, so we must explicitly define all the routes.
@@ -15,7 +16,7 @@ $app->setDI($di);
  * Returning true in this function resumes normal routing.
  * Returning false stops any route from executing.
  */
-$app->before(function () use($app, $di) {
+$app->before(function () use ($app, $di) {
     // set standard CORS headers before routing just in case no valid route is found
     $config = $di->get('config');
     $app->response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
@@ -36,23 +37,28 @@ $T->lap('Processing Request');
  * This is not strictly REST compliant, but it helps to base API documentation off of.
  * By calling this, you can quickly see a list of all routes and their methods.
  */
-$app->get('/', function () use($app) {
-    $routes = $app->getRouter()
-        ->getRoutes();
-    $routeDefinitions = array(
-        'GET' => array(),
-        'POST' => array(),
-        'PUT' => array(),
-        'PATCH' => array(),
-        'DELETE' => array(),
-        'HEAD' => array(),
-        'OPTIONS' => array()
-    );
+$app->get('/', function () use ($app, $di) {
+    $routes = $app->getRouter()->getRoutes();
+    $routeDefinitions = [
+        'GET' => [],
+        'POST' => [],
+        'PUT' => [],
+        'PATCH' => [],
+        'DELETE' => [],
+        'HEAD' => [],
+        'OPTIONS' => []
+    ];
     foreach ($routes as $route) {
         $method = $route->getHttpMethods();
         $routeDefinitions[$method][] = $route->getPattern();
     }
-    return $routeDefinitions;
+    $result = $di->get('result', []);
+    $result->outputMode = 'other';
+
+    foreach ($routeDefinitions as $key => $value) {
+        $result->setPlain($key, $value);
+    }
+    return $result;
 });
 
 /**
@@ -63,45 +69,41 @@ $app->get('/', function () use($app) {
  * However, by parsing the request query string's 'type' parameter, it is easy to install
  * different response type handlers.
  */
-$app->after(function () use($app) {
+$app->after(function () use ($app) {
     $method = $app->request->getMethod();
     $output = new \PhalconRest\API\Output();
 
-    switch ($method) {
-        case 'OPTIONS':
-            $app->response->setStatusCode('200', 'OK');
-            $app->response->send();
-            return;
-            break;
+    if ($output->getStatusCode() == 200) { //if it's still the default one, let's override in some cases
+        switch ($method) {
+            case 'OPTIONS':
+                $app->response->setStatusCode('200', 'OK');
+                $app->response->send();
+                return;
 
-        case 'DELETE':
-            $app->response->setStatusCode('204', 'No Content');
-            $app->response->send();
-            return;
-            break;
+            case 'DELETE': //FIXME: usually this is true, but not all DELETE requests would come without content
+                $app->response->setStatusCode('204', 'No Content');
+                $app->response->send();
+                return;
 
-        case 'POST':
-            $output->setStatusCode('201', 'Created');
-            break;
+            case 'POST':
+                //FIXME: not all POST requests actually create a new resource. 200 should be used otherwise
+                $output->setStatusCode('201', 'Created');
+                break;
+        }
     }
 
-    // Results returned from the route's controller. All Controllers should return an array
-    $records = $app->getReturnedValue();
-
-    // this is default behavior
-    $output->convertSnakeCase(false)
-        ->send($records);
-    return;
+    // Results returned from the route's controller passed to output class for delivery
+    $output->send($app->getReturnedValue());
 });
 
 /**
  * The notFound service is the default handler function that runs when no route was matched.
  * We set a 404 here unless there's a suppress error codes.
  */
-$app->notFound(function () use($app) {
-    throw new \PhalconRest\Util\HTTPException('Not Found.', 404, array(
+$app->notFound(function () use ($app) {
+    throw new HTTPException('Not Found.', 404, [
         'dev' => 'That route was not found on the server.',
         'code' => '4',
         'more' => 'Check route for misspellings.'
-    ));
+    ]);
 });

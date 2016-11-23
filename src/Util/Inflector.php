@@ -1,6 +1,8 @@
 <?php
 namespace PhalconRest\Util;
 
+use \PhalconRest\Exception\HTTPException;
+
 /**
  * Inflector for pluralize and singularize English nouns.
  *
@@ -13,7 +15,7 @@ namespace PhalconRest\Util;
  *
  * @author Bermi Ferrer Martinez
  * @author Jim Jenkins
- *        
+ *
  */
 class Inflector
 {
@@ -69,25 +71,25 @@ class Inflector
             '/s$/i' => 's',
             '/$/' => 's'
         );
-        
+
         $uncountable = $this->uncountableWords;
-        
+
         $irregular = $this->irregularWords;
-        
+
         $lowercased_word = strtolower($word);
-        
+
         foreach ($uncountable as $_uncountable) {
-            if (substr($lowercased_word, (- 1 * strlen($_uncountable))) == $_uncountable) {
+            if (substr($lowercased_word, (-1 * strlen($_uncountable))) == $_uncountable) {
                 return $word;
             }
         }
-        
+
         foreach ($irregular as $_plural => $_singular) {
             if (preg_match('/(' . $_plural . ')$/i', $word, $arr)) {
                 return preg_replace('/(' . $_plural . ')$/i', substr($arr[0], 0, 1) . substr($_singular, 1), $word);
             }
         }
-        
+
         foreach ($plural as $rule => $replacement) {
             if (preg_match($rule, $word)) {
                 return preg_replace($rule, $replacement, $word);
@@ -134,31 +136,67 @@ class Inflector
             '/(n)ews$/i' => '\1ews',
             '/s$/i' => ''
         );
-        
+
         $uncountable = $this->uncountableWords;
         $irregular = $this->irregularWords;
-        
+
         $lowercased_word = strtolower($word);
         foreach ($uncountable as $_uncountable) {
-            if (substr($lowercased_word, (- 1 * strlen($_uncountable))) == $_uncountable) {
+            if (substr($lowercased_word, (-1 * strlen($_uncountable))) == $_uncountable) {
                 return $word;
             }
         }
-        
+
         foreach ($irregular as $_plural => $_singular) {
             if (preg_match('/(' . $_singular . ')$/i', $word, $arr)) {
                 return preg_replace('/(' . $_singular . ')$/i', substr($arr[0], 0, 1) . substr($_plural, 1), $word);
             }
         }
-        
+
         foreach ($singular as $rule => $replacement) {
             if (preg_match($rule, $word)) {
                 return preg_replace($rule, $replacement, $word);
             }
         }
-        
+
         return $word;
     }
+
+
+    /**
+     * for a given word, convert from one format to another
+     * supported values include camel, dash, snake
+     *
+     * @param $word
+     * @param $to
+     *
+     * @throws HTTPException
+     * @return mixed
+     */
+    public function normalize($word, $to)
+    {
+        switch ($to) {
+            case 'camel':
+                return lcfirst($this->camelize($word));
+                break;
+
+            case 'snake':
+                return $this->underscore($word);
+                break;
+
+            case 'dash':
+                return $this->dasherize($word);
+                break;
+
+            default:
+                throw new HTTPException('Invalid nomalization requested', 404, array(
+                    'dev' => 'The provided TO field was invalid  It did not match any expected format',
+                    'code' => '46546846468464684'
+                ));
+                break;
+        }
+    }
+
 
     /**
      * Returns given word as CamelCased
@@ -166,6 +204,9 @@ class Inflector
      * Converts a word like "send_email" to "SendEmail". It
      * will remove non alphanumeric character from the word, so
      * "who's online" will be converted to "WhoSOnline"
+     *
+     * also supports camelizing dasherized strings like
+     * send-email
      *
      * @access public
      * @static
@@ -196,9 +237,13 @@ class Inflector
      */
     function underscore($word)
     {
-        // return strtolower(preg_replace('/[^A-Z^a-z^0-9]+/', '_', preg_replace('/([a-zd])([A-Z])/', '1_2', preg_replace('/([A-Z]+)([A-Z][a-z])/', '1_2', $word))));
-        $word = preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $word);
-        return strtolower($word);
+        return strtolower(str_replace('-', '_', preg_replace('/(?<=\\w)(?=[A-Z])/', "_$1", $word)));
+    }
+
+
+    function dasherize($word)
+    {
+        return strtolower(str_replace('_', '-', preg_replace('/(?<=\\w)(?=[A-Z])/', "-$1", $word)));
     }
 
     /**
@@ -322,14 +367,13 @@ class Inflector
     /**
      * In-Place, recursive conversion of array keys in snake_Case to camelCase
      *
-     * @param array $snakeArray
-     *            Array with snake_keys
-     * @return no return value, array is edited in place
+     * @param array $snakeArray Array with snake_keys
+     * @return array
      */
     final public function arrayKeysToCamel(array $snakeArray)
     {
         // hold the array of new values
-        $camelArray = array();
+        $camelArray = [];
         foreach ($snakeArray as $key => $value) {
             // tricky recursive
             if (is_array($value)) {
@@ -338,32 +382,29 @@ class Inflector
             $camelArray[$this->camelize($key)] = $value;
             unset($snakeArray[$key]);
         }
-        unset($snakeArray);
         return $camelArray;
     }
 
     /**
      * In-Place, recursive conversion of stdClass keys in snake_Case to camelCase
      *
-     * @param stdClass $snakeObject
-     *            Object with snake_properties
-     * @return no return value, array is edited in place
+     * @param object $snakeObject Object with snake_properties
+     * @return object
      */
     final public function objectPropertiesToCamel($snakeObject)
     {
-        // hold the array of new values
+        // hold the object of new values
         $camelObject = new \stdClass();
         foreach ($snakeObject as $key => $value) {
             // tricky recursive for objects or arrays
             if (is_object($value)) {
-                $value = $this->objectKeysToCamel($value);
+                $value = $this->objectPropertiesToCamel($value);
             } elseif (is_array($value)) {
                 $value = $this->arrayKeysToCamel($value);
             }
             $camelObject->{$this->camelize($key)} = $value;
             unset($snakeObject[$key]);
         }
-        unset($snakeObject);
         return $camelObject;
     }
 
@@ -371,19 +412,18 @@ class Inflector
      * In-Place, recursive conversion of array keys in camelCase to snake_Case
      *
      * @param array $camelArray
-     *            Array with camelArray
      * @return array
      */
     final public function arrayKeysToSnake(array $camelArray)
     {
         // hold the array of new values
-        $snakeArray = array();
+        $snakeArray = [];
         foreach ($camelArray as $key => $value) {
             // tricky recursive
             if (is_array($value)) {
                 $value = $this->arrayKeysToSnake($value);
             }
-            
+
             $snakeArray[$this->underscore($key)] = $value;
             unset($camelArray[$key]);
         }
@@ -393,12 +433,11 @@ class Inflector
     /**
      * In-Place, recursive conversion of object properties in camelCase to snake_Case
      *
-     * @param stdClass $camelObject
-     *            Object with camelObject
+     * @param object $camelObject
      * @return object
      */
-    final public function objectPropertiesToSnake($camelObject, $parent_key = "root")
-    {        
+    final public function objectPropertiesToSnake($camelObject, $parent_key = 'root')
+    {
         // hold the array of new values
         $snakeObject = new \stdClass();
         foreach ($camelObject as $key => $value) {
@@ -407,34 +446,38 @@ class Inflector
                 $value = $this->objectPropertiesToSnake($value, $key);
             } elseif (is_array($value)) {
                 $value = $this->arrayKeysToSnake($value);
-            }            
-            
-            if(is_object($value)){
+            }
+
+            if (is_object($value)) {
                 // if $value is an object, then it represents an object nested in the root object
                 // e.g. $root->$nested
                 $obj_vars = get_object_vars($value);
-            } else {                
+            } else {
                 $obj_vars = array();
             }
-            
+
             // if $key is found in the $obj_vars, then we are trying to merge a nested child object into it's nested parent object.
             // both the parent and the child are below the level of the root object
             // e.g. - $root->parent->$child = $value
-            if(in_array($key, array_keys($obj_vars)) && ($parent_key !== "root")){
-                foreach($value->{$key} as $vk => $vv){
-                    if(!property_exists($snakeObject->$parent_key, $this->underscore($key))){
+            if (in_array($key, array_keys($obj_vars)) && ($parent_key !== "root")) {
+                foreach ($value->{$key} as $vk => $vv) {
+                    // check that the parent key has been created on the snake object first
+                    if (!isset($snakeObject->$parent_key)) {
+                        $snakeObject->$parent_key = new \stdClass();
+                    }
+                    if (!property_exists($snakeObject->$parent_key, $this->underscore($key))) {
                         $snakeObject->$parent_key->{$this->underscore($key)} = new \stdClass();
                     }
                     $snakeObject->$parent_key->{$this->underscore($key)}->{$vk} = $vv;
                 }
             } else {
-                if($parent_key === "root"){
-                    if(!empty($obj_vars)){
+                if ($parent_key === "root") {
+                    if (!empty($obj_vars)) {
                         // we are now back at the root object level and need to merge a nested child object into the root object
                         // e.g. - $root->$child = $value;
                         $property_key = array_keys($obj_vars)[0];
-                        foreach($value->{$key} as $vk => $vv){
-                            if(!property_exists($snakeObject, $property_key)){
+                        foreach ($value->{$key} as $vk => $vv) {
+                            if (!property_exists($snakeObject, $property_key)) {
                                 $snakeObject->$property_key = new \stdClass();
                             }
                             $snakeObject->$property_key->{$vk} = $vv;
@@ -445,16 +488,15 @@ class Inflector
                         $snakeObject->{$this->underscore($key)} = $value;
                     }
                 } else {
-                    if(!property_exists($snakeObject, $parent_key)){
+                    if (!property_exists($snakeObject, $parent_key)) {
                         $snakeObject->$parent_key = new \stdClass();
                     }
                     // this element is a simple string property on an object nested in the root object
                     // e.g. - $root->$nested->property = string;
                     $snakeObject->$parent_key->{$this->underscore($key)} = $value;
-                }                
+                }
             }
         }
-        unset($camelObject);
         return $snakeObject;
     }
 }

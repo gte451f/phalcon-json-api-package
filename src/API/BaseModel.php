@@ -1,8 +1,7 @@
 <?php
 namespace PhalconRest\API;
 
-use PhalconRest\Controllers\PermissionController;
-use PhalconRest\Util\ValidationException;
+use \PhalconRest\Exception\ValidationException;
 
 /**
  * placeholder for future work
@@ -74,7 +73,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * hold a list of MODEL columns that can be published to the api
      * this array is not directly modified but rather inferred
      * should work, even when side-loading data
-     * should not store parent columns
+     * !should not store parent columns!
      *
      * start as null to detect and only load once
      * all columns - block columns = allow columns
@@ -135,7 +134,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * Instance counterpart of {@link $throwOnSave}. Resets after one save() call.
      * If this is true, on save errors an exception will be thrown.
      * If false, errors will be returned instead (original Phalcon behavior).
-     * If it's null, it'll obbey the global {@link $throwOnSave} flag.
+     * If it's null, it'll obey the global {@link $throwOnSave} flag.
      * @see $throwOnSave
      * @see throwOnNextSave()
      * @see save()
@@ -143,9 +142,6 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public $throwOnNextSave = null;
 
-    /**
-     * auto populate a few key values
-     */
     public function initialize()
     {
         $this->loadBlockColumns();
@@ -261,7 +257,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function getPrimaryKeyValue()
     {
         $key = $this->getPrimaryKeyName();
-        return isset($this->$key)? $this->$key : null;
+        return isset($this->$key) ? $this->$key : null;
     }
 
     /**
@@ -443,7 +439,6 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
             $this->allowColumns = $allowColumns;
         }
-
         // give function the chance to re-merge in parent columns
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
@@ -565,7 +560,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             return false;
         }
 
-        return $withNamespace? $modelNameSpace . $parentModelName : $parentModelName;
+        return $withNamespace ? $modelNameSpace . $parentModelName : $parentModelName;
     }
 
     /**
@@ -599,14 +594,20 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
 
             if ($throw) {
+                $class = get_called_class();
+                $class = ltrim(substr($class, strrpos($class, '\\')), '\\');
                 throw new ValidationException('Validation Errors Encountered', [
                     'code' => '50986904809',
-                    'dev' => get_called_class().'::save() failed'
+                    'dev' => $class.'::save() failed',
+                    'more' => [
+                        'attributes' => $this->toArray(),
+                        'map' => method_exists($this, 'columnMap')? $this->columnMap() : null,
+                    ]
                 ], $this->getMessages());
             }
         } else { //it worked! let's return something more useful than a boolean: the ID, if possible
             //an ID might not be found if there's something odd with the model's PK (hidden, for instance)
-            return $this->getPrimaryKeyValue()?: true;
+            return $this->getPrimaryKeyValue() ?: true;
         }
 
         return $result;
@@ -618,7 +619,8 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @param $bool
      * @return $this
      */
-    public function throwOnNextSave($bool = true) {
+    public function throwOnNextSave($bool = true)
+    {
         $this->throwOnNextSave = $bool;
         return $this;
     }
