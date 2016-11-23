@@ -67,12 +67,13 @@ class Result extends \PhalconRest\Result\Result
         }
 
         // push all includes into the result set. for the purpose of active model, they look just like data records
-        foreach ($this->included as $data) {
-            $type = $data->getType();
+        foreach ($this->included as $type => $data) {
             if (!isset($result->$type)) {
-                $result->$type = [];
+                $result->$type = $data;
+            } else {
+                // not really sure how this would ever be triggered
+                array_push($result->$type, $data);
             }
-            array_push($result->$type, $data);
         }
 
         // include plain non-namespaced data

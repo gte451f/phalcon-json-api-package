@@ -28,7 +28,14 @@ abstract class Result extends \Phalcon\DI\Injectable
     /** store any simple non-namespaced data that is to be included in the output */
     protected $plain = [];
 
-    /** @var Data[] store a collection of data like items */
+    /**
+     * @var Data[] store a collection of data like items
+     * array will namespace each record based on it's TYPE
+     * this is to allow a result object to store include records from multiple related sources
+     * while preventing duplicate records from being stored
+     *
+     * [$data->getType()][$data->getId()]
+     */
     protected $included = [];
 
     /** store the list of relationships for a "main" record type
@@ -135,7 +142,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function addIncluded(Data $newData)
     {
-        $this->included[$newData->getId()] = $newData;
+        $this->included[$newData->getType()][$newData->getId()] = $newData;
     }
 
     /**
@@ -250,9 +257,11 @@ abstract class Result extends \Phalcon\DI\Injectable
      */
     public function getInclude($relationshipName, $id)
     {
-        foreach ($this->included as $item) {
-            if ($item->getType() === $relationshipName AND $item->getId() === $id) {
-                return $item;
+        if (isset($this->included[$relationshipName])) {
+            foreach ($this->included[$relationshipName] as $item) {
+                if ($item->getId() === $id) {
+                    return $item;
+                }
             }
         }
         return false;

@@ -32,15 +32,21 @@ class Result extends \PhalconRest\Result\Result
         return $result;
     }
 
+    /**
+     * utility class to process extracting intermediate data from the data object
+     *
+     * @param $result
+     * @throws HTTPException
+     */
     protected function formatSuccess($result)
     {
         switch ($this->outputMode) {
             case self::MODE_SINGLE:
-                $result->data = $this->data[0];
+                $result->data = array_values($this->data)[0];
                 break;
 
             case self::MODE_MULTIPLE:
-                $result->data = $this->data;
+                $result->data = array_values($this->data);
                 break;
 
             case self::MODE_OTHER:
@@ -55,10 +61,20 @@ class Result extends \PhalconRest\Result\Result
 
         // process included records if there's valid entries only
         if ($this->data && $this->included) {
-            $result->included = $this->included;
+            $result->included = [];
+            // process each list of records by type
+            foreach ($this->included as $typeArr) {
+                // merge everything together for JSONAPI
+                $result->included = array_merge(array_values($typeArr), $result->included);
+            }
         }
     }
 
+    /**
+     * darn there was en error, process the offending code and return to the client
+     *
+     * @param $result
+     */
     protected function formatFailure($result)
     {
         $appConfig = $this->di->get('config')['application'];
@@ -88,7 +104,7 @@ class Result extends \PhalconRest\Result\Result
 
                 $result->errors = array_merge($result->errors, $validationErrors);
 
-            //however, if it's a plain error, concat an error object with some additional trace information
+                //however, if it's a plain error, concat an error object with some additional trace information
             } else {
                 $details = [
                     'title' => $error->title,
