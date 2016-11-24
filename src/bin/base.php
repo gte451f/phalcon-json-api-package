@@ -77,7 +77,7 @@ if (!function_exists('array_deep_key_exists')) {
     }
 }
 
-if (!function_exists('array_deep_key_exists')) {
+if (!function_exists('array_flatten')) {
     /**
      * Flattens all entries of a matrix into a single, long array of values.
      * @param array $matrix A multi-dimensional array
@@ -86,7 +86,7 @@ if (!function_exists('array_deep_key_exists')) {
     function array_flatten(array $matrix):array
     {
         $result = [];
-        array_walk_recursive($matrix, function ($v) use ($result) {
+        array_walk_recursive($matrix, function ($v) use (&$result) {
             $result[] = $v;
         });
         return $result;
