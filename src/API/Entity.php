@@ -1170,12 +1170,15 @@ class Entity extends Injectable
      * watch $id to determine if update or insert
      * built to accommodate saving records w/ parent tables (hasOne)
      *
-     * @param mixed $formData the data submitted to the server
+     * @param array|object $formData the data submitted to the server
      * @param int $id the pkid of the record to be updated, otherwise null on inserts
      * @return int the PKID of the record in question
      */
     public function save($formData, $id = null)
     {
+        if (!is_object($formData)) {
+            $formData = (object)$formData;
+        }
         // check if inserting a new record and account for any parent records
         if (is_null($id)) {
             $this->saveMode = 'insert';
@@ -1245,10 +1248,10 @@ class Entity extends Injectable
      * along with loading client submitted data into each model
      *
      * @param BaseModel $model
-     * @param object $object
+     * @param object    $formData
      * @return bool|object $model
      */
-    public function loadParentModel(BaseModel $model, $object)
+    public function loadParentModel(BaseModel $model, $formData)
     {
         // invalid first param, return false though it won't do much good
         if ($model === false) {
@@ -1266,11 +1269,11 @@ class Entity extends Injectable
                 $primaryKey = $model->getPrimaryKeyName();
                 $finalModel = $parentModel::findFirst($model->$primaryKey);
             } else {
-                $finalModel = $this->loadParentModel($parentModel, $object);
+                $finalModel = $this->loadParentModel($parentModel, $formData);
             }
 
             // don't forget to load the child model values and mount into parent model
-            $childModel = $this->loadModelValues($model, $object);
+            $childModel = $this->loadModelValues($model, $formData);
             $childModelName = $model->getModelName();
             $finalModel->$childModelName = $childModel;
         } else {
@@ -1278,7 +1281,7 @@ class Entity extends Injectable
         }
 
         // run object data through the model
-        return $this->loadModelValues($finalModel, $object);
+        return $this->loadModelValues($finalModel, $formData);
     }
 
     /**
