@@ -42,6 +42,7 @@ class HTTPException extends \Exception
         // store general error data
         $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
+        $this->errorStore->code = $localCode;
 
         $this->di = \Phalcon\DI::getDefault();
     }
