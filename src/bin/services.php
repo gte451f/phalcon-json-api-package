@@ -173,11 +173,12 @@ $di->setShared('requestBody', function () {
     // JSON body could not be parsed, throw exception
     if ($in === null) {
         throw new HTTPException('There was a problem understanding the data sent to the server by the application.',
-            409, array(
+            409, [
                 'dev' => 'The JSON body sent to the server was unable to be parsed.',
                 'code' => '5',
-                'more' => ''
-            ));
+                'more' => json_last_error().' - '.json_last_error_msg()
+            ]);
     }
+
     return $in;
 });
