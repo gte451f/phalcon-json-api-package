@@ -2,10 +2,10 @@
 /** @var array $config defined outside (probably at bin/config.php) */
 
 // Factory Default loads all services by default....
-use Phalcon\DI;
+use Phalcon\Di\FactoryDefault;
 
 // PhalconRest libraries
-use PhalconRest\Request\Request as Request;
+use PhalconRest\Exception\HTTPException;
 use PhalconRest\Util\Inflector;
 
 // for password and credit card encryption
@@ -19,10 +19,10 @@ $T->start('Booting App');
  * The DI is our direct injector.
  * It will store pointers to all of our services
  * and we will insert it into all of our controllers.
- * @var $di DI\FactoryDefault\Cli|DI\FactoryDefault
+ * @var $di FactoryDefault\Cli|FactoryDefault
  */
 
-$di = (PHP_SAPI == 'cli') ? new DI\FactoryDefault\Cli : new DI\FactoryDefault;
+$di = (PHP_SAPI == 'cli') ? new FactoryDefault\Cli : new FactoryDefault;
 
 // load the proper request object depending on the specified format
 $di->setShared('request', function () use ($config) {
@@ -52,9 +52,10 @@ if (PHP_SAPI != 'cli') {
      * routes/collections.
      * These will be mounted into the app itself later.
      */
-    $di->set('collections', function () {
-        $collections = include('../app/routes/routeLoader.php');
-        return $collections;
+    $di->set('collections', function () use ($config) {
+        return $config['application']['maintenance'] ?
+            include('maintenanceRoute.php') :
+            include('../app/routes/routeLoader.php');
     });
 }
 
@@ -63,9 +64,7 @@ if (PHP_SAPI != 'cli') {
  * If the second parameter is a function, then the service is lazy-loaded
  * on its first instantiation.
  */
-$di->setShared('config', function () use ($config) {
-    return $config;
-});
+$di->setShared('config', $config);
 
 // As soon as we request the session service, it will be started.
 $di->setShared('session', function () {
