@@ -822,7 +822,7 @@ class Entity extends Injectable
      * @param PhalconRelation|Relation $relation
      * @return object
      */
-    private function buildRelationQuery(Relation $relation)
+    protected function buildRelationQuery(Relation $relation)
     {
         /** @var \Phalcon\Mvc\Model\Query\Builder $query */
         $refModelNameSpace = $relation->getReferencedModel();
