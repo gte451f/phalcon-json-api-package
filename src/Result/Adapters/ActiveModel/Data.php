@@ -12,7 +12,7 @@ class Data extends \PhalconRest\Result\Data
      *
      * @return array
      */
-    public function JsonSerialize()
+    public function jsonSerialize()
     {
         // if formatting is requested, well then format baby!
         $config = $this->di->get('config');
@@ -33,7 +33,8 @@ class Data extends \PhalconRest\Result\Data
 
         if ($this->relationships) {
             foreach ($this->relationships as $name => $keys) {
-                $result[$name] = array_keys($keys);
+                $ids = array_keys($keys);
+                $result[$name] = (sizeof($ids) == 1)? current($ids) : $ids;
             }
             // $result['relationships'] = $this->relationships;
         }

@@ -16,7 +16,7 @@ abstract class Result extends \Phalcon\DI\Injectable
      * but might be used by adapters for their own purposes */
     protected $type = false;
 
-    /** a collection of individual data objects */
+    /** @var Data[] a collection of individual data objects */
     protected $data = [];
 
     /** @var Data[] meta data describing the request or data collected */

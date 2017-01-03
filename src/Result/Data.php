@@ -11,14 +11,11 @@ use Phalcon\Mvc\Model\Relation as PhalconRelation;
 abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
 {
 
-    /**
-     * @var int
-     */
+    /** @var int */
     protected $id;
 
     /**
-     * this maps to a model or table name?
-     *
+     * Table name (snake_cased model name) related to this data piece
      * @var string
      */
     protected $type;
@@ -36,7 +33,7 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      * or
      * $relationships[TABLENAME] = [ [ID=>#, TYPE=>''] ];
      *
-     * @var array
+     * @var array|array[]
      */
     public $relationships;
 
@@ -50,7 +47,7 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      */
     public function __construct($id, $type, array $attributes = [], array $relationships = [])
     {
-        $di = \Phalcon\DI::getDefault();
+        $di = \Phalcon\Di::getDefault();
         $this->setDI($di);
 
         //parse supplied data array and populate object
@@ -115,7 +112,7 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      * simple getters and setters
      * @return int
      */
-    public function getId()
+    public function getId():int
     {
         return $this->id;
     }

@@ -8,6 +8,9 @@ require_once API_PATH . 'bin/base.php';
 // you can override these values with an environmental specific file in app/config/FILE.php
 $config = [
     'application' => [
+        // routes all requests to a 503 - useful during deploys. Disable after deploy is done
+        'maintenance' => false,
+
         // the path to the main directory holding the application
         'appDir' => APPLICATION_PATH,
         // path values to commonly expected api files
@@ -17,7 +20,7 @@ $config = [
         "responsesDir" => APPLICATION_PATH . 'responses/',
         "librariesDir" => APPLICATION_PATH . 'libraries/',
 
-        // is this used?
+        //TODO: is this used?
         "exceptionsDir" => APPLICATION_PATH . 'exceptions/',
 
         // base string after FQDN.../api/v1 or some such

@@ -35,20 +35,20 @@ class HTTPException extends \Exception
     public function __construct($title, $code, $errorList = [], \Throwable $previous = null)
     {
         //attaching local code to Exception message in case it's catch somewhere else
-        $localCode = $errorList['code'] ?? $code;
+        $localCode = isset($errorList['code'])? $errorList['code'] . '/' . $code : $code;
 
         parent::__construct("[$localCode] $title", $code, $previous);
 
         // store general error data
         $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
+        $this->errorStore->code = $localCode;
 
-        $this->di = \Phalcon\DI::getDefault();
+        $this->di = \Phalcon\Di::getDefault();
     }
 
     /**
      * Calls out {@link Output::sendError()} with the appropriate values.
-     * @return boolean
      */
     public function send()
     {
@@ -58,7 +58,7 @@ class HTTPException extends \Exception
         //push errorStore into $result object for proper handling
         $result = $this->di->get('result', []);
         $result->addError($this->errorStore);
-        return $output->send($result);
+        $output->send($result);
     }
 
     /**

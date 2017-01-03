@@ -5,6 +5,10 @@ use Phalcon\CLI\Console as ConsoleApp;
 $console = new ConsoleApp();
 $console->setDI($di);
 
+if ($config['application']['maintenance']) {
+    die('Server is down for maintenance.' . PHP_EOL);
+}
+
 /**
  * Process the console arguments
  */

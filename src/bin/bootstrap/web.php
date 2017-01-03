@@ -1,6 +1,7 @@
 <?php
 
 use PhalconRest\Exception\HTTPException;
+use PhalconRest\Result\Result;
 
 /**
  * Our application is a Micro application, so we must explicitly define all the routes.
@@ -49,15 +50,13 @@ $app->get('/', function () use ($app, $di) {
         'OPTIONS' => []
     ];
     foreach ($routes as $route) {
-        $method = $route->getHttpMethods();
+        $method = $route->getHttpMethods() ?? 'any';
         $routeDefinitions[$method][] = $route->getPattern();
     }
+    /** @var Result $result */
     $result = $di->get('result', []);
     $result->outputMode = 'other';
-
-    foreach ($routeDefinitions as $key => $value) {
-        $result->setPlain($key, $value);
-    }
+    $result->addPlains($routeDefinitions);
     return $result;
 });
 

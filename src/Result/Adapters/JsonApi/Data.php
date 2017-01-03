@@ -9,7 +9,7 @@ class Data extends \PhalconRest\Result\Data
      *
      * @return array
      */
-    public function JsonSerialize()
+    public function jsonSerialize()
     {
         // if formatting is requested, well then format baby!
         $config = $this->di->get('config');
