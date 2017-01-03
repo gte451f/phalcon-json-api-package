@@ -33,8 +33,11 @@ class Data extends \PhalconRest\Result\Data
 
         if ($this->relationships) {
             foreach ($this->relationships as $name => $keys) {
-                $ids = array_keys($keys);
-                $result[$name] = (sizeof($ids) == 1)? current($ids) : $ids;
+                $result[$name] = array_keys($keys);
+                // @Igor this was causing issue in the ember side, with list-template-groups endpoint list-template-ids in the past
+                // was coming as an array, now it returns only a number
+                //$ids = array_keys($keys);
+                //$result[$name] = (sizeof($ids) == 1)? current($ids) : $ids;
             }
             // $result['relationships'] = $this->relationships;
         }
