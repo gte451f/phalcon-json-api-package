@@ -370,7 +370,8 @@ class BaseController extends Controller
         $response = $this->getDI()->get('response');
 
         $response->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
-        $response->setHeader('Access-Control-Allow-Origin', $this->getDI()->get('request')->getHeader('Origin'));
+        $config = $this->getDI()->get('config');
+        $response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
         $response->setHeader('Access-Control-Allow-Credentials', 'true');
         $response->setHeader('Access-Control-Allow-Headers', "origin, x-requested-with, content-type");
         $response->setHeader('Access-Control-Max-Age', '86400');
@@ -386,7 +387,8 @@ class BaseController extends Controller
     {
         $response = $this->getDI()->get('response');
         $response->setHeader('Access-Control-Allow-Methods', 'GET, PUT, PATCH, DELETE, OPTIONS, HEAD');
-        $response->setHeader('Access-Control-Allow-Origin', $this->getDI()->get('request')->getHeader('Origin'));
+        $config = $this->getDI()->get('config');
+        $response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
         $response->setHeader('Access-Control-Allow-Credentials', 'true');
         $response->setHeader('Access-Control-Allow-Headers', "origin, x-requested-with, content-type");
         $response->setHeader('Access-Control-Max-Age', '86400');
