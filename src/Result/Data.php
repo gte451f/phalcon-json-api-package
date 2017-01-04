@@ -110,9 +110,9 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
 
     /**
      * simple getters and setters
-     * @return int
+     * @return int|string This is, most of the times, an int, but you can set whatever value you want. Be careful.
      */
-    public function getId():int
+    public function getId()
     {
         return $this->id;
     }
