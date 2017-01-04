@@ -126,7 +126,6 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
         return $this->type;
     }
 
-
     /**
      * @param $type
      */
@@ -134,7 +133,6 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
     {
         $this->type = $type;
     }
-
 
     /**
      * return the value for a given field name
