@@ -403,6 +403,9 @@ class SearchHelper
                 if (strstr($value, '*')) {
                     $value = str_replace('*', '%', $value);
                     $approved_search[] = "$field LIKE '$value'";
+                } else if (strstr($value, '!')) {
+                    $value = str_replace('!', '%', $value);
+                    $approved_search[] = "$field NOT LIKE '$value'";
                 } else {
                     $approved_search[] = "$field='$value'";
                 }
