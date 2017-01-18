@@ -81,14 +81,19 @@ if (!function_exists('array_flatten')) {
     /**
      * Flattens all entries of a matrix into a single, long array of values.
      * @param array $matrix A multi-dimensional array
+     * @param bool  $assoc If the given array is associative (and keys should be maintained) or not
      * @return array
      */
-    function array_flatten(array $matrix):array
+    function array_flatten(array $matrix, $assoc = false):array
     {
-        $result = [];
-        array_walk_recursive($matrix, function ($v) use (&$result) {
-            $result[] = $v;
-        });
-        return $result;
+        if (!$assoc) {
+            $result = [];
+            array_walk_recursive($matrix, function ($v) use (&$result) {
+                $result[] = $v;
+            });
+            return $result;
+        } else {
+            return is_array(current($matrix))? call_user_func_array('array_merge', $matrix) : $matrix;
+        }
     }
 }
