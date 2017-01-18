@@ -91,8 +91,11 @@ $app->after(function () use ($app) {
         }
     }
 
-    // Results returned from the route's controller passed to output class for delivery
-    $output->send($app->getReturnedValue());
+    // Results returned from the route's controller passed to output class for delivery, in case
+    // something else didn't send it already (useful for plain-text actions)
+    if (!$app->response->isSent()) {
+        $output->send($app->getReturnedValue());
+    }
 });
 
 /**
