@@ -213,7 +213,9 @@ class QueryBuilder extends Injectable
                         $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
                         $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
                         // $query->andWhere("$fieldName $operator \"$newFieldValue\"");
-                        if ($operator === 'IS NULL') {
+                        if ($operator === 'BETWEEN') {
+                            $query->betweenWhere("$fieldName", $newFieldValue[0], $newFieldValue[1]);
+                        } else if ($operator === 'IS NULL' OR $operator === 'IS NOT NULL') {
                             $query->andWhere("$fieldName $operator");
                         } else {
                             $randomName = 'rand' . rand(1, 1000000);
@@ -253,7 +255,11 @@ class QueryBuilder extends Injectable
                                 $operator = $this->determineWhereOperator($fieldValue);
                                 $newFieldValue = $this->processFieldValue($fieldValue, $operator);
 
-                                if ($operator === 'IS NULL') {
+                                if ($operator === 'BETWEEN') {
+                                    $queryArr[] = "$fieldName $operator :{$marker}_1: AND :{$marker}_2:";
+                                    $valueArr[$marker.'_1'] = $newFieldValue[0];
+                                    $valueArr[$marker.'_2'] = $newFieldValue[1];
+                                } else if ($operator === 'IS NULL' || $operator === 'IS NOT NULL') {
                                     $queryArr[] = "$fieldName $operator";
                                 } else {
                                     $queryArr[] = "$fieldName $operator :$marker:";
@@ -439,6 +445,7 @@ class QueryBuilder extends Injectable
                 break;
 
             case 'LIKE':
+            case 'NOT LIKE':
                 // process possible wild cards
                 $firstChar = substr($fieldValue, 0, 1);
                 $lastChar = substr($fieldValue, -1, 1);
@@ -450,7 +457,25 @@ class QueryBuilder extends Injectable
                 if ($lastChar == "*") {
                     $fieldValue = substr_replace($fieldValue, "%", -1, 1);
                 }
+                if ($firstChar == "!") {
+                    $fieldValue = substr_replace($fieldValue, "%", 0, 1);
+                }
+                if ($lastChar == "!") {
+                    $fieldValue = substr_replace($fieldValue, "%", -1, 1);
+                }
                 return $fieldValue;
+                break;
+            case 'BETWEEN':
+                $parts = explode("~", $fieldValue);
+                if (count($parts) != 3) {
+                    throw new HTTPException("A bad filter was attempted.", 500, array(
+                        'dev' => "Encountered a between filter without the correct values, please send ~value1~value2",
+                        'code' => '975149008326'
+                    ));
+                }
+                $fields[] = $parts[1];
+                $fields[] = $parts[2];
+                return $fields;
                 break;
 
             default:
@@ -483,9 +508,20 @@ class QueryBuilder extends Injectable
         if (($firstChar == "*") || ($lastChar == "*")) {
             return 'LIKE';
         }
+        if (($firstChar == "!") && ($lastChar == "!")) {
+            return 'NOT LIKE';
+        }
+        if (($firstChar == "~")) {
+            return 'BETWEEN';
+        }
+
 
         if (strtoupper($fieldValue) === 'NULL') {
             return 'IS NULL';
+        }
+
+        if (strtoupper($fieldValue) === '!NULL') {
+            return 'IS NOT NULL';
         }
 
         // process supported comparision operators
