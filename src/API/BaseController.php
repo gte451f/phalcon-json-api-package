@@ -16,6 +16,7 @@ use PhalconRest\Exception\HTTPException;
  */
 class BaseController extends Controller
 {
+    use CORSTrait;
 
     /**
      * Store the default entity here
@@ -354,44 +355,5 @@ class BaseController extends Controller
     {
         // route through PUT logic
         return $this->put($id);
-    }
-
-    /**
-     * Provides a base CORS policy for routes like '/users' that represent a Resource's base url
-     * Origin is allowed from all urls.
-     * Setting it here using the Origin header from the request
-     * allows multiple Origins to be served. It is done this way instead of with a wildcard '*'
-     * because wildcard requests are not supported when a request needs credentials.
-     *
-     * @return true
-     */
-    public function optionsBase()
-    {
-        $response = $this->getDI()->get('response');
-
-        $response->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
-        $config = $this->getDI()->get('config');
-        $response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
-        $response->setHeader('Access-Control-Allow-Credentials', 'true');
-        $response->setHeader('Access-Control-Allow-Headers', "origin, x-requested-with, content-type");
-        $response->setHeader('Access-Control-Max-Age', '86400');
-        return true;
-    }
-
-    /**
-     * Provides a CORS policy for routes like '/users/123' that represent a specific resource
-     *
-     * @return true
-     */
-    public function optionsOne()
-    {
-        $response = $this->getDI()->get('response');
-        $response->setHeader('Access-Control-Allow-Methods', 'GET, PUT, PATCH, DELETE, OPTIONS, HEAD');
-        $config = $this->getDI()->get('config');
-        $response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
-        $response->setHeader('Access-Control-Allow-Credentials', 'true');
-        $response->setHeader('Access-Control-Allow-Headers', "origin, x-requested-with, content-type");
-        $response->setHeader('Access-Control-Max-Age', '86400');
-        return true;
     }
 }
