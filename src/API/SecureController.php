@@ -13,6 +13,12 @@ class SecureController extends BaseController
     public function onConstruct()
     {
         parent::onConstruct();
+
+        //early return on OPTIONS calls in dev, so they follow the correct spec and don't die for missing credentials
+        if ($this->request->getMethod() == 'OPTIONS' && APPLICATION_ENV != 'production') {
+            return;
+        }
+
         $config = $this->getDI()->get('config');
         $auth = $this->getDI()->get('auth');
 
