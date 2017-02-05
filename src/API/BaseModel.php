@@ -17,14 +17,14 @@ class BaseModel extends \Phalcon\Mvc\Model
      *
      * @var string|null
      */
-    protected $singularName = NULL;
+    protected $singularName = null;
 
     /**
      * essentially the name of the model
      *
      * @var string|null
      */
-    protected $pluralName = NULL;
+    protected $pluralName = null;
 
     /**
      * store a models primary key name in this property
@@ -60,7 +60,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      *
      * @var string|null
      */
-    private $modelNameSpace = NULL;
+    private $modelNameSpace = null;
 
     /**
      * list of relationships?
@@ -80,7 +80,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      *
      * @var array
      */
-    private $allowColumns = NULL;
+    private $allowColumns = null;
 
     /**
      * hold a list of MODEL columns that are to be blocked by the api
@@ -106,7 +106,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      *
      * @var boolean|string
      */
-    public static $parentModel = FALSE;
+    public static $parentModel = false;
 
     /**
      * store one or more parent models that this entity
@@ -317,8 +317,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function loadBlockColumns()
     {
         $blockColumns = [];
-        $class = get_class($this);
-        $parentModelName = $class::$parentModel;
+        $parentModelName = static::$parentModel;
 
         if ($parentModelName) {
             /** @var BaseModel $parentModel */
@@ -338,11 +337,9 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * for a given array of column names, add them to the block list
      *
-     * @param array $columnList
-     *            a list of columns to block for this model
-     * @param boolean $clear
-     *            should the existing list of blockColums be cleared to an array
-     *            this has the affect of initializing the list
+     * @param array $columnList a list of columns to block for this model
+     * @param boolean $clear    should the existing list of blockColums be cleared to an array
+     *                          this has the affect of initializing the list
      */
     public function setBlockColumns($columnList, $clear = false)
     {
@@ -385,7 +382,7 @@ class BaseModel extends \Phalcon\Mvc\Model
                 if ($parentColumns == null) {
                     $parentColumns = [];
                 }
-                $blockColumns = array_merge($blockColumns, $parentColumns);
+                $blockColumns = array_unique(array_merge($blockColumns, $parentColumns));
             }
         }
 
@@ -417,7 +414,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         $allowColumns = [];
 
         // cache allowColumns to save us the work in subsequent calls
-        if ($this->allowColumns == NULL) {
+        if ($this->allowColumns == null) {
             // load block columns if uninitialized
             if ($this->blockColumns == null) {
                 $this->loadBlockColumns();

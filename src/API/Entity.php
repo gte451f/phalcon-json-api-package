@@ -357,10 +357,8 @@ class Entity extends Injectable
      */
     public function extractMainRow($baseRecord)
     {
-        $class = get_class($baseRecord);
-
         // basically check for parent records and pull them out
-        if ($class == 'Phalcon\Mvc\Model\Row') {
+        if ($baseRecord instanceof \Phalcon\Mvc\Model\Row) {
             // hold the combined and normalized array of data fields
             $baseArray = [];
             $primaryModel = $this->model->getModelNameSpace();
