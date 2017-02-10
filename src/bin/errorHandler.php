@@ -48,7 +48,9 @@ set_exception_handler(function (\Throwable $thrown) use ($app, $config, $di) {
         $result->addError($errorStore);
 
         // send to output
-        (new Output)->send($result);
+        $output = new Output;
+        $output->setStatusCode(500, 'Error processing the request');
+        $output->send($result);
     }
 });
 
@@ -88,7 +90,9 @@ register_shutdown_function(function () use ($app, $config, $di) {
         $result->addError($errorStore);
 
         // send to output
-        (new Output)->send($result);
+        $output = new Output;
+        $output->setStatusCode(500, 'Error processing the request');
+        $output->send($result);
 
     }
 });
@@ -197,6 +201,8 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null
     $result = $di->get('result', []);
     $result->addError($errorStore);
 
-    // send to output
-    (new Output)->send($result);
+    //send to output
+    $output = new Output;
+    $output->setStatusCode(500, 'Error processing the request');
+    $output->send($result);
 });
