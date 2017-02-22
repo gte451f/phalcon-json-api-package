@@ -180,7 +180,7 @@ class Relation
             if (isset($options['alias'])) {
                 $this->alias = $options['alias'];
             } else {
-                $this->alias = NULL;
+                $this->alias = null;
             }
         }
 

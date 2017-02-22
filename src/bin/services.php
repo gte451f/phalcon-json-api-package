@@ -55,12 +55,11 @@ if (PHP_SAPI != 'cli') {
     });
 }
 
-/**
- * $di's setShared method provides a singleton instance.
- * If the second parameter is a function, then the service is lazy-loaded
- * on its first instantiation.
- */
-$di->setShared('config', $config);
+// return a single copy of the config array
+$di->setShared('config', function () use ($config) {
+    return $config;
+});
+
 
 // As soon as we request the session service, it will be started.
 $di->setShared('session', function () {
@@ -91,16 +90,16 @@ $di->setShared('session', function () {
  *
  * @return Cache\Multiple|Cache\BackendInterface
  */
-$di->setShared('cache', function() use ($config) {
+$di->setShared('cache', function () use ($config) {
     $instances = array_map(function ($cacheConfig) use ($config) {
         //creates a caching frontend for this interface
         if (isset($cacheConfig['front'])) {
             //gets the type or defaults to the most common frontend: serialize()-based
-            $frontType    = array_shift($cacheConfig['front']) ?: Cache\Frontend\Data::class;
+            $frontType = array_shift($cacheConfig['front']) ?: Cache\Frontend\Data::class;
             $frontOptions = $cacheConfig['front'];
             unset($cacheConfig['front']);
         } else {
-            $frontType    = new Cache\Frontend\Data;
+            $frontType = new Cache\Frontend\Data;
             $frontOptions = [];
         }
         if (!isset($frontOptions['lifetime'])) {
@@ -120,7 +119,7 @@ $di->setShared('cache', function() use ($config) {
     }, $config['cache'] ?? [\Phalcon\Cache\Backend\File::class]);
 
     //packs the cache instances in a Multiple cache if needed
-    return (sizeof($instances) > 1)? new Cache\Multiple($instances) : current($instances);
+    return (sizeof($instances) > 1) ? new Cache\Multiple($instances) : current($instances);
 });
 
 // load a result adapter based on what is configured in the app

@@ -102,7 +102,9 @@ class QueryBuilder extends Injectable
 
             // be sure to skip any relationships that are marked for custom processing
             $relationOptions = $relation->getOptions();
-            if (isset($relationOptions) && (array_key_exists('customProcessing', $relationOptions) && ($relationOptions['customProcessing'] === true))) {
+            if (isset($relationOptions) && (array_key_exists('customProcessing',
+                        $relationOptions) && ($relationOptions['customProcessing'] === true))
+            ) {
                 continue;
             }
 
@@ -215,13 +217,15 @@ class QueryBuilder extends Injectable
                         // $query->andWhere("$fieldName $operator \"$newFieldValue\"");
                         if ($operator === 'BETWEEN') {
                             $query->betweenWhere("$fieldName", $newFieldValue[0], $newFieldValue[1]);
-                        } else if ($operator === 'IS NULL' OR $operator === 'IS NOT NULL') {
-                            $query->andWhere("$fieldName $operator");
                         } else {
-                            $randomName = 'rand' . rand(1, 1000000);
-                            $query->andWhere("$fieldName $operator :$randomName:", array(
-                                $randomName => $newFieldValue
-                            ));
+                            if ($operator === 'IS NULL' OR $operator === 'IS NOT NULL') {
+                                $query->andWhere("$fieldName $operator");
+                            } else {
+                                $randomName = 'rand' . rand(1, 1000000);
+                                $query->andWhere("$fieldName $operator :$randomName:", array(
+                                    $randomName => $newFieldValue
+                                ));
+                            }
                         }
                         break;
 
@@ -257,13 +261,15 @@ class QueryBuilder extends Injectable
 
                                 if ($operator === 'BETWEEN') {
                                     $queryArr[] = "$fieldName $operator :{$marker}_1: AND :{$marker}_2:";
-                                    $valueArr[$marker.'_1'] = $newFieldValue[0];
-                                    $valueArr[$marker.'_2'] = $newFieldValue[1];
-                                } else if ($operator === 'IS NULL' || $operator === 'IS NOT NULL') {
-                                    $queryArr[] = "$fieldName $operator";
+                                    $valueArr[$marker . '_1'] = $newFieldValue[0];
+                                    $valueArr[$marker . '_2'] = $newFieldValue[1];
                                 } else {
-                                    $queryArr[] = "$fieldName $operator :$marker:";
-                                    $valueArr[$marker] = $newFieldValue;
+                                    if ($operator === 'IS NULL' || $operator === 'IS NOT NULL') {
+                                        $queryArr[] = "$fieldName $operator";
+                                    } else {
+                                        $queryArr[] = "$fieldName $operator :$marker:";
+                                        $valueArr[$marker] = $newFieldValue;
+                                    }
                                 }
 
                                 $count++;

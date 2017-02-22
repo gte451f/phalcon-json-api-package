@@ -1246,7 +1246,7 @@ class Entity extends Injectable
      * along with loading client submitted data into each model
      *
      * @param BaseModel $model
-     * @param object    $formData
+     * @param object $formData
      * @return bool|object $model
      */
     public function loadParentModel(BaseModel $model, $formData)

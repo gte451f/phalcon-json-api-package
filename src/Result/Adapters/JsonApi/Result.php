@@ -99,7 +99,7 @@ class Result extends \PhalconRest\Result\Result
 
                 $result->errors = array_merge($result->errors, $validationErrors);
 
-            //however, if it's a plain error, concat an error object with some additional trace information
+                //however, if it's a plain error, concat an error object with some additional trace information
             } else {
                 $details = [
                     'title' => $error->title,

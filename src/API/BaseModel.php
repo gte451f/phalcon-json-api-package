@@ -338,7 +338,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * for a given array of column names, add them to the block list
      *
      * @param array $columnList a list of columns to block for this model
-     * @param boolean $clear    should the existing list of blockColums be cleared to an array
+     * @param boolean $clear should the existing list of blockColums be cleared to an array
      *                          this has the affect of initializing the list
      */
     public function setBlockColumns($columnList, $clear = false)
@@ -595,10 +595,10 @@ class BaseModel extends \Phalcon\Mvc\Model
                 $class = ltrim(substr($class, strrpos($class, '\\')), '\\');
                 throw new ValidationException('Validation Errors Encountered', [
                     'code' => '50986904809',
-                    'dev' => $class.'::save() failed',
+                    'dev' => $class . '::save() failed',
                     'more' => [
                         'attributes' => $this->toArray(),
-                        'map' => method_exists($this, 'columnMap')? $this->columnMap() : null,
+                        'map' => method_exists($this, 'columnMap') ? $this->columnMap() : null,
                     ]
                 ], $this->getMessages());
             }

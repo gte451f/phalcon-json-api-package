@@ -35,7 +35,7 @@ class HTTPException extends \Exception
     public function __construct($title, $code, $errorList = [], \Throwable $previous = null)
     {
         //attaching local code to Exception message in case it's catch somewhere else
-        $localCode = isset($errorList['code'])? $errorList['code'] . '/' . $code : $code;
+        $localCode = isset($errorList['code']) ? $errorList['code'] . '/' . $code : $code;
 
         parent::__construct("[$localCode] $title", $code, $previous);
 

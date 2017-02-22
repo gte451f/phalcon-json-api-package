@@ -332,13 +332,13 @@ class SearchHelper
 
         // load possible sort values in the following order
         // be sure to mark this as a paginated result set
-        if ($request->get('sort', "string", null) != NULL) {
+        if ($request->get('sort', "string", null) != null) {
             $this->suppliedSort = $request->get('sort', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sort_field', "string", null) != NULL) {
+        } elseif ($request->get('sort_field', "string", null) != null) {
             $this->suppliedSort = $request->get('sort_field', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sortField', "string", null) != NULL) {
+        } elseif ($request->get('sortField', "string", null) != null) {
             $this->suppliedSort = $request->get('sortField', "string", null);
             $this->isPager = true;
         }
@@ -348,13 +348,13 @@ class SearchHelper
 
         // load possible limit values in the following order
         // be sure to mark this as a paginated result set
-        if ($request->get('limit', "string", null) != NULL) {
+        if ($request->get('limit', "string", null) != null) {
             $this->suppliedLimit = $request->get('limit', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('per_page', "string", null) != NULL) {
+        } elseif ($request->get('per_page', "string", null) != null) {
             $this->suppliedLimit = $request->get('per_page', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('perPage', "string", null) != NULL) {
+        } elseif ($request->get('perPage', "string", null) != null) {
             $this->suppliedLimit = $request->get('perPage', "string", null);
             $this->isPager = true;
         }
@@ -369,10 +369,10 @@ class SearchHelper
         // load offset values in the following order
         // Notice that a page is treated differently than offset
         // $this->offset = ($offset != null) ? $offset : $this->offset;
-        if ($request->get('offset', "int", null) != NULL) {
+        if ($request->get('offset', "int", null) != null) {
             $this->suppliedOffset = $request->get('offset', "int", null);
             $this->isPager = true;
-        } elseif ($request->get('page', "int", null) != NULL) {
+        } elseif ($request->get('page', "int", null) != null) {
             $this->suppliedOffset = ($request->get('page', "int", null) - 1) * $this->suppliedLimit;
             $this->isPager = true;
         }
@@ -403,11 +403,13 @@ class SearchHelper
                 if (strstr($value, '*')) {
                     $value = str_replace('*', '%', $value);
                     $approved_search[] = "$field LIKE '$value'";
-                } else if (strstr($value, '!')) {
-                    $value = str_replace('!', '%', $value);
-                    $approved_search[] = "$field NOT LIKE '$value'";
                 } else {
-                    $approved_search[] = "$field='$value'";
+                    if (strstr($value, '!')) {
+                        $value = str_replace('!', '%', $value);
+                        $approved_search[] = "$field NOT LIKE '$value'";
+                    } else {
+                        $approved_search[] = "$field='$value'";
+                    }
                 }
             }
             // implode as specified by phalcon

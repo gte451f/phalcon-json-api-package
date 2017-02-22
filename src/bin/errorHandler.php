@@ -163,7 +163,7 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null
 
     $errorStore = new \PhalconRest\Exception\ErrorStore([
         'code' => $errno,
-        'title' => $title?: 'Fatal Error Ocurred - ' . errorTypeStr($errno),
+        'title' => $title ?: 'Fatal Error Ocurred - ' . errorTypeStr($errno),
         'more' => $errstr,
         'context' => $context,
         'line' => $errline,
