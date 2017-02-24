@@ -6,10 +6,22 @@ use \PhalconRest\Exception\HTTPException;
 /**
  * Same base controller but checks for a valid token if security is enabled
  * otherwise it proceeds to the baseController
+ *
+ * IMPORTANT - This controller makes several assumptions about defined services in YOUR application!
+ * It wants a security service to test whether the requesting users gets access to an end point
+ *
+ *
  */
 class SecureController extends BaseController
 {
 
+    /**
+     *
+     * this function will gather expected security data such as an auth token
+     * it also expects a defined security service to be registered with Phalcon's DI service
+     *
+     * @throws HTTPException
+     */
     public function onConstruct()
     {
         parent::onConstruct();
@@ -45,7 +57,7 @@ class SecureController extends BaseController
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
                 if ($auth->isLoggedIn('HACKYHACKERSON')) {
-                    // run security check
+                    // run security check..you did program one in your app right?
                     $this->securityCheck($this->getDI()->get('securityService'));
                 } else {
                     throw new HTTPException('Security False is not loading a valid user.', 401, [
