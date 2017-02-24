@@ -1,5 +1,6 @@
 <?php
 namespace PhalconRest\API;
+
 use Phalcon\Mvc\Model\ManagerInterface;
 
 /**
@@ -8,6 +9,12 @@ use Phalcon\Mvc\Model\ManagerInterface;
  *
  * since we need to process "parent" and hasOne relationships, sniff for those as well
  *
+ * Relationship Type Numbers
+ * BELONGS_TO = 0;
+ * HAS_ONE = 1;
+ * HAS_MANY = 2;
+ * HAS_ONE_THROUGH = 3;
+ * HAS_MANY_THROUGH = 4;
  *
  * @author jjenkins
  *
@@ -168,12 +175,12 @@ class Relation
      */
     public function getAlias()
     {
-        if (! isset($this->alias)) {
+        if (!isset($this->alias)) {
             $options = $this->getOptions();
             if (isset($options['alias'])) {
                 $this->alias = $options['alias'];
             } else {
-                $this->alias = NULL;
+                $this->alias = null;
             }
         }
 

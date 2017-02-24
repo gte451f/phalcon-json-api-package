@@ -1,31 +1,31 @@
 <?php
 
+use Phalcon\Loader;
+
 // read in config values from API and currently defined environment
 require_once API_PATH . 'bin/config.php';
 
 /*
  * Interact with Phalcon auto loader, also load composer related vendor/* files
  * This is the best way I've found to use Phalcon's autoload while seamlessly incorporating Composer libs
- *
  */
-use Phalcon\Loader;
-use PhalconRest\Libraries\Formatters;
+
 
 /**
  * By default, namespaces are assumed to be the same as the path.
  * This function allows us to assign namespaces to alternative folders.
  * It also puts the classes into the PSR-0 autoLoader.
  */
-$loader = new Loader();
+$loader = new Loader;
 
-$nameSpaces = array(
+$nameSpaces = [
     'PhalconRest\Models' => $config['application']['modelsDir'],
     'PhalconRest\Entities' => $config['application']['entitiesDir'],
     'PhalconRest\Controllers' => $config['application']['controllersDir'],
     'PhalconRest\Exceptions' => $config['application']['exceptionsDir'],
     'PhalconRest\Libraries' => $config['application']['librariesDir'],
     'PhalconRest\Responses' => $config['application']['responsesDir']
-);
+];
 
 // load Composer Namespaces
 $map = require COMPOSER_PATH . 'composer/autoload_namespaces.php';

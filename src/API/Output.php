@@ -1,6 +1,11 @@
 <?php
 namespace PhalconRest\API;
 
+use Phalcon\Http\Response;
+use Phalcon\Mvc\Model\Message;
+use PhalconRest\Exception\ErrorStore;
+use PhalconRest\Result\Result;
+
 /**
  * Gather the results of script execution and output for browser consumption
  * Assumes JSON API is only output option
@@ -15,26 +20,17 @@ class Output extends \Phalcon\DI\Injectable
      */
     private $httpCode = 200;
 
+    /**
+     * @var string
+     */
     private $httpMessage = 'OK';
 
     /**
      * hold a valid errorStore object
      *
-     * @var \PhalconRest\Util\ErrorStore
+     * @var ErrorStore
      */
     public $errorStore = false;
-
-    /**
-     *
-     * @var boolean
-     */
-    protected $snake = true;
-
-    /**
-     *
-     * @var boolean
-     */
-    protected $envelope = true;
 
     /**
      *
@@ -50,63 +46,37 @@ class Output extends \Phalcon\DI\Injectable
 
     /**
      * format result set for output to web browser
+     * add any final meta data
      *
-     * @param array $records
-     * @param string $error
+     * @param Result $result Could be null in case of 204 results
+     * @return void
      */
-    public function send($records)
+    public function send(Result $result = null)
     {
-        // Most devs prefer camelCase to snake_Case in JSON, but this can be overridden here
-        if ($this->snake) {
-            $records = $this->arrayKeysToSnake($records);
-        }
+        if ($result) {
+            // stop timer and add to meta
+            if ($this->di->get('config')['application']['debugApp'] == true) {
+                $timer = $this->di->get('stopwatch');
+                $timer->end();
 
-        // stop timer and add to meta
-        if ($this->di->get('config')['application']['debugApp'] == true) {
-            $timer = $this->di->get('stopwatch');
-            $timer->end();
-
-            $summary = [
-                'total_run_time' => round(($timer->endTime - $timer->startTime) * 1000, 2) . ' ms',
-                'laps' => []
-            ];
-            foreach ($timer->laps as $lap) {
-                $summary['laps'][$lap['name']] = round(($lap['end'] - $lap['start']) * 1000, 2) . ' ms';
+                $summary = [
+                    'total_run_time' => round(($timer->endTime - $timer->startTime) * 1000, 2) . ' ms',
+                    'laps' => []
+                ];
+                foreach ($timer->laps as $lap) {
+                    $summary['laps'][$lap['name']] = round(($lap['end'] - $lap['start']) * 1000, 2) . ' ms';
+                }
+                $result->addMeta('stopwatch', $summary);
             }
-            $records['meta']['stopwatch'] = $summary;
+
+            $this->_send($result->outputJSON());
+        } else {
+            $this->setStatusCode(204);
+            $this->_send('');
         }
 
-
-        $this->_send($records);
-        return $this;
-    }
-
-    /**
-     * process an errorStore into a simple message
-     *
-     * @param \PhalconRest\Util\ErrorStore $errorStore
-     * @return \PhalconRest\API\Output
-     */
-    public function sendError(\PhalconRest\Util\ErrorStore $errorStore)
-    {
-        $message = array();
-        $message['errors']['title'] = $errorStore->title;
-        $message['errors']['code'] = $errorStore->code;
-        $message['errors']['detail'] = $errorStore->more;
-        $message['errors']['status'] = $this->httpCode;
-
-        $config = $this->di->get('config');
-        if ($config['application']['debugApp'] == true and isset($errorStore->dev)) {
-            $message['errors']['meta']['developer_message'] = $errorStore->dev;
-        }
-        if (count($errorStore->validationList) > 0) {
-            foreach ($errorStore->validationList as $validation) {
-                $message['errors'][$validation->getField()] = $validation->getMessage();
-            }
-        }
-
-        $this->_send($message);
-        return $this;
+        // shouldn't we get out now?
+        exit();
     }
 
     /**
@@ -116,76 +86,20 @@ class Output extends \Phalcon\DI\Injectable
      */
     private function _send($message)
     {
-        // Error's come from HTTPException. This helps set the proper envelope data
+        // Errors come from HTTPException. This helps set the proper envelope data
+        /** @var Response $response */
         $response = $this->di->get('response');
-        $response->setContentType('application/json');
-        $response->setStatusCode($this->httpCode, $this->httpMessage)->sendHeaders();
+        $response->setStatusCode($this->httpCode, $this->httpMessage);
 
-        // HEAD requests are detected in the parent constructor.
         // HEAD does everything exactly the same as GET, but contains no body
-        if (!$this->head) {
+        // empty responses (such as a 204 result) should also skip JSON configuration
+        if ($this->head || !$message) {
+            $response->setContentType(null); //forces content-type to not be sent
+        } else {
             $response->setJsonContent($message);
         }
+
         $response->send();
-    }
-
-    /**
-     * should we convert array keys to snake_case?
-     * otherwise array keys are left untouched
-     *
-     * @param bool $snake
-     * @return object $this
-     */
-    public function convertSnakeCase($snake)
-    {
-        $this->snake = (bool)$snake;
-        return $this; // for method chaining
-    }
-
-    /**
-     * include an envelop as part of the response
-     *
-     * @param bool $envelope
-     * @return object $this
-     */
-    public function useEnvelope($envelope)
-    {
-        $this->envelope = (bool)$envelope;
-        return $this; // for method chaining
-    }
-
-    /**
-     * In-Place, recursive conversion of array keys in snake_Case to camelCase
-     *
-     * @param array $snakeArray
-     *            Array with snake_keys
-     * @return no return value, array is edited in place
-     */
-    protected function arrayKeysToSnake(array $snakeArray)
-    {
-        foreach ($snakeArray as $k => $v) {
-            if (is_array($v)) {
-                $v = $this->arrayKeysToSnake($v);
-            }
-            $snakeArray[$this->snakeToCamel($k)] = $v;
-            if ($this->snakeToCamel($k) != $k) {
-                unset($snakeArray[$k]);
-            }
-        }
-        return $snakeArray;
-    }
-
-    /**
-     * Replaces underscores with spaces, uppercases the first letters of each word,
-     * lowercases the very first letter, then strips the spaces
-     *
-     * @param string $val
-     *            String to be converted
-     * @return string Converted string
-     */
-    protected function snakeToCamel($val)
-    {
-        return str_replace(' ', '', lcfirst(ucwords(str_replace('_', ' ', $val))));
     }
 
     /**
@@ -194,9 +108,14 @@ class Output extends \Phalcon\DI\Injectable
      * @param int $code
      * @param string $message
      */
-    public function setStatusCode($code, $message)
+    public function setStatusCode($code, $message = null)
     {
         $this->httpCode = $code;
         $this->httpMessage = $message;
+    }
+
+    public function getStatusCode()
+    {
+        return $this->httpCode;
     }
 }

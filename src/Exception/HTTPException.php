@@ -1,12 +1,15 @@
 <?php
-namespace PhalconRest\Util;
-use Phalcon\DI;
+namespace PhalconRest\Exception;
+
 use PhalconRest\API\Output;
+use PhalconRest\Exception\ErrorStore;
 
 /**
- * where caught HTTP Exceptions go to die
+ * General HTTP Exception Handler
+ * contains helpful functions for dealing with a single error kept in $this->errorStore
  *
  * @author jjenkins
+ *
  */
 class HTTPException extends \Exception
 {
@@ -17,51 +20,45 @@ class HTTPException extends \Exception
     private $di;
 
     /**
-     * HTTP response code
-     * @var int
-     */
-    protected $code;
-
-    /**
-     * HTTP response description
-     * @var string
-     */
-    protected $response;
-
-    /**
      * hold a valid errorStore object
-     * @var ErrorStore
+     *
+     * @var \PhalconRest\Exception\ErrorStore
      */
-    private $errorStore;
+    protected $errorStore;
 
     /**
-     *
      * @param string $title required user friendly message to return to the requestor
      * @param int $code required HTTP response code
      * @param array $errorList list of optional properties to set on the error object
+     * @param \Throwable $previous previous exception, if any
      */
-    public function __construct($title, $code, $errorList = [])
+    public function __construct($title, $code, $errorList = [], \Throwable $previous = null)
     {
-        parent::__construct($title, $code, $previous);
+        //attaching local code to Exception message in case it's catch somewhere else
+        $localCode = isset($errorList['code']) ? $errorList['code'] . '/' . $code : $code;
+
+        parent::__construct("[$localCode] $title", $code, $previous);
 
         // store general error data
         $this->errorStore = new ErrorStore($errorList);
         $this->errorStore->title = $title;
+        $this->errorStore->code = $localCode;
 
-        $this->response = $this->getResponseDescription($code);
-        $this->di = Di::getDefault();
+        $this->di = \Phalcon\Di::getDefault();
     }
 
     /**
-     *
-     * @return void|boolean
+     * Calls out {@link Output::sendError()} with the appropriate values.
      */
     public function send()
     {
         $output = new Output();
-        $output->setStatusCode($this->code, $this->response);
-        $output->sendError($this->errorStore);
-        return true;
+        $output->setStatusCode($this->code, $this->getResponseDescription($this->code));
+
+        //push errorStore into $result object for proper handling
+        $result = $this->di->get('result', []);
+        $result->addError($this->errorStore);
+        $output->send($result);
     }
 
     /**
@@ -69,10 +66,9 @@ class HTTPException extends \Exception
      * @param int $code
      * @return string
      */
-    protected function getResponseDescription($code)
+    protected function getResponseDescription(int $code):string
     {
         $codes = [
-
             // Informational 1xx
             100 => 'Continue',
             101 => 'Switching Protocols',
@@ -128,8 +124,6 @@ class HTTPException extends \Exception
             509 => 'Bandwidth Limit Exceeded'
         ];
 
-        $result = (isset($codes[$code])) ? $codes[$code] : 'Unknown Status Code';
-
-        return $result;
+        return $codes[$code] ?? 'Unknown Status Code';
     }
 }

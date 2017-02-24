@@ -1,9 +1,27 @@
+# zend studio files
 /.buildpath
 /.project
 /.settings/
+
+#composer directory
 /vendor/
-/composer.lock
+
+#phpstorm
+/.idea
+
+# zend debugger file
 /dummy.php
+# ignore codception files
+/tests/_output
+
+/deployment.properties
+/deployment.xml
+
+# ingnore mysql schema builder bak file
+*.bak
+
+# ignore gedit temp files
+*.*~
 
 #phpstorm
 /.idea

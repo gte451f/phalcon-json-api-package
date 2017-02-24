@@ -5,8 +5,7 @@ use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Query\BuilderInterface;
 use Phalcon\Mvc\Model\Relation;
-use \PhalconRest\Util\HTTPException;
-use \PhalconRest\Util\ValidationException;
+use PhalconRest\Exception\HTTPException;
 
 
 /**
@@ -103,7 +102,9 @@ class QueryBuilder extends Injectable
 
             // be sure to skip any relationships that are marked for custom processing
             $relationOptions = $relation->getOptions();
-            if (isset($relationOptions) && (array_key_exists('customProcessing', $relationOptions) && ($relationOptions['customProcessing'] === true))) {
+            if (isset($relationOptions) && (array_key_exists('customProcessing',
+                        $relationOptions) && ($relationOptions['customProcessing'] === true))
+            ) {
                 continue;
             }
 
@@ -115,20 +116,15 @@ class QueryBuilder extends Injectable
                 $alias = $referencedModel;
             }
 
-            // structure to always join in belongsTo just in case the query filters by a related field
             $type = $relation->getType();
             switch ($type) {
+                // structure to always join in belongsTo just in case the query filters by a related field
                 case Relation::BELONGS_TO:
-                    // process feature flag for belongsTo
-                    // attempt to join "simple" in side loaded belongsTo records that do not themselves have parents
-                    if (array_deep_key($config, 'feature_flags.fastBelongsTo')) {
-                        // create both sides of the join
-                        $left = "[$alias]." . $relation->getReferencedFields();
-                        $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
-                        // create and alias join
-                        $query->leftJoin($referencedModel, "$left = $right", $alias);
-                        $columns[] = "[$alias].*";
-                    }
+                    // create both sides of the join
+                    $left = "[$alias]." . $relation->getReferencedFields();
+                    $right = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
+                    // create and alias join
+                    $query->leftJoin($referencedModel, "$left = $right", $alias);
                     break;
 
                 case Relation::HAS_ONE:
@@ -142,7 +138,7 @@ class QueryBuilder extends Injectable
                     $columns[] = "[$alias].*";
                     break;
 
-                    // stop processing these types of joins with the main query.  They might return "n" number of related records
+                // stop processing these types of joins with the main query.  They might return "n" number of related records
 //                case Relation::HAS_MANY_THROUGH:
 //                    $alias2 = $alias . '_intermediate';
 //                    $left1 = $modelNameSpace . $this->model->getModelName() . '.' . $relation->getFields();
@@ -156,6 +152,12 @@ class QueryBuilder extends Injectable
 
                 default:
                     $this->di->get('logger')->warning("Relationship was ignored during join: {$this->model->getModelName()}.$alias, type #$type");
+            }
+
+            // attempt to join in side loaded belongsTo records
+            // add all parent AND hasOne joins to the column list
+            if ($type == Relation::BELONGS_TO) {
+                $columns[] = "[$alias].*";
             }
         }
         $query->columns($columns);
@@ -213,13 +215,17 @@ class QueryBuilder extends Injectable
                         $operator = $this->determineWhereOperator($processedSearchField['fieldValue']);
                         $newFieldValue = $this->processFieldValue($processedSearchField['fieldValue'], $operator);
                         // $query->andWhere("$fieldName $operator \"$newFieldValue\"");
-                        if ($operator === 'IS NULL') {
-                            $query->andWhere("$fieldName $operator");
+                        if ($operator === 'BETWEEN') {
+                            $query->betweenWhere("$fieldName", $newFieldValue[0], $newFieldValue[1]);
                         } else {
-                            $randomName = 'rand' . rand(1, 1000000);
-                            $query->andWhere("$fieldName $operator :$randomName:", array(
-                                $randomName => $newFieldValue
-                            ));
+                            if ($operator === 'IS NULL' OR $operator === 'IS NOT NULL') {
+                                $query->andWhere("$fieldName $operator");
+                            } else {
+                                $randomName = 'rand' . rand(1, 1000000);
+                                $query->andWhere("$fieldName $operator :$randomName:", array(
+                                    $randomName => $newFieldValue
+                                ));
+                            }
                         }
                         break;
 
@@ -252,12 +258,20 @@ class QueryBuilder extends Injectable
                                 $marker = 'marker' . $count;
                                 $operator = $this->determineWhereOperator($fieldValue);
                                 $newFieldValue = $this->processFieldValue($fieldValue, $operator);
-                                if ($operator === 'IS NULL') {
-                                    $queryArr[] = "$fieldName $operator";
+
+                                if ($operator === 'BETWEEN') {
+                                    $queryArr[] = "$fieldName $operator :{$marker}_1: AND :{$marker}_2:";
+                                    $valueArr[$marker . '_1'] = $newFieldValue[0];
+                                    $valueArr[$marker . '_2'] = $newFieldValue[1];
                                 } else {
-                                    $queryArr[] = "$fieldName $operator :$marker:";
-                                    $valueArr[$marker] = $newFieldValue;
+                                    if ($operator === 'IS NULL' || $operator === 'IS NOT NULL') {
+                                        $queryArr[] = "$fieldName $operator";
+                                    } else {
+                                        $queryArr[] = "$fieldName $operator :$marker:";
+                                        $valueArr[$marker] = $newFieldValue;
+                                    }
                                 }
+
                                 $count++;
                             }
                         }
@@ -271,7 +285,7 @@ class QueryBuilder extends Injectable
     }
 
     /**
-     * This method looks for the existence of syntax extentions to the api and attempts to
+     * This method looks for the existence of syntax extensions to the api and attempts to
      * adjust search inputs before subjecting them to the queryBuilder
      *
      * The 'or' operator || explodes the given parameter on that operator if found
@@ -325,6 +339,8 @@ class QueryBuilder extends Injectable
      * resources:child_table=note||subject
      *
      * A rather obscure feature of this implementation is that providing no table prefix often works correctly
+     *
+     * this function now checks parent models if not matching column is found in the primary table
      *
      *
      * @param string $fieldName
@@ -435,6 +451,7 @@ class QueryBuilder extends Injectable
                 break;
 
             case 'LIKE':
+            case 'NOT LIKE':
                 // process possible wild cards
                 $firstChar = substr($fieldValue, 0, 1);
                 $lastChar = substr($fieldValue, -1, 1);
@@ -446,7 +463,25 @@ class QueryBuilder extends Injectable
                 if ($lastChar == "*") {
                     $fieldValue = substr_replace($fieldValue, "%", -1, 1);
                 }
+                if ($firstChar == "!") {
+                    $fieldValue = substr_replace($fieldValue, "%", 0, 1);
+                }
+                if ($lastChar == "!") {
+                    $fieldValue = substr_replace($fieldValue, "%", -1, 1);
+                }
                 return $fieldValue;
+                break;
+            case 'BETWEEN':
+                $parts = explode("~", $fieldValue);
+                if (count($parts) != 3) {
+                    throw new HTTPException("A bad filter was attempted.", 500, array(
+                        'dev' => "Encountered a between filter without the correct values, please send ~value1~value2",
+                        'code' => '975149008326'
+                    ));
+                }
+                $fields[] = $parts[1];
+                $fields[] = $parts[2];
+                return $fields;
                 break;
 
             default:
@@ -479,9 +514,20 @@ class QueryBuilder extends Injectable
         if (($firstChar == "*") || ($lastChar == "*")) {
             return 'LIKE';
         }
+        if (($firstChar == "!") && ($lastChar == "!")) {
+            return 'NOT LIKE';
+        }
+        if (($firstChar == "~")) {
+            return 'BETWEEN';
+        }
+
 
         if (strtoupper($fieldValue) === 'NULL') {
             return 'IS NULL';
+        }
+
+        if (strtoupper($fieldValue) === '!NULL') {
+            return 'IS NOT NULL';
         }
 
         // process supported comparision operators

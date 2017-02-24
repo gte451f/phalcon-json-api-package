@@ -1,4 +1,5 @@
 <?php
+
 /**
  * store low level functions that are essential to system operation
  * TODO: Make these services or libraries in DI?
@@ -18,6 +19,7 @@ if (!function_exists('array_merge_recursive_replace')) {
         foreach ($arrays as $array) {
             reset($base);
             while (list ($key, $value) = @each($array)) {
+
                 if (is_array($value) && isset($base[$key]) && @is_array($base[$key])) {
                     $base[$key] = array_merge_recursive_replace($base[$key], $value);
                 } else {
@@ -57,13 +59,13 @@ if (!function_exists('array_deep_key_exists')) {
     /**
      * Searches for a key deep in a complex array.
      * @example array_deep_key_exists('one.two', ['one' => ['two' => 2]]) === true
-     * @param string $address Dot-separated key names
+     * @param string $path Dot-separated key names
      * @param array $array
      * @return bool
      */
-    function array_deep_key_exists($address, array $array)
+    function array_deep_key_exists($path, array $array):bool
     {
-        $keys = explode('.', $address);
+        $keys = explode('.', $path);
         foreach ($keys as $key) {
             if (array_key_exists($key, $array)) {
                 $array = $array[$key];
@@ -72,5 +74,26 @@ if (!function_exists('array_deep_key_exists')) {
             }
         }
         return true;
+    }
+}
+
+if (!function_exists('array_flatten')) {
+    /**
+     * Flattens all entries of a matrix into a single, long array of values.
+     * @param array $matrix A multi-dimensional array
+     * @param bool $assoc If the given array is associative (and keys should be maintained) or not
+     * @return array
+     */
+    function array_flatten(array $matrix, $assoc = false):array
+    {
+        if (!$assoc) {
+            $result = [];
+            array_walk_recursive($matrix, function ($v) use (&$result) {
+                $result[] = $v;
+            });
+            return $result;
+        } else {
+            return is_array(current($matrix)) ? call_user_func_array('array_merge', $matrix) : $matrix;
+        }
     }
 }

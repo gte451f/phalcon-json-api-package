@@ -5,8 +5,12 @@
 require_once API_PATH . 'bin/base.php';
 
 // your main application config file
+// you can override these values with an environmental specific file in app/config/FILE.php
 $config = [
     'application' => [
+        // routes all requests to a 503 - useful during deploys. Disable after deploy is done
+        'maintenance' => false,
+
         // the path to the main directory holding the application
         'appDir' => APPLICATION_PATH,
         // path values to commonly expected api files
@@ -16,7 +20,7 @@ $config = [
         "responsesDir" => APPLICATION_PATH . 'responses/',
         "librariesDir" => APPLICATION_PATH . 'libraries/',
 
-        // is this used?
+        //TODO: is this used?
         "exceptionsDir" => APPLICATION_PATH . 'exceptions/',
 
         // base string after FQDN.../api/v1 or some such
@@ -32,20 +36,38 @@ $config = [
         // where should app generated logs be stored?
         'loggingDir' => '/tmp/',
 
+        // how should property names be formatted in results?
+        // possible values are camel, snake, dash and none
+        // none means perform no processing on the final output
+        'propertyFormatTo' => 'dash',
+
+        // how are your existing database field name formatted?
+        // possible values are camel, snake, dash
+        // none means perform no processing on the incoming values
+        'propertyFormatFrom' => 'snake',
+
+        // would also accept any FOLDER name in Result\Adapters
+        'outputFormat' => 'JsonApi'
     ],
+
+    // location to various code sources
     'namespaces' => [
         'models' => 'PhalconRest\Models\\',
         'controllers' => 'PhalconRest\Controllers\\',
         'libraries' => 'PhalconRest\Libraries\\',
-        'entities' => 'PhalconRest\Entities\\'
+        'entities' => 'PhalconRest\Entities\\',
+
+        // what is the default entity to be loaded when no other is specified?
+        'defaultEntity' => '\PhalconRest\API\Entity'
     ],
+
     // is security enabled for this app?
     'security' => true,
+
     // a series of experimental features
+    // this section may be left blank
     'feature_flags' => [
-        // run this in the main query instead of pulling as individual queries
-        'fastBelongsTo' => false,
-        'fastHasMany' => false
+
     ]
 ];
 
@@ -55,11 +77,14 @@ $overridePath = APPLICATION_PATH . 'config/config.php';
 if (file_exists($overridePath)) {
     $config = array_merge_recursive_replace($config, require($overridePath));
 } else {
-    throw new HTTPException("Fatal Exception Caught.", 500, array(
-        'dev' => "Invalid Environmental Config!  Could not load the specific config file.  Your environment is: "
-            . APPLICATION_ENV . " but not matching file was found in /app/config/",
-        'code' => '23897293759275'
-    ));
+    throw new Exception("Invalid Environmental Config!  Could not load the specific config file. Your environment is:"
+        . APPLICATION_ENV . " but not matching file was found in /app/config/", 23897293759275);
+}
+
+// makes no sense to convert from like to like
+// can't throw Exception, not sure why
+if ($config['application']['propertyFormatTo'] == $config['application']['propertyFormatFrom']) {
+    throw new Exception('The API attempted to normalize from one format to the same format', 21345);
 }
 
 return $config;

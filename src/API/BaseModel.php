@@ -1,6 +1,8 @@
 <?php
 namespace PhalconRest\API;
 
+use \PhalconRest\Exception\ValidationException;
+
 /**
  * placeholder for future work
  *
@@ -15,14 +17,14 @@ class BaseModel extends \Phalcon\Mvc\Model
      *
      * @var string|null
      */
-    protected $singularName = NULL;
+    protected $singularName = null;
 
     /**
      * essentially the name of the model
      *
      * @var string|null
      */
-    protected $pluralName = NULL;
+    protected $pluralName = null;
 
     /**
      * store a models primary key name in this property
@@ -58,7 +60,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      *
      * @var string|null
      */
-    private $modelNameSpace = NULL;
+    private $modelNameSpace = null;
 
     /**
      * list of relationships?
@@ -71,14 +73,14 @@ class BaseModel extends \Phalcon\Mvc\Model
      * hold a list of MODEL columns that can be published to the api
      * this array is not directly modified but rather inferred
      * should work, even when side-loading data
-     * should not store parent columns
+     * !should not store parent columns!
      *
      * start as null to detect and only load once
      * all columns - block columns = allow columns
      *
      * @var array
      */
-    private $allowColumns = NULL;
+    private $allowColumns = null;
 
     /**
      * hold a list of MODEL columns that are to be blocked by the api
@@ -104,7 +106,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      *
      * @var boolean|string
      */
-    public static $parentModel = FALSE;
+    public static $parentModel = false;
 
     /**
      * store one or more parent models that this entity
@@ -119,8 +121,27 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $parentModels = null;
 
     /**
-     * auto populate a few key values
+     * BaseModel property that allows for two different behaviors on {@link save()} calls:
+     * When true, a {@link ValidationException} will be thrown on errors.
+     * When false, a boolean false will be returned - the original {@link \Phalcon\Mvc\Model::save()} behavior.
+     * @see save()
+     * @see throwOnNextSave
+     * @var bool
      */
+    public static $throwOnSave = false;
+
+    /**
+     * Instance counterpart of {@link $throwOnSave}. Resets after one save() call.
+     * If this is true, on save errors an exception will be thrown.
+     * If false, errors will be returned instead (original Phalcon behavior).
+     * If it's null, it'll obey the global {@link $throwOnSave} flag.
+     * @see $throwOnSave
+     * @see throwOnNextSave()
+     * @see save()
+     * @var bool|null
+     */
+    public $throwOnNextSave = null;
+
     public function initialize()
     {
         $this->loadBlockColumns();
@@ -155,7 +176,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             return $this->singularName;
         }
 
-        // todo throw and error here?
+        // todo throw an error here?
         return false;
     }
 
@@ -236,7 +257,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function getPrimaryKeyValue()
     {
         $key = $this->getPrimaryKeyName();
-        return $this->$key;
+        return isset($this->$key) ? $this->$key : null;
     }
 
     /**
@@ -296,8 +317,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function loadBlockColumns()
     {
         $blockColumns = [];
-        $class = get_class($this);
-        $parentModelName = $class::$parentModel;
+        $parentModelName = static::$parentModel;
 
         if ($parentModelName) {
             /** @var BaseModel $parentModel */
@@ -317,11 +337,9 @@ class BaseModel extends \Phalcon\Mvc\Model
     /**
      * for a given array of column names, add them to the block list
      *
-     * @param array $columnList
-     *            a list of columns to block for this model
-     * @param boolean $clear
-     *            should the existing list of blockColums be cleared to an array
-     *            this has the affect of initializing the list
+     * @param array $columnList a list of columns to block for this model
+     * @param boolean $clear should the existing list of blockColums be cleared to an array
+     *                          this has the affect of initializing the list
      */
     public function setBlockColumns($columnList, $clear = false)
     {
@@ -364,7 +382,7 @@ class BaseModel extends \Phalcon\Mvc\Model
                 if ($parentColumns == null) {
                     $parentColumns = [];
                 }
-                $blockColumns = array_merge($blockColumns, $parentColumns);
+                $blockColumns = array_unique(array_merge($blockColumns, $parentColumns));
             }
         }
 
@@ -396,7 +414,7 @@ class BaseModel extends \Phalcon\Mvc\Model
         $allowColumns = [];
 
         // cache allowColumns to save us the work in subsequent calls
-        if ($this->allowColumns == NULL) {
+        if ($this->allowColumns == null) {
             // load block columns if uninitialized
             if ($this->blockColumns == null) {
                 $this->loadBlockColumns();
@@ -418,7 +436,6 @@ class BaseModel extends \Phalcon\Mvc\Model
             }
             $this->allowColumns = $allowColumns;
         }
-
         // give function the chance to re-merge in parent columns
         if ($includeParent) {
             $parentModel = $this->getParentModel(true);
@@ -540,6 +557,69 @@ class BaseModel extends \Phalcon\Mvc\Model
             return false;
         }
 
-        return $withNamespace? $modelNameSpace . $parentModelName : $parentModelName;
+        return $withNamespace ? $modelNameSpace . $parentModelName : $parentModelName;
     }
+
+    /**
+     * Overrides the original save method by throwing a ValidationException on save failures.
+     * This behavior can be skipped all the times or once by using {@link $throwOnSave} and {@link $throwOnNextSave}.
+     * @see $throwOnSave
+     * @see $throwOnNextSave
+     * @see \Phalcon\Mvc\Model::save()
+     * @param null $data
+     * @param null $whiteList
+     * @return int|bool Returns false on failures (if throw behavior is disabled) and the PKID on success calls.
+     *                  May return true if the PKID cannot be found (on {@link getPrimaryKeyValue()),
+     *                  but the save worked nonetheless.
+     * @throws ValidationException
+     */
+    public function save($data = null, $whiteList = null)
+    {
+        $result = parent::save($data, $whiteList);
+        // if the save failed, gather errors and return a validation failure if enabled
+
+        if (!$result) {
+            //default behavior is: return the value.
+            //throwOnNextSave has higher priority. if it's truthy, lets throw.
+            //if it's not set, the global flag takes precedence.
+            $throw = false;
+            if ($this->throwOnNextSave) {
+                $throw = true;
+                $this->throwOnNextSave = null;
+            } elseif (is_null($this->throwOnNextSave) && self::$throwOnSave) {
+                $throw = true;
+            }
+
+            if ($throw) {
+                $class = get_called_class();
+                $class = ltrim(substr($class, strrpos($class, '\\')), '\\');
+                throw new ValidationException('Validation Errors Encountered', [
+                    'code' => '50986904809',
+                    'dev' => $class . '::save() failed',
+                    'more' => [
+                        'attributes' => $this->toArray(),
+                        'map' => method_exists($this, 'columnMap') ? $this->columnMap() : null,
+                    ]
+                ], $this->getMessages());
+            }
+        } else { //it worked! let's return something more useful than a boolean: the ID, if possible
+            //an ID might not be found if there's something odd with the model's PK (hidden, for instance)
+            return $this->getPrimaryKeyValue() ?: true;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Simple chainable method to make {@link save()} calls a bit easier.
+     * @see $throwOnNextSave
+     * @param $bool
+     * @return $this
+     */
+    public function throwOnNextSave($bool = true)
+    {
+        $this->throwOnNextSave = $bool;
+        return $this;
+    }
+
 }
