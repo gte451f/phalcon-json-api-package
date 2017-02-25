@@ -7,6 +7,11 @@ use PhalconRest\Exception\HTTPException;
 class Result extends \PhalconRest\Result\Result
 {
 
+    /**
+     * adapters function to spit output into a generic class, which will be converted to json before too long
+     *
+     * @return \stdClass
+     */
     protected function formatJSON()
     {
         $result = new \stdClass();
@@ -17,11 +22,9 @@ class Result extends \PhalconRest\Result\Result
             $this->formatSuccess($result);
         }
 
-        // include valid, plain non-namespaced data
-        foreach (['jsonapi', 'links'] as $key) {
-            if (isset($this->plain[$key])) {
-                $result->$key = $this->plain[$key];
-            }
+        // include valid, plain non-namespace data
+        foreach ($this->plain as $key => $value) {
+            $result->$key = $value;
         }
         //TODO: better handling of links (self, related, pagination) http://jsonapi.org/format/#document-links
 
