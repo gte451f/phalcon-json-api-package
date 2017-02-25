@@ -8,6 +8,7 @@ class Result extends \PhalconRest\Result\Result
 
     /**
      * will convert the intermediate data result data into ActiveModel compatible result object
+     *
      * @return \stdClass
      * @throws HTTPException
      */
