@@ -208,6 +208,7 @@ class QueryBuilder extends Injectable
                 }
             }
 
+            $count = 1;
             foreach ($processedSearchFields as $processedSearchField) {
                 switch ($processedSearchField['queryType']) {
                     case 'and':
@@ -251,7 +252,6 @@ class QueryBuilder extends Injectable
                         // update to bind params instead of using string concatination
                         $queryArr = [];
                         $valueArr = [];
-                        $count = 1;
                         foreach ($fieldNameArray as $fieldName) {
                             $fieldName = $this->prependFieldNameNamespace($fieldName);
                             foreach ($fieldValueArray as $fieldValue) {
