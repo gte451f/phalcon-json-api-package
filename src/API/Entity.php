@@ -689,11 +689,12 @@ class Entity extends Injectable
      * depends on the existence of a primaryKeyValue
      *
      * @param Relation|PhalconRelation $relation
+     * @param bool Should the entity auto-merge hasOne records for the model in this relationship?
      * @return array
      */
-    protected function getHasManyRecords(Relation $relation)
+    protected function getHasManyRecords(Relation $relation, bool $includeHasOnes = true)
     {
-        $query = $this->buildRelationQuery($relation);
+        $query = $this->buildRelationQuery($relation, $includeHasOnes);
 
         // feature flag is enable, pulling from register instead
         $foreign_keys = array_unique($this->hasManyRegistry[$relation->getReferencedModel()]);
@@ -818,9 +819,10 @@ class Entity extends Injectable
      * utility shared between getBelongsToRecord and getHasManyRecords
      *
      * @param PhalconRelation|Relation $relation
+     * @param bool Should the entity auto-merge hasOne records for the model in this relationship?
      * @return object
      */
-    protected function buildRelationQuery(Relation $relation)
+    protected function buildRelationQuery(Relation $relation, bool $includeHasOnes = true)
     {
         /** @var \Phalcon\Mvc\Model\Query\Builder $query */
         $refModelNameSpace = $relation->getReferencedModel();
@@ -828,12 +830,15 @@ class Entity extends Injectable
         $query = $mm->createBuilder()->from($refModelNameSpace);
         $columns = [];
 
-        // hasOnes are auto merged
-        // todo should this be controlled by entityWith?
-        $list = $relation->getHasOnes();
-        foreach ($list as $model) {
-            $columns[] = $model . '.*';
-            $query->leftJoin($model);
+
+        // hasOnes are auto merged if requested
+        if ($includeHasOnes) {
+            // todo should this be controlled by entityWith?
+            $list = $relation->getHasOnes();
+            foreach ($list as $model) {
+                $columns[] = $model . '.*';
+                $query->leftJoin($model);
+            }
         }
 
         // Load the main record field at the end, so they are not overwritten
@@ -1328,4 +1333,3 @@ class Entity extends Injectable
         return $model->save();
     }
 }
-
