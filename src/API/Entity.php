@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\API;
 
 use Phalcon\Di;
@@ -102,6 +103,15 @@ class Entity extends Injectable
     private $hasManyRegistry = [];
 
     /**
+     * @see $hasManyRegistry
+     * used to store a registry of records related through hasManyToMany relationships
+     *
+     * @var array
+     */
+    public $hasManyToManyRegistry = [];
+
+
+    /**
      * process injected model
      *
      * @param BaseModel $model
@@ -200,6 +210,11 @@ class Entity extends Injectable
             if ($refType == PhalconRelation::HAS_MANY) {
                 // finally process a combined call for child records
                 $this->getHasManyRecords($relation);
+            }
+            // let's try to support delayed has_many_through to cut down on the number of DB queries we have to run
+            if ($refType == PhalconRelation::HAS_MANY_THROUGH) {
+                // process a combined call for child records
+                $this->getHasManyToManyRecords($relation, false);
             }
         }
     }
@@ -480,7 +495,9 @@ class Entity extends Injectable
                     // it's an edge case but should be supported in the future
                     break;
                 case PhalconRelation::HAS_MANY_THROUGH:
-                    $this->getHasManyToManyRecords($relation);
+                    // $this->getHasManyToManyRecords($relation, true);
+                    // register a future record request to be processed later
+                    $this->registerHasManyToManyRequest($relation);
                     break;
 
                 case PhalconRelation::HAS_MANY:
@@ -723,6 +740,24 @@ class Entity extends Injectable
     }
 
     /**
+     * store away a request for a record in a child table
+     * this registry is later processed in processDelayedRelationships to side load found records
+     * @param Relation|PhalconRelation $relation
+     */
+    protected function registerHasManyToManyRequest(Relation $relation)
+    {
+        // determine the key to search against
+        $field = $relation->getFields();
+        if (isset($this->baseRecord->attributes[$field])) {
+            $fieldValue = $this->baseRecord->attributes[$field];
+        } else {
+            // fall back to using the primaryKeyValue
+            $fieldValue = $this->primaryKeyValue;
+        }
+        $this->hasManyToManyRegistry[$relation->getReferencedModel()][] = $fieldValue;
+    }
+
+    /**
      * built for belongsTo relationships
      * in cases where the related record itself refers to a parent record,
      * write a custom query to load the related record including it's parent (and has ones?)
@@ -764,15 +799,45 @@ class Entity extends Injectable
      * this support joins to distant tables with parent models
      *
      * @param PhalconRelation|Relation $relation
+     * @param bool $before
      * @return array
      */
-    protected function getHasManyToManyRecords($relation)
+    public function getHasManyToManyRecords($relation, $before = true)
+    {
+        $field = $relation->getFields();
+        $intermediateModelNameSpace = $relation->getIntermediateModel();
+
+        $query = $this->buildHasManyToManyQuery($relation);
+        $fieldValue = $this->baseRecord->getFieldValue($field);
+
+        if ($before) {
+            $whereField = $intermediateModelNameSpace . '.' . $relation->getIntermediateFields();
+            $query->where("{$whereField} = \"$fieldValue\"");
+        } else {
+            // Here is the change to the original getHasManyToMany to use inWhere
+            $whereField = $intermediateModelNameSpace . '.' . $relation->getIntermediateFields();
+            $foreign_keys = array_unique($this->hasManyToManyRegistry[$relation->getReferencedModel()]);
+            $query->inWhere($whereField, $foreign_keys);
+        }
+
+        $result = $query->getQuery()->execute();
+        return $this->loadRelationRecords($result, $relation, $before);
+    }
+
+
+    /**
+     * a helper function to build part of a hasManyToMany query
+     * split out to make this accessible to decedent entities
+     *
+     * @param $relation
+     * @return \Phalcon\Mvc\Model\Query\Builder
+     */
+    final public function buildHasManyToManyQuery($relation)
     {
         $refModelNameSpace = $relation->getReferencedModel();
         $intermediateModelNameSpace = $relation->getIntermediateModel();
 
         // determine the key to search against
-        $field = $relation->getFields();
         $referencedField = $relation->getReferencedFields();
         $intermediateFields = $relation->getIntermediateReferencedFields();
 
@@ -808,12 +873,10 @@ class Entity extends Injectable
         // Load the main record field at the end, so they are not overwritten
         $columns[] = $refModelNameSpace . ".*, " . $intermediateModelNameSpace . ".*";
         $query->columns($columns);
-        $fieldValue = $this->baseRecord->getFieldValue($field);
-        $whereField = $intermediateModelNameSpace . '.' . $relation->getIntermediateFields();
-        $query->where("{$whereField} = \"$fieldValue\"");
-        $result = $query->getQuery()->execute();
-        return $this->loadRelationRecords($result, $relation);
+
+        return $query;
     }
+
 
     /**
      * utility shared between getBelongsToRecord and getHasManyRecords
@@ -873,17 +936,26 @@ class Entity extends Injectable
                 $relationshipName = $relation->getTableName('plural');
             }
 
-            $newInclude = $this->di->get('data',
-                [$relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray]);
-
             if ($before) {
                 $this->baseRecord->addRelationship($relationshipName, $relatedRecArray['id'],
                     $relation->getTableName('plural'));
             } else {
                 // load relationship after baseRecords have been processed
-                $this->result->addRelationship($relatedRecArray[$relation->getReferencedFields()], $relationshipName,
+
+                if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
+                    $parentId = $relatedRecArray[$relation->getIntermediateFields()];
+                    unset($relatedRecArray[$relation->getIntermediateFields()]);
+                } else {
+                    $parentId = $relatedRecArray[$relation->getReferencedFields()];
+                }
+
+                $this->result->addRelationship($parentId, $relationshipName,
                     $relatedRecArray['id'], $relation->getTableName('plural'));
             }
+
+            $newInclude = $this->di->get('data',
+                [$relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray]);
+
             $this->result->addIncluded($newInclude);
         }
     }
@@ -909,9 +981,16 @@ class Entity extends Injectable
             foreach ($relatedRecord as $rec) {
                 // filter manyHasMany differently than other relationships
                 if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
-                    // only interested in the "end" relationship, not the intermediate
+                    // while we normally are only interested in the "end" relationship, not the intermediate
+                    // we need the parent_id in order to join this record to the parent
                     $intermediateModelNameSpace = $relation->getIntermediateModel();
                     if ($intermediateModelNameSpace == get_class($rec)) {
+                        // let's smuggle in the intermediate "parent id" or left side id
+                        // we'll clean this out in the upstream function
+                        // it's the best way I know to provide this value back while avoiding extra DB calls
+                        $intermediateField = $relation->getIntermediateFields();
+                        $intermediateValue = $rec->$intermediateField;
+                        $relatedRecArray[$intermediateField] = $intermediateValue;
                         continue;
                     }
                 }
