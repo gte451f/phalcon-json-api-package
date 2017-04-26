@@ -944,7 +944,9 @@ class Entity extends Injectable
 
                 if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
                     $parentId = $relatedRecArray[$relation->getIntermediateFields()];
-                    unset($relatedRecArray[$relation->getIntermediateFields()]);
+                    if ($relation->getIntermediateFields() <> 'id') {
+                        unset($relatedRecArray[$relation->getIntermediateFields()]);
+                    }
                 } else {
                     $parentId = $relatedRecArray[$relation->getReferencedFields()];
                 }
