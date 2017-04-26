@@ -66,7 +66,11 @@ abstract class Request extends \Phalcon\Http\Request
 
         // special handling for array requests, for individual inputs return what is request
         if (is_array($request) and $this->defaultCaseFormat != false) {
-            return $this->convertCase($request);
+            if($this->getJsonRawBody() == null){
+                return $this->convertCase($request);
+            } else {
+                return $this->getJsonRawBody();
+            }
         } else {
             return $request;
         }
