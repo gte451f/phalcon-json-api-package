@@ -110,6 +110,14 @@ class Entity extends Injectable
      */
     public $hasManyToManyRegistry = [];
 
+    /**
+     * this is a bit of a hack, but we need a safe way to smuggle the parent id of a has_many_through back upstream
+     * when processing these requests through delayed means
+     *
+     * consider enhancing the hasManyToManyRegistry to store this?
+     */
+    const SECRETPARENTNAME = 'aksdjflwejfoijd';
+
 
     /**
      * process injected model
@@ -921,6 +929,8 @@ class Entity extends Injectable
      */
     protected function loadRelationRecords($relatedRecords, Relation $relation, $before = true)
     {
+        $relatedPrimaryKey = $relation->getPrimaryKeyName();
+
         foreach ($relatedRecords as $relatedRecord) {
             // leverage helper function to extract the complete related record as an array
             $relatedRecArray = $this->getRelatedRecord($relatedRecord, $relation);
@@ -941,20 +951,20 @@ class Entity extends Injectable
                     $relation->getTableName('plural'));
             } else {
                 // load relationship after baseRecords have been processed
-
                 if ($relation->getType() == PhalconRelation::HAS_MANY_THROUGH) {
-                    $parentId = $relatedRecArray[$relation->getIntermediateFields()];
-                    unset($relatedRecArray[$relation->getIntermediateFields()]);
+                    // we expect this to be present based on work done in getRelatedRecord()
+                    $parentId = $relatedRecArray[self::SECRETPARENTNAME];
+                    // the intent here is to clean up extra fields that are only used processing has_many_through via
+                    // the delayed approach and the api should not present in the response
+                    unset($relatedRecArray[self::SECRETPARENTNAME]);
                 } else {
                     $parentId = $relatedRecArray[$relation->getReferencedFields()];
                 }
-
                 $this->result->addRelationship($parentId, $relationshipName,
-                    $relatedRecArray['id'], $relation->getTableName('plural'));
+                    $relatedRecArray[$relatedPrimaryKey], $relation->getTableName('plural'));
             }
-
             $newInclude = $this->di->get('data',
-                [$relatedRecArray['id'], $relation->getTableName('plural'), $relatedRecArray]);
+                [$relatedRecArray[$relatedPrimaryKey], $relation->getTableName('plural'), $relatedRecArray]);
 
             $this->result->addIncluded($newInclude);
         }
@@ -990,7 +1000,7 @@ class Entity extends Injectable
                         // it's the best way I know to provide this value back while avoiding extra DB calls
                         $intermediateField = $relation->getIntermediateFields();
                         $intermediateValue = $rec->$intermediateField;
-                        $relatedRecArray[$intermediateField] = $intermediateValue;
+                        $relatedRecArray[self::SECRETPARENTNAME] = $intermediateValue;
                         continue;
                     }
                 }
