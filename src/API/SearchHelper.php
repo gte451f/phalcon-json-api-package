@@ -156,14 +156,19 @@ class SearchHelper
     public $suppliedSearchFields = array();
 
     /**
+     * if we need to use this class without the context of a request
+     */
+    protected $customParams = false;
+
+    /**
      * load the DI, is this the best way ?
      */
-    public function __construct()
+    public function __construct( $customParams = false )
     {
         $di = \Phalcon\DI::getDefault();
         $this->di = $di;
 
-        // close enough, let's parse the inputs since we assume searchHelper is always called within the context of a query
+        $this->customParams = $customParams;
         $this->parseRequest();
     }
 
@@ -313,12 +318,17 @@ class SearchHelper
      */
     protected function parseRequest()
     {
-        // pull various supported inputs from post
-        $request = $this->di->get('request');
+        if ($this->customParams === false) {
+            // pull various supported inputs from post
+            $request = $this->di->get('request');
 
-        // only process if it is a get
-        if ($request->isGet() == false) {
-            return;
+            // only process if it is a get
+            if ($request->isGet() == false) {
+                return;
+            }
+        } else {
+            $_REQUEST = $this->customParams;
+            $request = $this->di->get('request');
         }
 
         // simple stuff first
