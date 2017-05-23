@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\API;
 
 use Phalcon\DI;

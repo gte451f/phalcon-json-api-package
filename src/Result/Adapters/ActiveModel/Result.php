@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Result\Adapters\ActiveModel;
 
 use PhalconRest\Exception\HTTPException;

@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Exception;
 
 use PhalconRest\API\Output;
@@ -66,7 +67,7 @@ class HTTPException extends \Exception
      * @param int $code
      * @return string
      */
-    protected function getResponseDescription(int $code):string
+    protected function getResponseDescription(int $code): string
     {
         $codes = [
             // Informational 1xx

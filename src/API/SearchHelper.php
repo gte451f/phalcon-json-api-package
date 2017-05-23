@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\API;
 
 /**
@@ -163,7 +164,7 @@ class SearchHelper
     /**
      * load the DI, is this the best way ?
      */
-    public function __construct( $customParams = false )
+    public function __construct($customParams = false)
     {
         $di = \Phalcon\DI::getDefault();
         $this->di = $di;

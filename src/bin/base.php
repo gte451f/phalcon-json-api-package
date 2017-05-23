@@ -63,7 +63,7 @@ if (!function_exists('array_deep_key_exists')) {
      * @param array $array
      * @return bool
      */
-    function array_deep_key_exists($path, array $array):bool
+    function array_deep_key_exists($path, array $array): bool
     {
         $keys = explode('.', $path);
         foreach ($keys as $key) {
@@ -84,7 +84,7 @@ if (!function_exists('array_flatten')) {
      * @param bool $assoc If the given array is associative (and keys should be maintained) or not
      * @return array
      */
-    function array_flatten(array $matrix, $assoc = false):array
+    function array_flatten(array $matrix, $assoc = false): array
     {
         if (!$assoc) {
             $result = [];

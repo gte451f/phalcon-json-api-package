@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Exception;
 
 use Phalcon\Mvc\Model\Message as Message;
