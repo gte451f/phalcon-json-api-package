@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\API;
 
 use \PhalconRest\Exception\ValidationException;
@@ -338,7 +339,7 @@ class BaseModel extends \Phalcon\Mvc\Model
      * for a given array of column names, add them to the block list
      *
      * @param array $columnList a list of columns to block for this model
-     * @param boolean $clear should the existing list of blockColums be cleared to an array
+     * @param boolean $clear should the existing list of blockColumns be cleared to an array
      *                          this has the affect of initializing the list
      */
     public function setBlockColumns($columnList, $clear = false)
@@ -442,7 +443,7 @@ class BaseModel extends \Phalcon\Mvc\Model
             if ($parentModel) {
                 /** @var BaseModel $parentModel */
                 $parentModel = new $parentModel();
-                $parentColumns = $parentModel->getAllowedColumns(false, $includeParent);
+                $parentColumns = $parentModel->getAllowedColumns($nameSpace, $includeParent);
 
                 // the parent model may return null, let's catch and change to an empty array
                 // thus indicating that block columns have been "loaded" even if they are blank
