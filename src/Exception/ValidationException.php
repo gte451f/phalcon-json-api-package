@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Exception;
 
 use Phalcon\Mvc\Model\Message as Message;
@@ -34,5 +35,14 @@ class ValidationException extends HTTPException
         }
 
         $this->errorStore->validationList = $mergedValidations;
+    }
+
+    /**
+     * Gives back the list of error messages.
+     * @return \Phalcon\Mvc\Model\Message[]
+     */
+    public function getErrors()
+    {
+        return $this->errorStore->validationList;
     }
 }

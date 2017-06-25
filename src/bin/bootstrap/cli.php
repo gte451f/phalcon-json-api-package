@@ -12,14 +12,16 @@ if ($config['application']['maintenance']) {
 /**
  * Process the console arguments
  */
-$arguments = [];
-foreach ($argv as $k => $arg) {
-    if ($k == 1) {
-        $arguments['task'] = $arg;
-    } elseif ($k == 2) {
-        $arguments['action'] = $arg;
-    } elseif ($k >= 3) {
-        $arguments['params'][] = $arg;
+if (isset($argv)) {
+    $arguments = [];
+    foreach ($argv as $k => $arg) {
+        if ($k == 1) {
+            $arguments['task'] = $arg;
+        } elseif ($k == 2) {
+            $arguments['action'] = $arg;
+        } elseif ($k >= 3) {
+            $arguments['params'][] = $arg;
+        }
     }
 }
 

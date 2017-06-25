@@ -1,6 +1,10 @@
 <?php
+
 namespace PhalconRest\Result;
 
+use Codeception\Lib\Connector\Phalcon;
+use Phalcon\Mvc\Controller\Base;
+use PhalconRest\API\BaseModel;
 use PhalconRest\Exception\HTTPException;
 use Phalcon\Mvc\Model\Relation as PhalconRelation;
 
@@ -44,8 +48,9 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
      * @param string $type
      * @param array $attributes
      * @param array $relationships
+     * @param BaseModel|null $model
      */
-    public function __construct($id, $type, array $attributes = [], array $relationships = [])
+    public function __construct($id, $type, array $attributes = [], array $relationships = [], BaseModel $model = null)
     {
         $di = \Phalcon\Di::getDefault();
         $this->setDI($di);
@@ -56,7 +61,12 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
 
         // remove this since it is already included in the $id property
         unset($attributes['id']);
-        $this->attributes = $attributes;
+
+        if ($model) {
+            $this->attributes = $this->blockColumns($attributes, $model);
+        } else {
+            $this->attributes = $attributes;
+        }
         $this->relationships = $relationships;
     }
 
@@ -154,4 +164,17 @@ abstract class Data extends \Phalcon\DI\Injectable implements \JsonSerializable
             ]);
         }
     }
+
+    public function blockColumns($attributes, BaseModel $model)
+    {
+
+        $blockColumns = $model->getBlockColumns(true);
+        foreach ($blockColumns as $block) {
+            unset($attributes[$block]);
+        }
+        return $attributes;
+
+    }
+
+
 }

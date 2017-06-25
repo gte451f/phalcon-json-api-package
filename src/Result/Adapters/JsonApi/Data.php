@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Result\Adapters\JsonApi;
 
 class Data extends \PhalconRest\Result\Data

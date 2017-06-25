@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Request;
 
 use \PhalconRest\Util\Inflector;
@@ -39,7 +40,8 @@ abstract class Request extends \Phalcon\Http\Request
         $defaultValue = null,
         $notAllowEmpty = null,
         $noRecursive = null
-    ) {
+    )
+    {
         // perform parent function
         $request = parent::getPut($name, $filters, $defaultValue, $notAllowEmpty, $noRecursive);
 
@@ -66,7 +68,7 @@ abstract class Request extends \Phalcon\Http\Request
 
         // special handling for array requests, for individual inputs return what is request
         if (is_array($request) and $this->defaultCaseFormat != false) {
-            if($this->getJsonRawBody() == null){
+            if ($this->getJsonRawBody() == null) {
                 return $this->convertCase($request);
             } else {
                 return $this->getJsonRawBody();

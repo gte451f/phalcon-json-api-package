@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Result\Adapters\JsonApi;
 
 use Phalcon\Mvc\Model\Message;
