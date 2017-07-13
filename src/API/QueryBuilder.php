@@ -177,8 +177,8 @@ class QueryBuilder extends Injectable
      */
     public function processFilterField($fieldName, $fieldValue, BuilderInterface $query)
     {
-        $processedFieldName = $this->processSearchFields($fieldName);
-        $processedFieldValue = $this->processSearchFields($fieldValue);
+        $processedFieldName = $this->processSearchFields($fieldName, true);
+        $processedFieldValue = $this->processSearchFields($fieldValue, false);
         $processedFieldQueryType = $this->processSearchFieldQueryType($processedFieldName, $processedFieldValue);
         return array(
             'queryType' => $processedFieldQueryType,
@@ -250,7 +250,7 @@ class QueryBuilder extends Injectable
                             $fieldValueArray = $processedSearchField['fieldValue'];
                         }
 
-                        // update to bind params instead of using string concatination
+                        // update to bind params instead of using string concatenation
                         $queryArr = [];
                         $valueArr = [];
                         foreach ($fieldNameArray as $fieldName) {
@@ -295,14 +295,26 @@ class QueryBuilder extends Injectable
      * first_name||last_name=jim
      *
      * @param string $fieldParam
+     * @param bool $escape - should the function escape fields with []?
      * @return mixed return an array if || is found, otherwise a string
      */
-    protected function processSearchFields($fieldParam)
+    protected function processSearchFields($fieldParam, $escape)
     {
+        // process || syntax
         if (strpos($fieldParam, '||') !== false) {
-            return explode('||', $fieldParam);
+            // if requested, wrap al values to avoid reserved words in PHQL
+            if ($escape) {
+                $fields = [];
+                foreach (explode('||', $fieldParam) as $value) {
+                    $fields[] = "[$value]";
+                }
+                return $fields;
+            } else {
+                return explode('||', $fieldParam);
+            }
         } else {
-            return $fieldParam;
+            // if requested, wrap all values to avoid reserved words in PHQL
+            return ($escape) ? "[$fieldParam]" : $fieldParam;
         }
     }
 
@@ -430,11 +442,11 @@ class QueryBuilder extends Injectable
      * ie.
      * search for the wildcard character and replace with an SQL specific wildcard
      *
-     * @param string $fieldValue
-     *            a search string
-     * @param string $operator
-     *            the detected field value
+     *
+     * @param $fieldValue a search string
+     * @param string $operator comparision value
      * @return string
+     * @throws HTTPException
      */
     protected function processFieldValue($fieldValue, $operator = '=')
     {
