@@ -238,26 +238,40 @@ class QueryBuilder extends Injectable
         $rawSort = $this->searchHelper->getSort('sql');
 
         if ($rawSort != false) {
-            // detect the correct name space for sort string
-            // notice this might be a field name with a sort suffix
-            $fieldBits = explode(' ', $rawSort);
+            $preparedSort = [];
+            $sortFields = explode(',', $rawSort);
 
-            // used to harmonize string after stripping out suffix
-            $fieldName = $fieldBits[0];
+            foreach ($sortFields as $sortField) {
+                // detect the correct name space for sort string
+                // notice this might be a field name with a sort suffix
+                $fieldBits = explode(' ', $sortField);
 
-            // assign a default value
-            $suffix = '';
-
-            if (count($fieldBits) > 1) {
-                // isolate just the field name
+                // used to harmonize string after stripping out suffix
                 $fieldName = $fieldBits[0];
-                // something like DESC/ASC
-                $suffix = $fieldBits[1];
-            }
 
-            $prefix = $this->getTableNameSpace($fieldName);
-            $preparedSort = ($prefix ? $prefix . '.' : '') . "[$fieldName]" . $suffix;
-            $query->orderBy($preparedSort);
+                // assign a default value
+                $suffix = '';
+                if (count($fieldBits) > 1) {
+                    // something like DESC/ASC
+                    $suffix = $fieldBits[1];
+                }
+
+                // detect the correct table->namespace
+                $prefix = $this->getTableNameSpace($fieldName);
+
+                // now let's account for table:field entries
+                $fieldBits = explode(':', $fieldName);
+                $foo = count($fieldBits);
+                if (count($fieldBits) > 1) {
+                    $fieldName = $fieldBits[1];
+                } else {
+                    $fieldName = $fieldBits[0];
+                }
+
+                // put it all together for a working sort
+                $preparedSort[] = ($prefix ? $prefix . '.' : '') . "[$fieldName]" . $suffix;
+            }
+            $query->orderBy(implode(',', $preparedSort));
         } else {
             // no sort requested, nothing to do here
             return $query;
