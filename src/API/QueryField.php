@@ -28,14 +28,27 @@ class QueryField extends Injectable
 {
     use TableNamespace;
 
-    // original values?
-    // maybe store parse versions, but parse might mean different things, can't store a var for each version of parse can we?
+    /**
+     * store the originally supplied field name
+     * @var null|string
+     */
     private $name = null;
 
-    private $tablePrefix = null;
-
+    /**
+     * store the originally supplied field value
+     * @var mixed|null|string
+     */
     private $value = null;
+
+    /**
+     * supplied model for this query
+     * @var null|BaseModel
+     */
     private $model = null;
+    /**
+     * supplied Entity for this query
+     * @var null|Entity
+     */
     private $entity = null;
 
     /**
@@ -55,13 +68,6 @@ class QueryField extends Injectable
         $this->value = $value;
         $this->model = $model;
         $this->entity = $entity;
-
-        // process : syntax in case a table prefix is supplied
-        if (strpos($name, ':') !== false) {
-            $nameBits = explode(':', $name);
-            $this->tablePrefix = $nameBits[0];
-        }
-
     }
 
 
@@ -80,14 +86,20 @@ class QueryField extends Injectable
      * adjust search input values before subjecting them to the queryBuilder
      *
      * it should handle cases where the fields are prefixed with a :
-     * it shoudl also handle cases where a || exists
+     * it should also handle cases where a || exists
      * first_name||last_name=*jenkins*
+     * or
+     * table_name:field_name||table_name:field_name
+     *
+     * when an array is requested, will return the following:
+     *
+     * ['table'=>$, 'field'=>]
      *
      *
      * @param bool $forceArray
-     * @return bool|null|string
+     * @return array
      */
-    public function getName($forceArray = false)
+    public function getName()
     {
 
         $processedNames = [];
@@ -102,15 +114,10 @@ class QueryField extends Injectable
             // process : syntax in case a table prefix is supplied
             if (strpos($name, ':') !== false) {
                 $nameBits = explode(':', $name);
-                $processedNames[] = $nameBits[1];
+                $processedNames[] = ['table' => $nameBits[0], 'field' => $nameBits[1], 'original' => $name];
             } else {
-                $processedNames[] = $name;
+                $processedNames[] = ['field' => $name, 'original' => $name];
             }
-        }
-
-        // if only one string was found and an array wasn't asked for, return a strin
-        if (count($processedNames) == 1 and $forceArray == false) {
-            return $processedNames[0];
         }
 
         // all that left is to return what you found
@@ -127,7 +134,7 @@ class QueryField extends Injectable
      * first_name||last_name=jim
      *
      * @param bool $forceArray
-     * @return array|bool|mixed|null|string
+     * @return array|string
      */
     public function getValue($forceArray = false)
     {
@@ -159,7 +166,7 @@ class QueryField extends Injectable
         // set a default value
         $result = 'and';
 
-        if (is_array($processedFieldName) || is_array($processedFieldValue)) {
+        if (count($processedFieldName) > 1 || is_array($processedFieldValue)) {
             $result = 'or';
         }
 
@@ -344,18 +351,22 @@ class QueryField extends Injectable
         $name = $this->getName();
         $value = $this->getValue();
 
+        $foo = count($name);
+
         // validate
-        if (is_array($name) OR is_array($value)) {
+        if (is_array($value) OR count($name) > 1) {
             // ERROR
             throw new HTTPException("Encountered Array when processing a simple Add request.", 500, [
-                'dev' => "parseAdd is built for simple Name/Value combos, but it was run on an array.",
+                'dev' => "parseAdd is built for simple values, but it was run on multiple values.  send this to OR!",
                 'code' => '4891319849797'
             ]);
         }
 
-        $prefix = $this->getTableNameSpace($this->getName());
-        $fieldName = ($prefix ? $prefix . '.' : '') . "[$name]";
+        // this is a safe request since we ruled out possible alternatives
+        $prefix = $this->getTableNameSpace($this->name);
+        // disentangle the table from the field name
 
+        $fieldName = ($prefix ? $prefix . '.' : '') . "[{$name[0]['field']}]";
         $fieldValue = $this->processFieldValue($value, $operator);
 
         if ($operator === 'BETWEEN') {
@@ -384,7 +395,7 @@ class QueryField extends Injectable
     private function parseOr($query)
     {
 
-        $nameArray = $this->getName(true);
+        $nameArray = $this->getName();
         $valueArray = $this->getValue(true);
 
         // update to bind params instead of using string concatenation
@@ -393,8 +404,8 @@ class QueryField extends Injectable
 
         $count = 1;
         foreach ($nameArray as $name) {
-            $prefix = $this->getTableNameSpace($name);
-            $fieldName = ($prefix ? $prefix . '.' : '') . "[$name]";
+            $prefix = $this->getTableNameSpace($name['original']);
+            $fieldName = ($prefix ? $prefix . '.' : '') . "[{$name['field']}]";
 
             foreach ($valueArray as $value) {
                 $marker = 'marker' . $count;
