@@ -18,7 +18,7 @@ use PhalconRest\Traits\TableNamespace;
  * convert supplied inputs into PHQL functions which we add to a supplied query
  *
  * a worst case example is as follows
- * user.first_name||user.last_name=*john*||*mary*
+ * user:first_name||user:last_name=*john*||*mary*
  *
  *
  * Class QueryField
