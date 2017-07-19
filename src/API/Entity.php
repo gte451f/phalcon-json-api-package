@@ -406,7 +406,7 @@ class Entity extends Injectable
                     }
                 }
             }
-            // put this step in to make sure that primary field data is not overwritten by related table fields
+            // put this step in to make sure that primary fields always appear before related fields
             $baseArray = array_merge($baseArray, $primaryArray ?? []);
         } else {
             $baseArray = $this->loadAllowedColumns($baseRecord, false, false);
