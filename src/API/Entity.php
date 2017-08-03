@@ -664,9 +664,9 @@ class Entity extends Injectable
                         }
 
                         // this appears to be slower
-//                    if (serialize($newRecord) === serialize($record)) {
-//                        return;
-//                    }
+                        // if (serialize($newRecord) === serialize($record)) {
+                        // return;
+                        // }
                     }
                 }
             }
@@ -859,6 +859,9 @@ class Entity extends Injectable
             ->join($refModelNameSpace,
                 $refModelNameSpace . ".$referencedField = " . $intermediateModelNameSpace . ".$intermediateFields");
 
+        // run the query through the relationship in case additional filters are supplied
+        $query = $this->processRelationshipFilters($query, $relation);
+
         $columns = [];
 
         // join in parent record if one is detected
@@ -887,6 +890,42 @@ class Entity extends Injectable
 
 
     /**
+     * for a given relation, apply filters to the supplied query
+     *
+     *
+     * @param \Phalcon\Mvc\Model\Query\Builder $query
+     * @param Relation $relation
+     * @return \Phalcon\Mvc\Model\Query\Builder
+     */
+    protected function processRelationshipFilters(
+        \Phalcon\Mvc\Model\Query\Builder $query,
+        \PhalconRest\API\Relation $relation
+    ) {
+
+        // check for additional filters that should be included, only process an array of filters
+        $relationOptions = $relation->getOptions();
+        if (array_key_exists('filters', $relationOptions)) {
+            // make supplied filters an array regardless of what it was fed
+            if (!is_array($relationOptions['filters'])) {
+                $filters = [$relationOptions['filters']];
+            } else {
+                $filters = $relationOptions['filters'];
+            }
+
+            // loop through each and build a where clause
+            foreach ($filters as $filter) {
+                $randomName = 'rand' . rand(1, 1000000);
+                $query->andWhere("$filter->name $filter->operator :$randomName:", [
+                    $randomName => $filter->value
+                ]);
+            }
+        }
+
+        return $query;
+    }
+
+
+    /**
      * utility shared between getBelongsToRecord and getHasManyRecords
      *
      * @param PhalconRelation|Relation $relation
@@ -901,6 +940,8 @@ class Entity extends Injectable
         $query = $mm->createBuilder()->from($refModelNameSpace);
         $columns = [];
 
+        // run the query through the relationship in case additional filters are supplied
+        $query = $this->processRelationshipFilters($query, $relation);
 
         // hasOnes are auto merged if requested
         if ($includeHasOnes) {
