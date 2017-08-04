@@ -408,7 +408,7 @@ class QueryField extends Injectable
             $fieldName = ($prefix ? $prefix . '.' : '') . "[{$name['field']}]";
 
             foreach ($valueArray as $value) {
-                $marker = 'marker' . $count;
+                $marker = 'marker' . rand(1, 999999);
                 $operator = $this->determineWhereOperator($value);
                 $fieldValue = $this->processFieldValue($value, $operator);
 
@@ -434,4 +434,3 @@ class QueryField extends Injectable
         return $query;
     }
 }
-
