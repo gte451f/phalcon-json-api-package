@@ -25,8 +25,6 @@ class SecureController extends BaseController
      */
     public function onConstruct()
     {
-        parent::onConstruct();
-
         //early return on OPTIONS calls in dev, so they follow the correct spec and don't die for missing credentials
         if ($this->request->getMethod() == 'OPTIONS' && APPLICATION_ENV != 'production') {
             return;
@@ -72,6 +70,10 @@ class SecureController extends BaseController
                 throw new HTTPException('Bad security value supplied', 500, ['code' => '280273409724075']);
                 break;
         }
+
+        // continue after security is worked out
+        parent::onConstruct();
+
     }
 
     /**
