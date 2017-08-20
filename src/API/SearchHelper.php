@@ -463,7 +463,7 @@ class SearchHelper
      */
     protected function parseSearchParameters($request)
     {
-        $allFields = $request->get();
+        $allFields = $request->getQuery();
 
         $this->isSearch = true;
 
