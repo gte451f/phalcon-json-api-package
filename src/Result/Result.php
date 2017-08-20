@@ -83,11 +83,19 @@ abstract class Result extends \Phalcon\DI\Injectable
             case PhalconRelation::HAS_ONE:
             case PhalconRelation::BELONGS_TO:
             case PhalconRelation::HAS_ONE_THROUGH:
-                $name = $relation->getTableName('singular');
+                if ($relation->getAlias()) {
+                    $name = $relation->getAlias();
+                } else {
+                    $name = $relation->getTableName('singular');
+                }
                 break;
             case PhalconRelation::HAS_MANY:
             case PhalconRelation::HAS_MANY_THROUGH:
-                $name = $relation->getTableName('plural');
+                if ($relation->getAlias()) {
+                    $name = $relation->getAlias();
+                } else {
+                    $name = $relation->getTableName('plural');
+                }
                 break;
             default:
                 throw new HTTPException('A Bad Relationship Type was supplied!', 500, ['code' => '8948616164789797']);
