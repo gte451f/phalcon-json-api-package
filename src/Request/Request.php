@@ -2,6 +2,7 @@
 
 namespace PhalconRest\Request;
 
+use PhalconRest\Exception\HTTPException;
 use \PhalconRest\Util\Inflector;
 use PhalconRest\API\BaseModel;
 
@@ -111,4 +112,39 @@ abstract class Request extends \Phalcon\Http\Request
         }
         return $request;
     }
+
+
+    /**
+     * a simple function to extract a property's value from the JSON post
+     * if no match is found, then return null
+     *
+     * @param $name
+     * @param $filter - option to sanitize for a specify type of value
+     * @throws HTTPException
+     * @return null
+     */
+    public function getJsonProperty(string $name, $filter = 'string')
+    {
+
+        // manually filter since we are not going through getPost/Put
+        $filterService = new Filter();
+
+        $json = $this->getJsonRawBody();
+        if (is_object($json)) {
+            if (isset($json->$name)) {
+                return $filterService->sanitize($json->$name, $filter);
+            } else {
+                // found valid json, but no matching property found
+                return null;
+            }
+        } else {
+            // expected name not found
+            throw new HTTPException('Could not find expected json data.', 500, [
+                'dev' => json_encode($json),
+                'code' => '894984616161681468764'
+            ]);
+
+        }
+    }
+
 }
