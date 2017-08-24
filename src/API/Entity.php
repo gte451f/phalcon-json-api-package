@@ -1104,7 +1104,7 @@ class Entity extends Injectable
             default:
                 // expect csv list or simple string
                 // user_addrs,user_phones
-                $requestedRelationships = explode(',', strtolower($requestedRelationships));
+                $requestedRelationships = array_filter(explode(',', strtolower($requestedRelationships)));
                 // include parents if there are any
                 if ($parentModels) {
                     $requestedRelationships = array_merge($parentModels, $requestedRelationships);
