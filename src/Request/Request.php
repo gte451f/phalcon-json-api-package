@@ -5,6 +5,7 @@ namespace PhalconRest\Request;
 use PhalconRest\Exception\HTTPException;
 use \PhalconRest\Util\Inflector;
 use PhalconRest\API\BaseModel;
+use Phalcon\Filter;
 
 /**
  * extend to provide easy case conversion on incoming data
