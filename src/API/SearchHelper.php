@@ -328,7 +328,7 @@ class SearchHelper
                 return;
             }
         } else {
-            $_REQUEST = $this->customParams;
+            $_REQUEST = $_GET = $this->customParams;
             $request = $this->di->get('request');
         }
 
@@ -463,7 +463,7 @@ class SearchHelper
      */
     protected function parseSearchParameters($request)
     {
-        $allFields = $request->get();
+        $allFields = $request->getQuery();
 
         $this->isSearch = true;
 
@@ -475,7 +475,7 @@ class SearchHelper
             if (in_array($key, $this->reservedWords)) {
                 // ignore, it is reserved
             } else {
-                $sanitizedValue = $request->get($key, 'string');
+                $sanitizedValue = $request->getQuery($key, 'string');
 
                 // make exception for single quote
                 // support filtering values like o'brien
