@@ -94,11 +94,18 @@ class Result extends \PhalconRest\Result\Result
             $errorBlock = [];
             if ($error->validationList) {
                 foreach ($error->validationList as $validation) {
-                    $field = $inflector->normalize($validation->getField(), $appConfig['propertyFormatTo']);
-                    if (!isset($errorBlock[$field])) {
-                        $errorBlock[$field] = [];
+                    if (is_array($validation->getField())) {
+                        $fields = $validation->getField();
+                    } else {
+                        $fields = [$validation->getField()];
                     }
-                    $errorBlock[$field][] = $validation->getMessage();
+                    foreach($fields as $fieldName) {
+                        $field = $inflector->normalize($fieldName, $appConfig['propertyFormatTo']);
+                        if (!isset($errorBlock[$field])) {
+                            $errorBlock[$field] = [];
+                        }
+                        $errorBlock[$field][] = $validation->getMessage();
+                    }
                 }
             }
 
