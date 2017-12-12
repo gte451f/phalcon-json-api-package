@@ -233,7 +233,9 @@ class SearchHelper
             foreach ($sortFields as $order) {
                 if (substr($order, 0, 1) == '-') {
                     $subOrder = substr($order, 1);
-                    $parsedSorts[] = $subOrder . " DESC";
+                    if (!empty($subOrder)) {
+                        $parsedSorts[] = $subOrder . " DESC";
+                    }
                 } else {
                     $parsedSorts[] = $order;
                 }
