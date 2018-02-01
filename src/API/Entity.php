@@ -1344,6 +1344,12 @@ class Entity extends Injectable
 
             // need parent logic here
             $this->model = ($this->model)::findFirst($id);
+            if (!$this->model) {
+                throw new HTTPException("Could not find record #$id to update.", 404, [
+                    'dev' => "No record was found to update",
+                    'code' => '293542512610127'
+                ]);
+            }
             $primaryModel = $this->loadParentModel($this->model, $formData);
 
             // // TODO this only works with 1 parent so far....
