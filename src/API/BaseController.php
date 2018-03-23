@@ -59,6 +59,36 @@ class BaseController extends Controller
     }
 
     /**
+     * proxy through which all atomic requests are passed.
+     *
+     * set flags to know that the system is dealing with an atomic request
+     * a transaction is started
+     * we decide what to do with the transaction:
+     *  - commit (all operations were successful)
+     *  - rollback (a problem occurred)
+     *
+     */
+    public function atomicMethod(...$args)
+    {
+        $di = $this->getDI();
+        $router =$di->get('router');
+        $matchedRoute = $router->getMatchedRoute();
+        $handler = $matchedRoute->getName();
+        $db = $di->get('db');
+        $store = $this->getDI()->get('store');
+        $db->begin();
+        $store->update('transaction_is_atomic', true);
+
+        try {
+            $this->{$handler}(...$args);
+            $store->update('rollback_transaction', false);
+        } catch (\Throwable $e) {
+            $store->update('rollback_transaction', true);
+            throw $e;
+        }
+    }
+
+    /**
      * Load a default model unless one is already in place
      * return the currently loaded model
      *
