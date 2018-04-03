@@ -203,3 +203,21 @@ $di->setShared('requestBody', function () {
 
     return $in;
 });
+
+// hold custom variables
+$di->set('store', function () {
+    $myObject = new class {
+        private $store = [];
+        public function update($key, $value){
+            $this->store[$key] = $value;
+        }
+        public function get($key){
+            if (array_key_exists($key, $this->store)) {
+                return $this->store[$key];
+            }
+            return null;
+        }
+    };
+    return $myObject;
+
+}, true);

@@ -68,32 +68,53 @@ $app->get('/', function () use ($app, $di) {
  * However, by parsing the request query string's 'type' parameter, it is easy to install
  * different response type handlers.
  */
-$app->after(function () use ($app) {
+$app->after(function () use ($app, $di) {
     $method = $app->request->getMethod();
-    $output = new \PhalconRest\API\Output();
 
-    if ($output->getStatusCode() == 200) { //if it's still the default one, let's override in some cases
-        switch ($method) {
-            case 'OPTIONS':
-                $app->response->setStatusCode('200', 'OK');
-                $app->response->send();
-                return;
-
-            case 'DELETE': //FIXME: usually this is true, but not all DELETE requests would come without content
-                $app->response->setStatusCode('204', 'No Content');
-                $app->response->send();
-                return;
-
-            case 'POST':
-                //FIXME: not all POST requests actually create a new resource. 200 should be used otherwise
-                $output->setStatusCode('201', 'Created');
-                break;
+    /**
+     * if the system was dealing with an atomic request -> we commit/rollback the transaction
+     * depending if any problems were encountered or not
+     */
+    $store = $di->get('store');
+    $is_atomic = $store->get('transaction_is_atomic');
+    if ($is_atomic) {
+        $rollback_transaction = $store->get('rollback_transaction');
+        $db = $di->get('db');
+        if ($rollback_transaction) {
+            $db->rollback();
+        } else {
+            if (intval($app->response->getStatusCode()) >= 400) {
+                $db->rollback();
+            } else {
+                $db->commit();
+            }
         }
     }
 
     // Results returned from the route's controller passed to output class for delivery, in case
     // something else didn't send it already (useful for plain-text actions)
     if (!$app->response->isSent()) {
+        $output = new \PhalconRest\API\Output();
+
+        if ($output->getStatusCode() == 200) { //if it's still the default one, let's override in some cases
+            switch ($method) {
+                case 'OPTIONS':
+                    $app->response->setStatusCode('200', 'OK');
+                    $app->response->send();
+                    return;
+
+                case 'DELETE': //FIXME: usually this is true, but not all DELETE requests would come without content
+                    $app->response->setStatusCode('204', 'No Content');
+                    $app->response->send();
+                    return;
+
+                case 'POST':
+                    //FIXME: not all POST requests actually create a new resource. 200 should be used otherwise
+                    $output->setStatusCode('201', 'Created');
+                    break;
+            }
+        }
+
         $output->send($app->getReturnedValue());
     }
 });
