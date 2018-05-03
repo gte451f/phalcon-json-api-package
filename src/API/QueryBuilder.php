@@ -58,6 +58,8 @@ class QueryBuilder extends Injectable
      * broken up into helpers so extending this function duplicates less code
      *
      * @param boolean $count should we only gather a count of the query?
+     * @return mixed
+     * @throws HTTPException
      */
     public function build($count = false)
     {

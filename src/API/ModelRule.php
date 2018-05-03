@@ -8,9 +8,9 @@ use PhalconRest\Exception\HTTPException;
 
 
 /**
- * a very simple class to describe how to filter relations describe in a Model
+ * a very simple class to describe a rule that should always be applied to API calls relating to this model
  */
-class RelationFilter
+class ModelRule
 {
 
     /**
@@ -31,16 +31,29 @@ class RelationFilter
      */
     public $operator = null;
 
+
+    private $crud = 0;
+
+    private $model = null;
+    private $rule = null;
+
     /**
      * RelationFilter constructor.
-     * @param string $name
+     *
+     * @param string $field
      * @param string $value
+     * @param BaseModel $model
      * @param string $operator
+     * @param int $crud
      */
-    function __construct(string $name, string $value, $operator = '=')
+    function __construct(string $field, string $value, \PhalconRest\API\BaseModel $model, string $operator = '=', int $crud = 1)
     {
-        $this->operator = $operator;
+        $this->model = $model;
+        $this->crud = $crud;
+        $this->field = $field;
         $this->value = $value;
-        $this->name = $name;
+        $this->operator = $operator;
     }
+
+
 }

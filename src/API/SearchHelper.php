@@ -469,7 +469,7 @@ class SearchHelper
 
         $this->isSearch = true;
 
-        $mapped = array();
+        $mapped = [];
 
         // Split the strings at their colon, set left to key, and right to value.
         foreach ($allFields as $key => $value) {

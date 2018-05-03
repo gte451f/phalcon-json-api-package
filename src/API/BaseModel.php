@@ -64,7 +64,8 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $modelNameSpace = null;
 
     /**
-     * list of relationships?
+     * store and provide access to all relationships defined for this model
+     * pulls relationships from Phalcon Model Manager
      *
      * @var array
      */
@@ -143,6 +144,19 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public $throwOnNextSave = null;
 
+
+    /**
+     * WIP - Attempt to store constant rules around CRUD operations that should always be followed.
+     *
+     *
+     * @var array
+     */
+    public $ruleStore = [];
+
+
+    /**
+     * default behavior for all models
+     */
     public function initialize()
     {
         $this->loadBlockColumns();
