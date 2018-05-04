@@ -145,16 +145,21 @@ class Entity extends Injectable
     }
 
     /**
-     * Hook intended to be overridden, that should execute anything related to {@link searchHelper}.
+     * Hook where basic API rules are enforced
+     * may also be extended to directly manipulate the searchHelper
      *
      * @param $searchHelper
      * @return mixed
      */
     public function configureSearchHelper($searchHelper)
     {
-        //load rules and apply to this entity
-        foreach ($this->model->ruleStore as $rule) {
+        //load rules and apply to this entity in read situations
+        foreach ($this->model->ruleStore->getRules(READRULES) as $rule) {
             $searchHelper->entitySearchFields[$rule->field] = $rule->operator . $rule->value;
+            // support for related table filters
+            if ($rule->parentTable) {
+                $searchHelper->addEntityWith($rule->parentTable);
+            }
         }
         return $searchHelper;
     }

@@ -149,9 +149,8 @@ class BaseModel extends \Phalcon\Mvc\Model
      * WIP - Attempt to store constant rules around CRUD operations that should always be followed.
      *
      *
-     * @var array
      */
-    public $ruleStore = [];
+    public $ruleStore;
 
 
     /**
