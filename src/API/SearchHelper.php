@@ -63,7 +63,7 @@ class SearchHelper
      * provide all available relationships
      *
      * none
-     * entity makes provides no relationships but can be overridden by client
+     * entity provides no relationships but can be overridden by client
      *
      * entity suggested relationships are only provided if nothing specific is requested by the client
      *
@@ -171,6 +171,34 @@ class SearchHelper
 
         $this->customParams = $customParams;
         $this->parseRequest();
+    }
+
+
+    /**
+     * load a supplied with string into the class variable
+     * @param string $name
+     */
+    public function addEntityWith(string $name)
+    {
+
+        if (strstr($this->entityWith, $name)) {
+            // it's already loaded, do nothing
+        }
+
+        switch ($this->entityWith) {
+            case 'none':
+                $this->entityWith = $name;
+                break;
+            case 'all':
+                // do nothing all are loaded anyway
+                break;
+
+            default:
+                $this->entityWith .= ',' . $name;
+                break;
+        }
+
+
     }
 
     /**
