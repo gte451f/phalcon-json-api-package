@@ -80,8 +80,9 @@ class BaseController extends Controller
         $store->update('transaction_is_atomic', true);
 
         try {
-            $this->{$handler}(...$args);
+            $result = $this->{$handler}(...$args);
             $store->update('rollback_transaction', false);
+            return $result;
         } catch (\Throwable $e) {
             $store->update('rollback_transaction', true);
             throw $e;
