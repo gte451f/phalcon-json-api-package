@@ -1,5 +1,7 @@
 <?php
 
+// TODO move this to search namespace
+
 namespace PhalconRest\API;
 
 /**

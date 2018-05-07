@@ -1,6 +1,6 @@
 <?php
 
-namespace PhalconRest\API;
+namespace PhalconRest\Query;
 
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
@@ -45,11 +45,7 @@ class QueryField extends Injectable
      * @var null|BaseModel
      */
     private $model = null;
-    /**
-     * supplied Entity for this query
-     * @var null|Entity
-     */
-    private $entity = null;
+
 
     /**
      * QueryField constructor.
@@ -59,7 +55,7 @@ class QueryField extends Injectable
      * @param BaseModel $model
      * @param Entity $entity
      */
-    function __construct(string $name, string $value, BaseModel $model, Entity $entity)
+    function __construct(string $name, string $value, \PhalconRest\API\BaseModel $model)
     {
         $di = Di::getDefault();
         $this->setDI($di);
@@ -67,7 +63,6 @@ class QueryField extends Injectable
         $this->name = $name;
         $this->value = $value;
         $this->model = $model;
-        $this->entity = $entity;
     }
 
 
