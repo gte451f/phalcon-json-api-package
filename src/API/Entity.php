@@ -154,7 +154,8 @@ class Entity extends Injectable
     public function configureSearchHelper($searchHelper)
     {
         //load rules and apply to this entity in read situations
-        foreach ($this->model->ruleStore->getRules(READRULES) as $rule) {
+        $ruleStore = $this->di->get('ruleList')->get($this->model->getModelName());
+        foreach ($ruleStore->getRules(READRULES, 'FilterRule') as $rule) {
             $searchHelper->entitySearchFields[$rule->field] = $rule->operator . $rule->value;
             // support for related table filters
             if ($rule->parentTable) {
@@ -167,8 +168,9 @@ class Entity extends Injectable
     /**
      * For a given search query, performs a find + loading of related records
      *
-     * @return Result
-     **/
+     * @return mixed|Result
+     * @throws HTTPException
+     */
     public function find()
     {
         // tell the result object what type of result to generate
@@ -365,6 +367,13 @@ class Entity extends Injectable
 
         // run this once for the count
         $query = $queryBuilder->build('count');
+
+        //load rules and apply to this entity in read situations
+        $modelRuleStore = $this->di->get('ruleList')->get($this->model->getModelName());
+        foreach ($modelRuleStore->getRules(READRULES, 'QueryRule') as $rule) {
+            $query->andWhere($rule->clause);
+        }
+
         // access hook after queryBuilder in case entity needs to act on the query
         $query = $this->afterQueryBuilderHook($query);
 
@@ -431,11 +440,13 @@ class Entity extends Injectable
 
     /**
      * For a given record, load any related values. Runs inside {@link find()} and {@link findFirst()}.
+     *
      * @see processCustomRelationships()
      * @see processStandardRelationships()
      * @see $baseRecord
      * @param \Phalcon\Mvc\Model\Row|BaseModel[] $baseRecord the base record to decorate
      * @return bool Results are put together on {@link $baseRecord}
+     * @throws HTTPException
      */
     public function processRelationships($baseRecord)
     {
@@ -958,6 +969,8 @@ class Entity extends Injectable
         // run the query through the relationship in case additional filters are supplied
         $query = $this->processRelationshipFilters($query, $relation);
 
+        $query = $this->processRules($query, $relation);
+
         // hasOnes are auto merged if requested
         if ($includeHasOnes) {
             // todo should this be controlled by entityWith?
@@ -976,12 +989,39 @@ class Entity extends Injectable
     }
 
     /**
+     *
+     * @param $query
+     * @param $relation
+     * @return mixed
+     */
+    protected function processRules($query, \PhalconRest\API\Relation $relation)
+    {
+        $relatedModel = $relation->getModel();
+        $modelRuleStore = $this->di->get('ruleList')->get($relatedModel->getModelname());
+
+        // process all filter rules
+        foreach ($modelRuleStore->getRules(READRULES, 'FilterRule') as $rule) {
+            $queryField = new \PhalconRest\Query\QueryField($rule->field, $rule->operator . $rule->value, $relatedModel);
+            if ($queryField->isValid() === true) {
+                $query = $queryField->addWhereClause($query);
+            }
+        }
+
+        //load rules and apply to this query for related records
+        foreach ($modelRuleStore->getRules(READRULES, 'QueryRule') as $rule) {
+            $query->andWhere($rule->clause);
+        }
+        return $query;
+    }
+
+    /**
      * utility shared between getBelongsToRecord and getHasManyRecords
      * will process a related record result and then update the result and current baseRecord objects
      *
      * @param array $relatedRecords
      * @param PhalconRelation|Relation $relation
      * @param boolean $before is this being run before or after all baseRecords were loaded?
+     * @throws HTTPException
      */
     protected function loadRelationRecords($relatedRecords, Relation $relation, $before = true)
     {
@@ -1090,6 +1130,7 @@ class Entity extends Injectable
      * csv,list = load only these relationships
      *
      * @return bool|void
+     * @throws HTTPException
      */
     final public function loadActiveRelationships()
     {
@@ -1321,6 +1362,7 @@ class Entity extends Injectable
      * @param array|object $formData the data submitted to the server
      * @param int $id the pkid of the record to be updated, otherwise null on inserts
      * @return int the PKID of the record in question
+     * @throws HTTPException
      */
     public function save($formData, $id = null)
     {

@@ -144,21 +144,27 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public $throwOnNextSave = null;
 
-
-    /**
-     * WIP - Attempt to store constant rules around CRUD operations that should always be followed.
-     *
-     *
-     */
-    public $ruleStore;
-
-
     /**
      * default behavior for all models
      */
     public function initialize()
     {
         $this->loadBlockColumns();
+
+        // load rules for future configuration for each end point
+        $ruleList = $this->getDI()->get('ruleList');
+        $ruleList->update($this->getModelName(), $this->configureRuleStore(new \PhalconRest\Rules\Store($this)));
+    }
+
+    /**
+     * hook where api can configure rules for end point
+     *
+     * @param \PhalconRest\Rules\Store $ruleStore
+     * @return \PhalconRest\Rules\Store
+     */
+    public function configureRuleStore(\PhalconRest\Rules\Store $ruleStore)
+    {
+        return $ruleStore;
     }
 
     /**

@@ -1,11 +1,11 @@
 <?php
 
-namespace PhalconRest\API;
+namespace PhalconRest\Query;
 
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Query\BuilderInterface;
-use PhalconRest\API\QueryField;
+use PhalconRest\Query\QueryField;
 use Phalcon\Mvc\Model\Relation;
 use PhalconRest\Exception\HTTPException;
 use PhalconRest\Traits\TableNamespace;
@@ -31,13 +31,13 @@ class QueryBuilder extends Injectable
     private $entity;
 
     /**
-     * process injected model
+     * QueryBuilder constructor.
      *
-     * @param BaseModel $model
-     * @param SearchHelper $searchHelper
-     * @param Entity $entity
+     * @param \PhalconRest\API\BaseModel $model
+     * @param $searchHelper
+     * @param \PhalconRest\API\Entity $entity
      */
-    function __construct(BaseModel $model, SearchHelper $searchHelper, Entity $entity)
+    function __construct(\PhalconRest\API\BaseModel $model, $searchHelper, \PhalconRest\API\Entity $entity)
     {
         $di = Di::getDefault();
         $this->setDI($di);
@@ -189,7 +189,7 @@ class QueryBuilder extends Injectable
             // pre-process the search fields to see if any of the search names require pre-processing
             // mostly just looking for || or type syntax otherwise process as default (and) WHERE clause
             foreach ($searchFields as $fieldName => $fieldValue) {
-                $queryField = new QueryField($fieldName, $fieldValue, $this->model, $this->entity);
+                $queryField = new QueryField($fieldName, $fieldValue, $this->model);
                 if ($queryField->isValid() === true) {
                     $query = $queryField->addWhereClause($query);
                 }

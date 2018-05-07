@@ -43,38 +43,81 @@ class Store
      * If no mode is supplied, all rules are returned
      *
      * @param int|NULL $crud
+     * @param string|NULL $type
      * @return array
+     * @throws \ReflectionException
      */
-    public function getRules(int $crud = NULL)
+    public function getRules(int $crud = NULL, string $type = NULL)
     {
+        // first pass to match crud filter
         if ($crud == NULL) {
-            return $this->rules;
+            $ruleSet = $this->rules;
+        } else {
+            $ruleSet = [];
+            foreach ($this->rules as $rule) {
+                if ($rule->crud & $crud) {
+                    $ruleSet[] = $rule;
+                }
+            }
+
         }
 
-        $ruleSet = [];
-        foreach ($this->rules as $rule) {
-            if ($rule->crud & $crud) {
-                $ruleSet[] = $rule;
+        // first pass to match crud filter
+        if ($type == NULL) {
+            return $ruleSet;
+        } else {
+            $filteredRuleSet = [];
+            foreach ($ruleSet as $rule) {
+                $reflection = new \ReflectionClass($rule);
+                $className = $reflection->getShortName();
+                if ($className == $type) {
+                    $filteredRuleSet[] = $rule;
+                }
             }
+            return $filteredRuleSet;
         }
-        return $ruleSet;
     }
 
 
     /**
-     * add a rule to the store
+     * add a filter rule into the store
      *
      * @param string $field
      * @param string $value
      * @param string $operator
      * @param int $crud
      */
-    public function addRule(string $field, string $value, $operator = null, int $crud = READRULES)
+    public function addFilterRule(string $field, string $value, $operator = null, int $crud = READRULES)
     {
         // if an existing rule is detected, over write
-        $this->rules[$field] = new \PhalconRest\Rules\Rule($field, $value, $operator, $crud);
+        $this->rules[$field] = new \PhalconRest\Rules\FilterRule($field, $value, $operator, $crud);
     }
 
+
+    /**
+     * load a query rule into the store
+     *
+     * @param string $rule
+     * @param int $crud
+     */
+    public function addQueryRule(string $rule, int $crud = READRULES)
+    {
+        // if an existing rule is detected, over write
+        $this->rules[rand(1, 9999)] = new \PhalconRest\Rules\QueryRule($rule, $crud);
+    }
+
+
+    /**
+     * load a block rule into the store
+     *
+     * @param string $rule
+     * @param int $crud
+     */
+    public function addDenyRule(int $crud = READRULES)
+    {
+        // if an existing rule is detected, over write
+        $this->rules[rand(1, 9999)] = new \PhalconRest\Rules\DenyRule($crud);
+    }
 
     /**
      * clear all rules of particular mode

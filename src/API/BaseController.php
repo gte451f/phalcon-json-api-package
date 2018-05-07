@@ -54,6 +54,50 @@ class BaseController extends Controller
     {
         $di = DI::getDefault();
         $this->setDI($di);
+
+        // enforce deny rules right out of the gate
+        $router = $di->get('router');
+        $matchedRoute = $router->getMatchedRoute();
+        $pattern = $matchedRoute->getPattern();
+        $method = $matchedRoute->getHttpMethods();
+        $model = $this->getModel();
+        // GET/POST/PUT/PATCH/DELETE
+        //load rules and apply to operation
+
+        switch ($method) {
+            case 'GET':
+                $mode = READRULES;
+                break;
+            case 'POST':
+                $mode = CREATERULES;
+                break;
+            case 'PUT':
+            case 'PATCH':
+                $mode = UPDATERULES;
+                break;
+            case 'DELETE':
+                $mode = DELETERULES;
+                break;
+            default:
+                throw new HTTPException('Unsupported operation encountered', 404, [
+                    'dev' => 'Encountered operation: ' . $method,
+                    'code' => '8914681681681681'
+                ]);
+
+                break;
+        }
+
+        $foo = $di->get('ruleList')->get($model->getModelName());
+
+        foreach ($di->get('ruleList')->get($model->getModelName())->getRules($mode, 'DenyRule') as $rule) {
+            // if a deny rule is encountered, block access to this end point
+            throw new HTTPException('Not authorized to access this end point for this operation:' . $method, 403, [
+                'dev' => 'You do not have access to the requested resource.',
+                'code' => '89494186161681864'
+            ]);
+        }
+
+
         // initialize entity and set to class property (doing the same to the model property)
         $this->getEntity();
     }
@@ -71,7 +115,7 @@ class BaseController extends Controller
     public function atomicMethod(...$args)
     {
         $di = $this->getDI();
-        $router =$di->get('router');
+        $router = $di->get('router');
         $matchedRoute = $router->getMatchedRoute();
         $handler = $matchedRoute->getName();
         $db = $di->get('db');

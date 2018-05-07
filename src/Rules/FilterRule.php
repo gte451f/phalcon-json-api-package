@@ -9,8 +9,14 @@ use PhalconRest\Exception\HTTPException;
 
 /**
  * a very simple class to describe a rule that should always be applied to API calls
+ * the most common use case is for READ operations but can be applied to Edit or Delete operations
+ * due to the nature of this rule it doesn't make sense to use for Delete operations
+ *
+ * For Read operations, this rule is applied to the $Entity->searchHelper
+ * side loading?
+ * edit/delete?
  */
-class Rule
+class FilterRule
 {
 
     /**

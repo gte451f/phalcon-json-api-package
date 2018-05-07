@@ -221,6 +221,8 @@ class Relation
 
     /**
      * ez access to the "foreign" model depicted by the relationship
+     *
+     * @return \PhalconRest\API\BaseModel
      */
     public function getModel()
     {
