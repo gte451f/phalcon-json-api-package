@@ -1,8 +1,11 @@
 <?php
+
 namespace PhalconRest\Request;
 
+use PhalconRest\Exception\HTTPException;
 use \PhalconRest\Util\Inflector;
 use PhalconRest\API\BaseModel;
+use Phalcon\Filter;
 
 /**
  * extend to provide easy case conversion on incoming data
@@ -39,7 +42,8 @@ abstract class Request extends \Phalcon\Http\Request
         $defaultValue = null,
         $notAllowEmpty = null,
         $noRecursive = null
-    ) {
+    )
+    {
         // perform parent function
         $request = parent::getPut($name, $filters, $defaultValue, $notAllowEmpty, $noRecursive);
 
@@ -66,7 +70,11 @@ abstract class Request extends \Phalcon\Http\Request
 
         // special handling for array requests, for individual inputs return what is request
         if (is_array($request) and $this->defaultCaseFormat != false) {
-            return $this->convertCase($request);
+            if ($this->getJsonRawBody() == null) {
+                return $this->convertCase($request);
+            } else {
+                return $this->getJsonRawBody();
+            }
         } else {
             return $request;
         }
@@ -105,4 +113,39 @@ abstract class Request extends \Phalcon\Http\Request
         }
         return $request;
     }
+
+
+    /**
+     * a simple function to extract a property's value from the JSON post
+     * if no match is found, then return null
+     *
+     * @param $name
+     * @param $filter - option to sanitize for a specify type of value
+     * @throws HTTPException
+     * @return null
+     */
+    public function getJsonProperty(string $name, $filter = 'string')
+    {
+
+        // manually filter since we are not going through getPost/Put
+        $filterService = new Filter();
+
+        $json = $this->getJsonRawBody();
+        if (is_object($json)) {
+            if (isset($json->$name)) {
+                return $filterService->sanitize($json->$name, $filter);
+            } else {
+                // found valid json, but no matching property found
+                return null;
+            }
+        } else {
+            // expected name not found
+            throw new HTTPException('Could not find expected json data.', 500, [
+                'dev' => json_encode($json),
+                'code' => '894984616161681468764'
+            ]);
+
+        }
+    }
+
 }

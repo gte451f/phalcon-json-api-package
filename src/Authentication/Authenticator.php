@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Authentication;
 
 use Phalcon\DI\Injectable;

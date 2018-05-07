@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Result\Adapters\ActiveModel;
 
 use PhalconRest\Exception\HTTPException;
@@ -33,15 +34,13 @@ class Data extends \PhalconRest\Result\Data
 
         if ($this->relationships) {
             foreach ($this->relationships as $name => $keys) {
-                $ids = array_keys($keys);
-                $result[$name] = (sizeof($ids) == 1)? current($ids) : $ids;
+                $result[$name] = array_keys($keys);
             }
             // $result['relationships'] = $this->relationships;
         }
 
         return $result;
     }
-
 
     /**
      * add related record to an existing data object

@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\API;
 
 use Phalcon\DI;
@@ -16,6 +17,7 @@ use PhalconRest\Exception\HTTPException;
  */
 class BaseController extends Controller
 {
+    use CORSTrait;
 
     /**
      * Store the default entity here
@@ -54,6 +56,36 @@ class BaseController extends Controller
         $this->setDI($di);
         // initialize entity and set to class property (doing the same to the model property)
         $this->getEntity();
+    }
+
+    /**
+     * proxy through which all atomic requests are passed.
+     *
+     * set flags to know that the system is dealing with an atomic request
+     * a transaction is started
+     * we decide what to do with the transaction:
+     *  - commit (all operations were successful)
+     *  - rollback (a problem occurred)
+     *
+     */
+    public function atomicMethod(...$args)
+    {
+        $di = $this->getDI();
+        $router =$di->get('router');
+        $matchedRoute = $router->getMatchedRoute();
+        $handler = $matchedRoute->getName();
+        $db = $di->get('db');
+        $store = $this->getDI()->get('store');
+        $db->begin();
+        $store->update('transaction_is_atomic', true);
+
+        try {
+            $this->{$handler}(...$args);
+            $store->update('rollback_transaction', false);
+        } catch (\Throwable $e) {
+            $store->update('rollback_transaction', true);
+            throw $e;
+        }
     }
 
     /**
@@ -354,44 +386,5 @@ class BaseController extends Controller
     {
         // route through PUT logic
         return $this->put($id);
-    }
-
-    /**
-     * Provides a base CORS policy for routes like '/users' that represent a Resource's base url
-     * Origin is allowed from all urls.
-     * Setting it here using the Origin header from the request
-     * allows multiple Origins to be served. It is done this way instead of with a wildcard '*'
-     * because wildcard requests are not supported when a request needs credentials.
-     *
-     * @return true
-     */
-    public function optionsBase()
-    {
-        $response = $this->getDI()->get('response');
-
-        $response->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
-        $config = $this->getDI()->get('config');
-        $response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
-        $response->setHeader('Access-Control-Allow-Credentials', 'true');
-        $response->setHeader('Access-Control-Allow-Headers', "origin, x-requested-with, content-type");
-        $response->setHeader('Access-Control-Max-Age', '86400');
-        return true;
-    }
-
-    /**
-     * Provides a CORS policy for routes like '/users/123' that represent a specific resource
-     *
-     * @return true
-     */
-    public function optionsOne()
-    {
-        $response = $this->getDI()->get('response');
-        $response->setHeader('Access-Control-Allow-Methods', 'GET, PUT, PATCH, DELETE, OPTIONS, HEAD');
-        $config = $this->getDI()->get('config');
-        $response->setHeader('Access-Control-Allow-Origin', $config['application']['corsOrigin']);
-        $response->setHeader('Access-Control-Allow-Credentials', 'true');
-        $response->setHeader('Access-Control-Allow-Headers', "origin, x-requested-with, content-type");
-        $response->setHeader('Access-Control-Max-Age', '86400');
-        return true;
     }
 }

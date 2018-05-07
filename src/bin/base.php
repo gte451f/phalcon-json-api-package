@@ -37,7 +37,7 @@ if (!function_exists('array_deep_key')) {
      * Won't complain if any of those keys exists, instead of $array['one']['two'].
      * @example array_deep_key_exists('one.two', ['one' => ['two' => 2]]) === true
      * @param string $address Dot-separated key names
-     * @param array  $array
+     * @param array $array
      * @return null|mixed the value, if found; null otherwise.
      */
     function array_deep_key(array $array, $address)
@@ -59,11 +59,11 @@ if (!function_exists('array_deep_key_exists')) {
     /**
      * Searches for a key deep in a complex array.
      * @example array_deep_key_exists('one.two', ['one' => ['two' => 2]]) === true
-     * @param string $path  Dot-separated key names
-     * @param array  $array
+     * @param string $path Dot-separated key names
+     * @param array $array
      * @return bool
      */
-    function array_deep_key_exists($path, array $array):bool
+    function array_deep_key_exists($path, array $array): bool
     {
         $keys = explode('.', $path);
         foreach ($keys as $key) {
@@ -81,14 +81,19 @@ if (!function_exists('array_flatten')) {
     /**
      * Flattens all entries of a matrix into a single, long array of values.
      * @param array $matrix A multi-dimensional array
+     * @param bool $assoc If the given array is associative (and keys should be maintained) or not
      * @return array
      */
-    function array_flatten(array $matrix):array
+    function array_flatten(array $matrix, $assoc = false): array
     {
-        $result = [];
-        array_walk_recursive($matrix, function ($v) use (&$result) {
-            $result[] = $v;
-        });
-        return $result;
+        if (!$assoc) {
+            $result = [];
+            array_walk_recursive($matrix, function ($v) use (&$result) {
+                $result[] = $v;
+            });
+            return $result;
+        } else {
+            return is_array(current($matrix)) ? call_user_func_array('array_merge', $matrix) : $matrix;
+        }
     }
 }

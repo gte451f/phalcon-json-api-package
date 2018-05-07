@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Result;
 
 use PhalconRest\Exception\ErrorStore;

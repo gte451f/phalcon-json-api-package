@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\Request\Adapters;
 
 use PhalconRest\Exception\HTTPException;
@@ -49,7 +50,7 @@ class JsonApi extends Request
      * @throws HTTPException
      */
 
-    public function mungeData($post, BaseModel $model):\stdClass
+    public function mungeData($post, BaseModel $model): \stdClass
     {
         // munge a bit so it works for internal data handling
         if (!isset($post->attributes)) {

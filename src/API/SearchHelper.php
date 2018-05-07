@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\API;
 
 /**
@@ -156,14 +157,19 @@ class SearchHelper
     public $suppliedSearchFields = array();
 
     /**
+     * if we need to use this class without the context of a request
+     */
+    protected $customParams = false;
+
+    /**
      * load the DI, is this the best way ?
      */
-    public function __construct()
+    public function __construct($customParams = false)
     {
         $di = \Phalcon\DI::getDefault();
         $this->di = $di;
 
-        // close enough, let's parse the inputs since we assume searchHelper is always called within the context of a query
+        $this->customParams = $customParams;
         $this->parseRequest();
     }
 
@@ -227,7 +233,9 @@ class SearchHelper
             foreach ($sortFields as $order) {
                 if (substr($order, 0, 1) == '-') {
                     $subOrder = substr($order, 1);
-                    $parsedSorts[] = $subOrder . " DESC";
+                    if (!empty($subOrder)) {
+                        $parsedSorts[] = $subOrder . " DESC";
+                    }
                 } else {
                     $parsedSorts[] = $order;
                 }
@@ -313,12 +321,17 @@ class SearchHelper
      */
     protected function parseRequest()
     {
-        // pull various supported inputs from post
-        $request = $this->di->get('request');
+        if ($this->customParams === false) {
+            // pull various supported inputs from post
+            $request = $this->di->get('request');
 
-        // only process if it is a get
-        if ($request->isGet() == false) {
-            return;
+            // only process if it is a get
+            if ($request->isGet() == false) {
+                return;
+            }
+        } else {
+            $_REQUEST = $_GET = $this->customParams;
+            $request = $this->di->get('request');
         }
 
         // simple stuff first
@@ -332,13 +345,13 @@ class SearchHelper
 
         // load possible sort values in the following order
         // be sure to mark this as a paginated result set
-        if ($request->get('sort', "string", null) != NULL) {
+        if ($request->get('sort', "string", null) != null) {
             $this->suppliedSort = $request->get('sort', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sort_field', "string", null) != NULL) {
+        } elseif ($request->get('sort_field', "string", null) != null) {
             $this->suppliedSort = $request->get('sort_field', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('sortField', "string", null) != NULL) {
+        } elseif ($request->get('sortField', "string", null) != null) {
             $this->suppliedSort = $request->get('sortField', "string", null);
             $this->isPager = true;
         }
@@ -348,13 +361,13 @@ class SearchHelper
 
         // load possible limit values in the following order
         // be sure to mark this as a paginated result set
-        if ($request->get('limit', "string", null) != NULL) {
+        if ($request->get('limit', "string", null) != null) {
             $this->suppliedLimit = $request->get('limit', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('per_page', "string", null) != NULL) {
+        } elseif ($request->get('per_page', "string", null) != null) {
             $this->suppliedLimit = $request->get('per_page', "string", null);
             $this->isPager = true;
-        } elseif ($request->get('perPage', "string", null) != NULL) {
+        } elseif ($request->get('perPage', "string", null) != null) {
             $this->suppliedLimit = $request->get('perPage', "string", null);
             $this->isPager = true;
         }
@@ -369,10 +382,10 @@ class SearchHelper
         // load offset values in the following order
         // Notice that a page is treated differently than offset
         // $this->offset = ($offset != null) ? $offset : $this->offset;
-        if ($request->get('offset', "int", null) != NULL) {
+        if ($request->get('offset', "int", null) != null) {
             $this->suppliedOffset = $request->get('offset', "int", null);
             $this->isPager = true;
-        } elseif ($request->get('page', "int", null) != NULL) {
+        } elseif ($request->get('page', "int", null) != null) {
             $this->suppliedOffset = ($request->get('page', "int", null) - 1) * $this->suppliedLimit;
             $this->isPager = true;
         }
@@ -404,7 +417,12 @@ class SearchHelper
                     $value = str_replace('*', '%', $value);
                     $approved_search[] = "$field LIKE '$value'";
                 } else {
-                    $approved_search[] = "$field='$value'";
+                    if (strstr($value, '!')) {
+                        $value = str_replace('!', '%', $value);
+                        $approved_search[] = "$field NOT LIKE '$value'";
+                    } else {
+                        $approved_search[] = "$field='$value'";
+                    }
                 }
             }
             // implode as specified by phalcon
@@ -447,7 +465,7 @@ class SearchHelper
      */
     protected function parseSearchParameters($request)
     {
-        $allFields = $request->get();
+        $allFields = $request->getQuery();
 
         $this->isSearch = true;
 
@@ -459,7 +477,7 @@ class SearchHelper
             if (in_array($key, $this->reservedWords)) {
                 // ignore, it is reserved
             } else {
-                $sanitizedValue = $request->get($key, 'string');
+                $sanitizedValue = $request->getQuery($key, 'string');
 
                 // make exception for single quote
                 // support filtering values like o'brien

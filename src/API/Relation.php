@@ -1,4 +1,5 @@
 <?php
+
 namespace PhalconRest\API;
 
 use Phalcon\Mvc\Model\ManagerInterface;
@@ -180,7 +181,7 @@ class Relation
             if (isset($options['alias'])) {
                 $this->alias = $options['alias'];
             } else {
-                $this->alias = NULL;
+                $this->alias = null;
             }
         }
 
@@ -221,12 +222,22 @@ class Relation
     /**
      * ez access to the "foreign" model depicted by the relationship
      */
-    private function getModel()
+    public function getModel()
     {
         if ($this->model == null) {
             $name = $this->relation->getReferencedModel();
             $this->model = new $name();
         }
         return $this->model;
+    }
+
+    /**
+     * provide explicit access to what would otherwise be a private property of the relationship
+     *
+     * @param $model
+     */
+    public function setModel($model)
+    {
+        $this->model = $model;
     }
 }
