@@ -56,9 +56,10 @@ class BaseController extends Controller
         $this->setDI($di);
 
         // enforce deny rules right out of the gate
+        // TODO what about rules like...edit your own records?
+
         $router = $di->get('router');
         $matchedRoute = $router->getMatchedRoute();
-        $pattern = $matchedRoute->getPattern();
         $method = $matchedRoute->getHttpMethods();
         $model = $this->getModel();
         // GET/POST/PUT/PATCH/DELETE
@@ -86,8 +87,6 @@ class BaseController extends Controller
 
                 break;
         }
-
-        $foo = $di->get('ruleList')->get($model->getModelName());
 
         foreach ($di->get('ruleList')->get($model->getModelName())->getRules($mode, 'DenyRule') as $rule) {
             // if a deny rule is encountered, block access to this end point
@@ -238,7 +237,8 @@ class BaseController extends Controller
     /**
      * catches incoming requests for groups of records
      *
-     * @return \PhalconRest\Result\Result
+     * @return mixed|\PhalconRest\Result\Result
+     * @throws HTTPException
      */
     public function get()
     {
@@ -319,7 +319,7 @@ class BaseController extends Controller
      * Pass through to entity so it can perform extra logic if needed most of the time...
      *
      * @param int $id
-     * @return mixed return valid Apache code, could be an error, maybe not
+     * @throws HTTPException
      */
     public function delete($id)
     {

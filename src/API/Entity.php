@@ -124,6 +124,7 @@ class Entity extends Injectable
      *
      * @param BaseModel $model
      * @param SearchHelper $searchHelper
+     * @throws HTTPException
      */
     function __construct(BaseModel $model, SearchHelper $searchHelper)
     {
@@ -267,23 +268,13 @@ class Entity extends Injectable
      * such as employee+user, user addresses and user phones
      *
      * @param mixed $id The PKID for the record
-     *
-     * @return Result
-     *
+     * @return mixed|Result
+     * @throws HTTPException
      */
     public function findFirst($id)
     {
-        // store for future reference
-        $this->primaryKeyValue = $id;
-        // tell the result object what type of result to generate
-        $this->result->outputMode = 'single';
-
-        // prep for a special kind of search
-        $this->searchHelper->entityLimit = 1;
-        $searchField = $this->model->getPrimaryKeyName();
-        $this->searchHelper->entitySearchFields = [$searchField => $id];
-
-        $baseRecords = $this->runSearch();
+        // farm this part out since it might be used elsewhere in the entity
+        $baseRecords = $this->partialFindFirst($id);
 
         // if we don't find a record, terminate with an empty result set
         if ($baseRecords === false) {
@@ -323,6 +314,28 @@ class Entity extends Injectable
 
         $this->appendMeta($foundSet);
         return $this->result;
+    }
+
+    /**
+     * break up job to find a particular record for easier reuse
+     *
+     * @param $id
+     * @return mixed
+     */
+    protected function partialFindFirst($id)
+    {
+        // store for future reference
+        $this->primaryKeyValue = $id;
+        // tell the result object what type of result to generate
+        $this->result->outputMode = 'single';
+
+        // prep for a special kind of search
+        $this->searchHelper->entityLimit = 1;
+        $searchField = $this->model->getPrimaryKeyName();
+        $this->searchHelper->entitySearchFields = [$searchField => $id];
+
+        // this is Business Rules aware
+        return $this->runSearch();
     }
 
     /**
@@ -969,7 +982,7 @@ class Entity extends Injectable
         // run the query through the relationship in case additional filters are supplied
         $query = $this->processRelationshipFilters($query, $relation);
 
-        $query = $this->processRules($query, $relation);
+        $query = $this->processRelationRules($query, $relation);
 
         // hasOnes are auto merged if requested
         if ($includeHasOnes) {
@@ -994,7 +1007,7 @@ class Entity extends Injectable
      * @param $relation
      * @return mixed
      */
-    protected function processRules($query, \PhalconRest\API\Relation $relation)
+    protected function processRelationRules($query, \PhalconRest\API\Relation $relation)
     {
         $relatedModel = $relation->getModel();
         $modelRuleStore = $this->di->get('ruleList')->get($relatedModel->getModelname());
@@ -1267,8 +1280,18 @@ class Entity extends Injectable
      */
     public function delete($id)
     {
-        /** @var BaseModel $primaryModelName */
-        // $inflector = new Inflector();
+        // test that this record can be found in the API
+        // if it isn't found, return a not found, not access denied
+
+        // if we don't find a record, terminate with an empty result set
+        if ($this->partialFindFirst($id) === false) {
+            // no record found to delete
+            throw new HTTPException("Could not find record #$id to delete.", 404, [
+                'dev' => "No record was found to delete",
+                'code' => '564648616899764'
+            ]);
+        }
+
         $primaryModelName = $this->model->getModelNameSpace();
         $modelToDelete = $primaryModelName::findFirst($id);
 
