@@ -189,7 +189,7 @@ class QueryBuilder extends Injectable
             // pre-process the search fields to see if any of the search names require pre-processing
             // mostly just looking for || or type syntax otherwise process as default (and) WHERE clause
             foreach ($searchFields as $fieldName => $fieldValue) {
-                $queryField = new QueryField($fieldName, $fieldValue, $this->model);
+                $queryField = new QueryField($fieldName, $fieldValue, $this->model, $this->entity);
                 if ($queryField->isValid() === true) {
                     $query = $queryField->addWhereClause($query);
                 }

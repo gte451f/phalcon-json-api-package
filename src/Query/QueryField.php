@@ -46,6 +46,12 @@ class QueryField extends Injectable
      */
     private $model = null;
 
+    /**
+     * supplied model for this query
+     * @var null|BaseModel
+     */
+    private $entity = null;
+
 
     /**
      * QueryField constructor.
@@ -55,7 +61,7 @@ class QueryField extends Injectable
      * @param BaseModel $model
      * @param Entity $entity
      */
-    function __construct(string $name, string $value, \PhalconRest\API\BaseModel $model)
+    function __construct(string $name, string $value, \PhalconRest\API\BaseModel $model, \PhalconRest\API\Entity $entity)
     {
         $di = Di::getDefault();
         $this->setDI($di);
@@ -63,6 +69,7 @@ class QueryField extends Injectable
         $this->name = $name;
         $this->value = $value;
         $this->model = $model;
+        $this->entity = $entity;
     }
 
 
