@@ -16,7 +16,7 @@ use PhalconRest\Exception\HTTPException;
  *
  *
  */
-class QueryRule
+class ModelCallbackRule
 {
 
 
@@ -27,22 +27,39 @@ class QueryRule
     public $crud = 0;
 
     /**
-     * the PHQL clause to add to each Entity query
+     * the function to run
      *
-     * @var string
+     * @var callback
      */
-    public $clause;
+    public $check;
 
     /**
      * QueryRule constructor.
-     * @param string $clause
+     * @param \Closure $check
      * @param int $crud
      */
-    function __construct(string $clause, int $crud = READMODE)
+    function __construct(\Closure $check, $crud = DELETERULES)
     {
         $this->crud = $crud;
-        $this->clause = $clause;
+        $this->check = $check;
+
+        // $check();
+
+
     }
 
+    /**
+     * for a supplied parameters, run the call back
+     * do not return a value, let call back handle what it finds and processes
+     *
+     * @param \PhalconRest\API\BaseModel $model
+     * @param $formData
+     * @return void
+     */
+    public function evaluateCallback(\PhalconRest\API\BaseModel $oldModel, $formData)
+    {
+        $check = $this->check;
+        $check($oldModel, $formData);
+    }
 
 }

@@ -335,7 +335,17 @@ class Entity extends Injectable
         $this->searchHelper->entitySearchFields = [$searchField => $id];
 
         // this is Business Rules aware
-        return $this->runSearch();
+        $result = $this->runSearch();
+
+        // attempt to smooth return types
+        if ($result === false) {
+            return false;
+        }
+        if (getType($result) == 'array' and count($result) == 0) {
+            return false;
+        }
+
+        return $result;
     }
 
     /**
@@ -1309,7 +1319,7 @@ class Entity extends Injectable
             }
         } else {
             // no record found to delete
-            throw new HTTPException("Could not find record #$id to delete.", 404, [
+            throw new HTTPException("Could not find record #$id to delete.", 403, [
                 'dev' => "No record was found to delete",
                 'code' => '2343467699'
             ]);
@@ -1422,6 +1432,16 @@ class Entity extends Injectable
 
             $this->primaryKeyValue = $id;
 
+
+            // this step support business rules designed to restrict access to this record
+            if ($this->partialFindFirst($id) === false) {
+                // no record found to delete
+                throw new HTTPException("Could not find record #$id to $this->saveMode.", 403, [
+                    'dev' => "No record was found to delete",
+                    'code' => '94948646813138891981'
+                ]);
+            }
+
             // need parent logic here
             $this->model = ($this->model)::findFirst($id);
             if (!$this->model) {
@@ -1430,6 +1450,25 @@ class Entity extends Injectable
                     'code' => '293542512610127'
                 ]);
             }
+
+            // run this operation through modelCallback and denyIf
+            $modelRuleStore = $this->di->get('ruleList')->get($this->model->getModelName());
+            foreach ($modelRuleStore->getRules(UPDATERULES, 'DenyIfRule') as $rule) {
+                // if true, that means deny
+                if ($rule->evaluateRule($this->model->{$rule->field})) {
+                    throw new HTTPException("Could not edit record", 404, [
+                        'dev' => "Failed rule check.",
+                        'code' => '4684941864684684684'
+                    ]);
+                }
+            }
+
+            // now run through modelCallback
+            foreach ($modelRuleStore->getRules(UPDATERULES, 'ModelCallbackRule') as $rule) {
+                $rule->evaluateCallback($this->model, $formData);
+            }
+
+
             $primaryModel = $this->loadParentModel($this->model, $formData);
 
             // // TODO this only works with 1 parent so far....

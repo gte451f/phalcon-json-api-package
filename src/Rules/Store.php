@@ -5,6 +5,7 @@ namespace PhalconRest\Rules;
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use PhalconRest\Exception\HTTPException;
+use PhalconRest\Rules;
 
 /**
  * a very simple class to manage rules for provided model
@@ -90,7 +91,7 @@ class Store
     public function addFilterRule(string $field, string $value, $operator = null, int $crud = READRULES)
     {
         // if an existing rule is detected, over write
-        $this->rules[$field] = new \PhalconRest\Rules\FilterRule($field, $value, $operator, $crud);
+        $this->rules[$field] = new FilterRule($field, $value, $operator, $crud);
     }
 
 
@@ -103,7 +104,7 @@ class Store
     public function addQueryRule(string $rule, int $crud = READRULES)
     {
         // if an existing rule is detected, over write
-        $this->rules[rand(1, 9999)] = new \PhalconRest\Rules\QueryRule($rule, $crud);
+        $this->rules[rand(1, 99999)] = new QueryRule($rule, $crud);
     }
 
 
@@ -116,8 +117,38 @@ class Store
     public function addDenyRule(int $crud = READRULES)
     {
         // if an existing rule is detected, over write
-        $this->rules[rand(1, 9999)] = new \PhalconRest\Rules\DenyRule($crud);
+        $this->rules[rand(1, 99999)] = new DenyRule($crud);
     }
+
+
+    /**
+     * load a modelCallBack rule into the store
+     *
+     * @param \Closure $check
+     * @param int $crud
+     */
+    public function addModelCallbackRule(\Closure $check, $crud = DELETERULES)
+    {
+        // if an existing rule is detected, over write
+        $this->rules[rand(1, 99999)] = new ModelCallbackRule($check, $crud);
+    }
+
+    /**
+     * load a deny if rule into the store
+     * ie.
+     * $ruleStore->addDenyIfRule('status', Invoices::ST_BILLED, '=', DELETERULES);
+     *
+     * @param $field
+     * @param $value
+     * @param string $operator
+     * @param int $crud
+     */
+    public function addDenyIfRule($field, $value, $operator = '==', $crud = DELETERULES)
+    {
+        // if an existing rule is detected, over write
+        $this->rules[rand(1, 99999)] = new DenyIfRule($field, $value, $operator, $crud);
+    }
+
 
     /**
      * clear all rules of particular mode
