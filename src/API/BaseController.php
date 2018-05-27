@@ -61,44 +61,47 @@ class BaseController extends Controller
         $router = $di->get('router');
         $matchedRoute = $router->getMatchedRoute();
         $method = $matchedRoute->getHttpMethods();
+
+
+        // if a valid model is detected, proceed to work with that model to 1) enforce security rules 2) load entity
         $model = $this->getModel();
-        // GET/POST/PUT/PATCH/DELETE
-        //load rules and apply to operation
+        if (is_object($model)) {
+            // GET/POST/PUT/PATCH/DELETE
+            //load rules and apply to operation
 
-        switch ($method) {
-            case 'GET':
-                $mode = READRULES;
-                break;
-            case 'POST':
-                $mode = CREATERULES;
-                break;
-            case 'PUT':
-            case 'PATCH':
-                $mode = UPDATERULES;
-                break;
-            case 'DELETE':
-                $mode = DELETERULES;
-                break;
-            default:
-                throw new HTTPException('Unsupported operation encountered', 404, [
-                    'dev' => 'Encountered operation: ' . $method,
-                    'code' => '8914681681681681'
+            switch ($method) {
+                case 'GET':
+                    $mode = READRULES;
+                    break;
+                case 'POST':
+                    $mode = CREATERULES;
+                    break;
+                case 'PUT':
+                case 'PATCH':
+                    $mode = UPDATERULES;
+                    break;
+                case 'DELETE':
+                    $mode = DELETERULES;
+                    break;
+                default:
+                    throw new HTTPException('Unsupported operation encountered', 404, [
+                        'dev' => 'Encountered operation: ' . $method,
+                        'code' => '8914681681681681'
+                    ]);
+
+                    break;
+            }
+
+            foreach ($di->get('ruleList')->get($model->getModelName())->getRules($mode, 'DenyRule') as $rule) {
+                // if a deny rule is encountered, block access to this end point
+                throw new HTTPException('Not authorized to access this end point for this operation:' . $method, 403, [
+                    'dev' => 'You do not have access to the requested resource.',
+                    'code' => '89494186161681864'
                 ]);
-
-                break;
+            }
+            // initialize entity and set to class property (doing the same to the model property)
+            $this->getEntity();
         }
-
-        foreach ($di->get('ruleList')->get($model->getModelName())->getRules($mode, 'DenyRule') as $rule) {
-            // if a deny rule is encountered, block access to this end point
-            throw new HTTPException('Not authorized to access this end point for this operation:' . $method, 403, [
-                'dev' => 'You do not have access to the requested resource.',
-                'code' => '89494186161681864'
-            ]);
-        }
-
-
-        // initialize entity and set to class property (doing the same to the model property)
-        $this->getEntity();
     }
 
     /**

@@ -146,13 +146,13 @@ class Entity extends Injectable
     }
 
     /**
-     * Hook where basic API rules are enforced
+     * Where soeme API rules are enforced
      * may also be extended to directly manipulate the searchHelper
      *
-     * @param $searchHelper
-     * @return mixed
+     * @param SearchHelper $searchHelper
+     * @return SearchHelper
      */
-    public function configureSearchHelper($searchHelper)
+    public function configureSearchHelper(SearchHelper $searchHelper): SearchHelper
     {
         //load rules and apply to this entity in read situations
         $ruleStore = $this->di->get('ruleList')->get($this->model->getModelName());
