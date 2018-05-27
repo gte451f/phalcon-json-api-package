@@ -1,4 +1,5 @@
 <?php
+
 use PhalconRest\Exception\HTTPException;
 use PhalconRest\API\Output;
 
@@ -160,6 +161,12 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline, $context = null
 ) {
     // clean any pre-existing error text output to the screen
     ob_clean();
+
+    //ignore suppressed errors
+    if (error_reporting() == 0) {
+        return;
+    }
+
 
     $errorStore = new \PhalconRest\Exception\ErrorStore([
         'code' => $errno,
