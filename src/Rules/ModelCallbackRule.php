@@ -8,10 +8,7 @@ use PhalconRest\Exception\HTTPException;
 
 
 /**
- * specialty class designed to work directly on a query builder object
- *
- * the most common use case is for READ operations but can be applied to Edit or Delete operations
- * due to the nature of this rule it doesn't make sense to use for Delete operations
+ * experimental rule
  *
  *
  *

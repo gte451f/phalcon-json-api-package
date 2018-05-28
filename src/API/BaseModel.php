@@ -150,6 +150,7 @@ class BaseModel extends \Phalcon\Mvc\Model
     public function initialize()
     {
         $this->loadBlockColumns();
+        $this->configureRelationships();
 
         // load rules for future configuration for each end point
         $ruleList = $this->getDI()->get('ruleList');
@@ -166,6 +167,16 @@ class BaseModel extends \Phalcon\Mvc\Model
     {
         return $ruleStore;
     }
+
+    /**
+     * hook to use when registering relationships for the model
+     *
+     */
+    public function configureRelationships()
+    {
+        return true;
+    }
+
 
     /**
      * provided to lazy load the model's name
