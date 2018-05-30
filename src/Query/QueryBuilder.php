@@ -1,11 +1,11 @@
 <?php
 
-namespace PhalconRest\API;
+namespace PhalconRest\Query;
 
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
 use Phalcon\Mvc\Model\Query\BuilderInterface;
-use PhalconRest\API\QueryField;
+use PhalconRest\Query\QueryField;
 use Phalcon\Mvc\Model\Relation;
 use PhalconRest\Exception\HTTPException;
 use PhalconRest\Traits\TableNamespace;
@@ -31,13 +31,13 @@ class QueryBuilder extends Injectable
     private $entity;
 
     /**
-     * process injected model
+     * QueryBuilder constructor.
      *
-     * @param BaseModel $model
-     * @param SearchHelper $searchHelper
-     * @param Entity $entity
+     * @param \PhalconRest\API\BaseModel $model
+     * @param $searchHelper
+     * @param \PhalconRest\API\Entity $entity
      */
-    function __construct(BaseModel $model, SearchHelper $searchHelper, Entity $entity)
+    function __construct(\PhalconRest\API\BaseModel $model, $searchHelper, \PhalconRest\API\Entity $entity)
     {
         $di = Di::getDefault();
         $this->setDI($di);
@@ -58,6 +58,8 @@ class QueryBuilder extends Injectable
      * broken up into helpers so extending this function duplicates less code
      *
      * @param boolean $count should we only gather a count of the query?
+     * @return mixed
+     * @throws HTTPException
      */
     public function build($count = false)
     {
