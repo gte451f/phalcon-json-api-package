@@ -146,15 +146,22 @@ class BaseModel extends \Phalcon\Mvc\Model
 
     /**
      * default behavior for all models
+     * override this function at your peril as you'll have to perform these functions in your child class
+     */
+    /**
+     * @param bool $secure
      */
     public function initialize()
     {
         $this->loadBlockColumns();
         $this->configureRelationships();
 
-        // load rules for future configuration for each end point
-        $ruleList = $this->getDI()->get('ruleList');
-        $ruleList->update($this->getModelName(), $this->configureRuleStore(new \PhalconRest\Rules\Store($this)));
+        // construct rulestore for this model
+        $ruleRegistry = $this->getDI()->get('ruleList');
+        // perform in such a way that the newly created store is run through registry logic one time
+        $newStore = $ruleRegistry->getNewStore($this);
+        // run through local configuration logic
+        $ruleRegistry->update($this->getModelName(), $this->configureRuleStore($newStore));
     }
 
     /**
@@ -163,18 +170,18 @@ class BaseModel extends \Phalcon\Mvc\Model
      * @param \PhalconRest\Rules\Store $ruleStore
      * @return \PhalconRest\Rules\Store
      */
-    public function configureRuleStore(\PhalconRest\Rules\Store $ruleStore)
+    public function configureRuleStore(\PhalconRest\Rules\Store $ruleStore): \PhalconRest\Rules\Store
     {
         return $ruleStore;
     }
 
     /**
      * hook to use when registering relationships for the model
-     *
+     * @return void
      */
     public function configureRelationships()
     {
-        return true;
+
     }
 
 

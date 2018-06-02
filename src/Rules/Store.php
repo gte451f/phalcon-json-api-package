@@ -27,6 +27,14 @@ class Store
      */
     private $model = null;
 
+    /**
+     * should the rule store disable its normal operation
+     * why would one do this?
+     * password reminder
+     *
+     * @var bool
+     */
+    private $enforceRules = true;
 
     /**
      * Store constructor.
@@ -35,9 +43,7 @@ class Store
     function __construct(\PhalconRest\API\BaseModel $model)
     {
         $this->model = $model;
-
     }
-
 
     /**
      * get all rules for the relevant action
@@ -172,6 +178,30 @@ class Store
         }
         $this->rules = $ruleSet;
         return true;
+    }
 
+    /**
+     * tell the rulestore to ignore it's rules
+     */
+    final public function disable()
+    {
+        $this->enforceRules = false;
+    }
+
+    /**
+     * tell the rulestore to enforce it's rules
+     */
+    final public function enable()
+    {
+        $this->enforceRules = true;
+    }
+
+    /**
+     * is the rule store currently enforcing rules?
+     * @return bool
+     */
+    final public function isEnforcing()
+    {
+        return $this->enforceRules;
     }
 }

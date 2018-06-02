@@ -47,25 +47,7 @@ $di->setShared('logger', function () use ($config) {
  */
 // hold custom variables
 $di->set('ruleList', function () {
-    $myObject = new class
-    {
-        private $store = [];
-
-        public function update($key, $value)
-        {
-            $this->store[$key] = $value;
-        }
-
-        public function get($key)
-        {
-            if (array_key_exists($key, $this->store)) {
-                return $this->store[$key];
-            }
-            return null;
-        }
-    };
-    return $myObject;
-
+    return new \PhalconRest\Rules\Registry();
 }, true);
 
 if (PHP_SAPI != 'cli') {
