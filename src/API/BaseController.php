@@ -113,6 +113,9 @@ class BaseController extends Controller
      *  - commit (all operations were successful)
      *  - rollback (a problem occurred)
      *
+     * @param mixed ...$args
+     * @return mixed
+     * @throws \Throwable
      */
     public function atomicMethod(...$args)
     {
@@ -161,7 +164,7 @@ class BaseController extends Controller
      * Load an empty SearchHelper instance. Useful place to override its behavior.
      * @return SearchHelper
      */
-    public function getSearchHelper()
+    public function getSearchHelper(): SearchHelper
     {
         return new SearchHelper();
     }
@@ -195,13 +198,12 @@ class BaseController extends Controller
     }
 
     /**
-     * In order that the controller has access during the getSearchHelper
-     * to configure the entity, the controller needs to implement
-     * this method to override the functionality
-     * @param  \PhalconRest\API\Entity $entity
-     * @return \PhalconRest\API\Entity $entity
+     * Hook that allows child controller to manipulate entity early in request life cycle
+     *
+     * @param Entity $entity
+     * @return Entity $entity
      */
-    public function configureEntity($entity)
+    public function configureEntity(Entity $entity): Entity
     {
         return $entity;
     }
