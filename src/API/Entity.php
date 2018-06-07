@@ -154,10 +154,11 @@ class Entity extends Injectable
      */
     public function configureSearchHelper(SearchHelper $searchHelper): SearchHelper
     {
-        //load rules and apply to this entity in read situations
+        //load rules and apply to this entity in read situations...if it's a read situation
         $ruleStore = $this->di->get('ruleList')->get($this->model->getModelName());
         foreach ($ruleStore->getRules(READRULES, 'FilterRule') as $rule) {
-            $searchHelper->entitySearchFields[$rule->field] = $rule->operator . $rule->value;
+            // include operator if it is anything other than equals
+            $searchHelper->entitySearchFields[$rule->field] = ($rule->operator == '=') ? $rule->value : $rule->operator . $rule->value;
             // support for related table filters
             if ($rule->parentTable) {
                 $searchHelper->addEntityWith($rule->parentTable);
@@ -332,7 +333,7 @@ class Entity extends Injectable
         // prep for a special kind of search
         $this->searchHelper->entityLimit = 1;
         $searchField = $this->model->getPrimaryKeyName();
-        $this->searchHelper->entitySearchFields = [$searchField => $id];
+        $this->searchHelper->entitySearchFields[$searchField] = $id;
 
         // this is Business Rules aware
         $result = $this->runSearch();
@@ -992,6 +993,7 @@ class Entity extends Injectable
         // run the query through the relationship in case additional filters are supplied
         $query = $this->processRelationshipFilters($query, $relation);
 
+        // enforce rules logic?
         $query = $this->processRelationRules($query, $relation);
 
         // hasOnes are auto merged if requested
@@ -1319,7 +1321,7 @@ class Entity extends Injectable
             }
         } else {
             // no record found to delete
-            throw new HTTPException("Could not find record #$id to delete.", 403, [
+            throw new HTTPException("Could not find record #$id to delete.", 404, [
                 'dev' => "No record was found to delete",
                 'code' => '2343467699'
             ]);
@@ -1402,6 +1404,10 @@ class Entity extends Injectable
         if (!is_object($formData)) {
             $formData = (object)$formData;
         }
+
+        // load rulestore for further use
+        $modelRuleStore = $this->di->get('ruleList')->get($this->model->getModelName());
+
         // check if inserting a new record and account for any parent records
         if (is_null($id)) {
             $this->saveMode = 'insert';
@@ -1411,11 +1417,12 @@ class Entity extends Injectable
             //need to create a new model since this is an insert
             $modelNameSpace = $this->model->getModelNameSpace();
             $this->model = new $modelNameSpace($this->di);
-            // i want to re-init the model to pick up any special options
-            // but this will cause occasional errors by loading duplicate copies of some relationships
-            // TODO move this logic into some sort of entity->reset() function so libraries
-            // can call it when they use the entity multiple times
-            // $this->model->initialize();
+
+            // now run through modelCallback
+            foreach ($modelRuleStore->getRules(CREATERULES, 'ModelCallbackRule') as $rule) {
+                $rule->evaluateCallback($this->model, $formData);
+            }
+
 
             // load a model including potential parents
             $primaryModel = $this->loadParentModel($this->model, $formData);
@@ -1433,10 +1440,10 @@ class Entity extends Injectable
             $this->primaryKeyValue = $id;
 
 
-            // this step support business rules designed to restrict access to this record
+            // this step supports business rules of type FILTER and QUERY designed to restrict access to this record
             if ($this->partialFindFirst($id) === false) {
                 // no record found to delete
-                throw new HTTPException("Could not find record #$id to $this->saveMode.", 403, [
+                throw new HTTPException("Could not find record #$id to $this->saveMode.", 404, [
                     'dev' => "No record was found to delete",
                     'code' => '94948646813138891981'
                 ]);
@@ -1452,7 +1459,6 @@ class Entity extends Injectable
             }
 
             // run this operation through modelCallback and denyIf
-            $modelRuleStore = $this->di->get('ruleList')->get($this->model->getModelName());
             foreach ($modelRuleStore->getRules(UPDATERULES, 'DenyIfRule') as $rule) {
                 // if true, that means deny
                 if ($rule->evaluateRule($this->model->{$rule->field})) {
