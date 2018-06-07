@@ -68,8 +68,12 @@ class DenyIfRule
     {
         // what type of variable are we dealing with?
         // todo maybe pick and choose when to treat variable as string
-        $testFunction = "('" . $fieldValue . "' $this->operator  '$this->value' ) ? true : false ;";
-        return eval($testFunction);
+        $testFunction = "return ('" . $fieldValue . "' $this->operator  '$this->value' ) ? true : false ;";
+        $result = eval($testFunction);
+        if (!is_bool($result)) {
+            throw new HTTPException('DenyIf rule returned invalid result.  Must be a boolean', 500, ['code' => '136497941613689198']);
+        }
+        return $result;
     }
 
 }
