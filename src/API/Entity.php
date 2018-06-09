@@ -1025,12 +1025,13 @@ class Entity extends Injectable
         $modelRuleStore = $this->di->get('ruleList')->get($relatedModel->getModelname());
 
         // process all filter rules
-        foreach ($modelRuleStore->getRules(READRULES, 'FilterRule') as $rule) {
-            $queryField = new \PhalconRest\Query\QueryField($rule->field, $rule->operator . $rule->value, $relatedModel);
-            if ($queryField->isValid() === true) {
-                $query = $queryField->addWhereClause($query);
-            }
-        }
+	// disable since it breaks some side loaded calls
+        //foreach ($modelRuleStore->getRules(READRULES, 'FilterRule') as $rule) {
+        //    $queryField = new \PhalconRest\Query\QueryField($rule->field, $rule->operator . $rule->value, $relatedModel);
+        //    if ($queryField->isValid() === true) {
+        //        $query = $queryField->addWhereClause($query);
+        //    }
+        //}
 
         //load rules and apply to this query for related records
         foreach ($modelRuleStore->getRules(READRULES, 'QueryRule') as $rule) {
