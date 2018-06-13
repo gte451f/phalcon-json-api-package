@@ -158,10 +158,13 @@ class BaseModel extends \Phalcon\Mvc\Model
 
         // construct rulestore for this model
         $ruleRegistry = $this->getDI()->get('ruleList');
-        // perform in such a way that the newly created store is run through registry logic one time
-        $newStore = $ruleRegistry->getNewStore($this);
-        // run through local configuration logic
-        $ruleRegistry->update($this->getModelName(), $this->configureRuleStore($newStore));
+
+        if ($ruleRegistry->isEnforcing()) {
+            // perform in such a way that the newly created store is run through registry logic one time
+            $newStore = $ruleRegistry->getNewStore($this);
+            // run through local configuration logic
+            $ruleRegistry->update($this->getModelName(), $this->configureRuleStore($newStore));
+        }
     }
 
     /**
