@@ -156,9 +156,9 @@ class BaseModel extends \Phalcon\Mvc\Model
         $this->loadBlockColumns();
         $this->configureRelationships();
 
-        // construct rulestore for this model
+        // gather rule list and proceed to construct store for this model
         $ruleRegistry = $this->getDI()->get('ruleList');
-
+        // skip if rule system is disabled
         if ($ruleRegistry->isEnforcing()) {
             // perform in such a way that the newly created store is run through registry logic one time
             $newStore = $ruleRegistry->getNewStore($this);

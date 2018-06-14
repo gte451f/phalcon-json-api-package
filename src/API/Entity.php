@@ -188,7 +188,7 @@ class Entity extends Injectable
 
         foreach ($baseRecords as $baseResult) {
             // normalize results, pull out join fields and store in a class lvl variable
-            $this->extractMainRow($baseResult);
+            $this->makeBaseRecord($this->extractMainRow($baseResult));
 
             // process relations if there are any
             if (count($this->activeRelations) > 0) {
@@ -289,7 +289,7 @@ class Entity extends Injectable
         }
         foreach ($baseRecords as $baseResult) {
             // normalize results, pull out join fields and store in a class lvl variable
-            $this->extractMainRow($baseResult);
+            $this->makeBaseRecord($this->extractMainRow($baseResult));
 
             // hook for manipulating the base record before processing relationships
             $baseResult = $this->beforeProcessRelationships($baseResult);
@@ -423,7 +423,7 @@ class Entity extends Injectable
      * @param BaseModel|\Phalcon\Mvc\Model\Row|BaseModel[] $baseRecord
      * @return void
      */
-    public function extractMainRow($baseRecord)
+    public function extractMainRow($baseRecord): array
     {
         // basically check for parent records and pull them out
         if ($baseRecord instanceof \Phalcon\Mvc\Model\Row) {
@@ -456,6 +456,17 @@ class Entity extends Injectable
         } else {
             $baseArray = $this->loadAllowedColumns($baseRecord, false, false);
         }
+
+        return $baseArray;
+    }
+
+    /**
+     * for a supplied baseArray, create a data record for the entity to use
+     *
+     * @param $baseArray
+     */
+    public function makeBaseRecord($baseArray)
+    {
         $primaryKeyId = $this->model->getPrimaryKeyName();
 
         $this->baseRecord = $this->di->get('data',
@@ -1044,7 +1055,7 @@ class Entity extends Injectable
      * utility shared between getBelongsToRecord and getHasManyRecords
      * will process a related record result and then update the result and current baseRecord objects
      *
-     * @param array $relatedRecords
+     * @param array $relatedRecords - simple array of records that should be loaded into the final result set
      * @param PhalconRelation|Relation $relation
      * @param boolean $before is this being run before or after all baseRecords were loaded?
      * @throws HTTPException
