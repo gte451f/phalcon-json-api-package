@@ -1493,7 +1493,6 @@ class Entity extends Injectable
                         ]);
                     }
                 }
-            }
 
                 // now run through modelCallback
                 foreach ($modelRuleStore->getRules(UPDATERULES, 'ModelCallbackRule') as $rule) {
