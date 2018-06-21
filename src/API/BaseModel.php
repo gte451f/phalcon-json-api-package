@@ -212,7 +212,7 @@ class BaseModel extends \Phalcon\Mvc\Model
 
         if ($type == 'singular') {
             if (!isset($this->singularName)) {
-                $this->singularName = substr($this->getPluralName(), 0, strlen($this->getPluralName()) - 1);
+                $this->singularName = substr($this->getModelName('plural'), 0, strlen($this->getModelName('plural')) - 1);
             }
             return $this->singularName;
         }
