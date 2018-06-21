@@ -92,7 +92,9 @@ class BaseController extends Controller
                     break;
             }
 
-            foreach ($di->get('ruleList')->get($model->getModelName())->getRules($mode, 'DenyRule') as $rule) {
+            // expect valid ruleStore since this is run from a controller
+            $modelRuleStore = $di->get('ruleList')->get($model->getModelName());
+            foreach ($modelRuleStore->getRules($mode, 'DenyRule') as $rule) {
                 // if a deny rule is encountered, block access to this end point
                 throw new HTTPException('Not authorized to access this end point for this operation:' . $method, 403, [
                     'dev' => 'You do not have access to the requested resource.',

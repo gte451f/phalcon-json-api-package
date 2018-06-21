@@ -155,13 +155,16 @@ class Entity extends Injectable
     public function configureSearchHelper(SearchHelper $searchHelper): SearchHelper
     {
         //load rules and apply to this entity in read situations...if it's a read situation
-        $ruleStore = $this->di->get('ruleList')->get($this->model->getModelName());
-        foreach ($ruleStore->getRules(READRULES, 'FilterRule') as $rule) {
-            // include operator if it is anything other than equals
-            $searchHelper->entitySearchFields[$rule->field] = ($rule->operator == '=') ? $rule->value : $rule->operator . $rule->value;
-            // support for related table filters
-            if ($rule->parentTable) {
-                $searchHelper->addEntityWith($rule->parentTable);
+        $modelRuleStore = $this->di->get('ruleList')->get($this->model->getModelName());
+        // apply rules logic if any are configured
+        if ($modelRuleStore) {
+            foreach ($modelRuleStore->getRules(READRULES, 'FilterRule') as $rule) {
+                // include operator if it is anything other than equals
+                $searchHelper->entitySearchFields[$rule->field] = ($rule->operator == '=') ? $rule->value : $rule->operator . $rule->value;
+                // support for related table filters
+                if ($rule->parentTable) {
+                    $searchHelper->addEntityWith($rule->parentTable);
+                }
             }
         }
         return $searchHelper;
@@ -394,8 +397,11 @@ class Entity extends Injectable
 
         //load rules and apply to this entity in read situations
         $modelRuleStore = $this->di->get('ruleList')->get($this->model->getModelName());
-        foreach ($modelRuleStore->getRules(READRULES, 'QueryRule') as $rule) {
-            $query->andWhere($rule->clause);
+        // apply rules logic if any are configured
+        if ($modelRuleStore) {
+            foreach ($modelRuleStore->getRules(READRULES, 'QueryRule') as $rule) {
+                $query->andWhere($rule->clause);
+            }
         }
 
         // access hook after queryBuilder in case entity needs to act on the query
@@ -409,6 +415,7 @@ class Entity extends Injectable
             $this->beforeQueryBuilderHook();
             $query = $queryBuilder->build();
             $query = $this->afterQueryBuilderHook($query);
+            // $sql = $query->getQuery();
             return $query->getQuery()->execute();
         } else {
             return [];
@@ -1430,9 +1437,12 @@ class Entity extends Injectable
             $modelNameSpace = $this->model->getModelNameSpace();
             $this->model = new $modelNameSpace($this->di);
 
-            // now run through modelCallback
-            foreach ($modelRuleStore->getRules(CREATERULES, 'ModelCallbackRule') as $rule) {
-                $rule->evaluateCallback($this->model, $formData);
+            // apply rules logic if any are configured
+            if ($modelRuleStore) {
+                // now run through modelCallback
+                foreach ($modelRuleStore->getRules(CREATERULES, 'ModelCallbackRule') as $rule) {
+                    $rule->evaluateCallback($this->model, $formData);
+                }
             }
 
 
@@ -1470,20 +1480,25 @@ class Entity extends Injectable
                 ]);
             }
 
-            // run this operation through modelCallback and denyIf
-            foreach ($modelRuleStore->getRules(UPDATERULES, 'DenyIfRule') as $rule) {
-                // if true, that means deny
-                if ($rule->evaluateRule($this->model->{$rule->field})) {
-                    throw new HTTPException("Could not edit record", 404, [
-                        'dev' => "Failed rule check.",
-                        'code' => '4684941864684684684'
-                    ]);
+            // apply rules logic if any are configured
+            if ($modelRuleStore) {
+                // run this operation through modelCallback and denyIf
+                foreach ($modelRuleStore->getRules(UPDATERULES, 'DenyIfRule') as $rule) {
+                    // if true, that means deny
+                    $result = $rule->evaluateRule($this->model->{$rule->field});
+                    if ($rule->evaluateRule($this->model->{$rule->field})) {
+                        throw new HTTPException("Could not edit record", 404, [
+                            'dev' => "Failed rule check.",
+                            'code' => '4684941864684684684'
+                        ]);
+                    }
                 }
             }
 
-            // now run through modelCallback
-            foreach ($modelRuleStore->getRules(UPDATERULES, 'ModelCallbackRule') as $rule) {
-                $rule->evaluateCallback($this->model, $formData);
+                // now run through modelCallback
+                foreach ($modelRuleStore->getRules(UPDATERULES, 'ModelCallbackRule') as $rule) {
+                    $rule->evaluateCallback($this->model, $formData);
+                }
             }
 
 

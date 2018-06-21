@@ -52,6 +52,9 @@ class Registry
     }
 
     /**
+     * check for a rulestore in the registry
+     * return NULL if no matching name if found
+     *
      * @param $key
      * @return mixed|null
      */

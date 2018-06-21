@@ -54,7 +54,7 @@ class Store
      * @return array
      * @throws \ReflectionException
      */
-    public function getRules(int $crud = NULL, string $type = NULL)
+    public function getRules(int $crud = NULL, string $type = NULL): array
     {
         // first pass to match crud filter
         if ($crud == NULL) {

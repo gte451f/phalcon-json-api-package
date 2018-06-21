@@ -2,6 +2,7 @@
 
 namespace PhalconRest\API;
 
+use Phalcon\Di;
 use Phalcon\Mvc\Model\ManagerInterface;
 
 /**
