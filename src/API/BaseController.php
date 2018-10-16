@@ -150,18 +150,20 @@ class BaseController extends Controller
     public function getModel($modelNameString = false)
     {
         // Attempt to load a model using native Phalcon controller API.
-        $controllerClass = "\\PhalconRest\Controllers\\" . $this->getControllerName("singular");
-        if(class_exists($controllerClass)) {
-            $controller = new $controllerClass();
-            $model = $controller->getModel();
-    
-            if($model) {
-                $this->model = $model;
+        if (!$this->model) {
+            $controllerClass = "\\PhalconRest\Controllers\\" . $this->getControllerName("singular");
+            if(class_exists($controllerClass)) {
+                $controller = new $controllerClass();
+                $model = $controller->getModel();
+        
+                if($model) {
+                    $this->model = $model;
+                }
             }
         }
 
         // Backup model loading
-        if ($this->model == false) {
+        if (!$this->model) {
             $config = $this->getDI()->get('config');
             // auto load model so we can inject it into the entity
             if (!$modelNameString) {
