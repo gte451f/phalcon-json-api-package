@@ -149,6 +149,18 @@ class BaseController extends Controller
      */
     public function getModel($modelNameString = false)
     {
+        // Attempt to load a model using native Phalcon controller API.
+        $controllerClass = "\\PhalconRest\Controllers\\" . $this->getControllerName("singular");
+        if(class_exists($controllerClass)) {
+            $controller = new $controllerClass();
+            $model = $controller->getModel();
+    
+            if($model) {
+                $this->model = $model;
+            }
+        }
+
+        // Backup model loading
         if ($this->model == false) {
             $config = $this->getDI()->get('config');
             // auto load model so we can inject it into the entity
@@ -288,7 +300,7 @@ class BaseController extends Controller
     {
         $request = $this->getDI()->get('request');
         // supply everything the request object could possibly need to fulfill the request
-        $post = $request->getJson($this->getControllerName('singular'), $this->model);
+        $post = $request->getJson($this->getControllerName('singular'), $this->getModel());
 
         if (!$post) {
             throw new HTTPException('There was an error adding new record.  Missing POST data.', 400, [
@@ -297,10 +309,12 @@ class BaseController extends Controller
             ]);
         }
 
-        // filter out any block columns from the posted data
-        $blockFields = $this->model->getBlockColumns();
-        foreach ($blockFields as $key => $value) {
-            unset($post->$value);
+        if(method_exists($this->model, "getBlockColumns")) {
+            // filter out any block columns from the posted data
+            $blockFields = $this->model->getBlockColumns();
+            foreach ($blockFields as $key => $value) {
+                unset($post->$value);
+            }
         }
 
         $post = $this->beforeSave($post);
@@ -355,10 +369,12 @@ class BaseController extends Controller
             ]);
         }
 
-        // filter out any block columns from the posted data
-        $blockFields = $this->model->getBlockColumns();
-        foreach ($blockFields as $key => $value) {
-            unset($put->$value);
+        if(method_exists($this->model, "getBlockColumns")) {
+            // filter out any block columns from the posted data
+            $blockFields = $this->model->getBlockColumns();
+            foreach ($blockFields as $key => $value) {
+                unset($put->$value);
+            }
         }
 
         $put = $this->beforeSave($put, $id);
