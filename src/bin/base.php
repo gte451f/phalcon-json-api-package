@@ -26,8 +26,7 @@ if (!function_exists('array_merge_recursive_replace')) {
 
         foreach ($arrays as $array) {
             reset($base);
-            while (list ($key, $value) = @each($array)) {
-
+            foreach ($array as $key => $value) {
                 if (is_array($value) && isset($base[$key]) && @is_array($base[$key])) {
                     $base[$key] = array_merge_recursive_replace($base[$key], $value);
                 } else {
