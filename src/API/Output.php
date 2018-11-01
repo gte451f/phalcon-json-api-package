@@ -97,7 +97,8 @@ class Output extends \Phalcon\DI\Injectable
         if ($this->head || !$message) {
             $response->setContentType(null); //forces content-type to not be sent
         } else {
-            $response->setJsonContent($message);
+            $jsonConfig = $this->di->get('config')['application']['debugApp'] ? JSON_PRETTY_PRINT : 0;
+            $response->setJsonContent($message, $jsonConfig);
         }
 
         $response->send();

@@ -37,7 +37,7 @@ class RelationFilter
      * @param string $value
      * @param string $operator
      */
-    function __construct(string $name, string $value, string $operator = '=')
+    function __construct(string $name, string $value, $operator = '=')
     {
         $this->operator = $operator;
         $this->value = $value;

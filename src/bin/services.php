@@ -42,6 +42,14 @@ $di->setShared('logger', function () use ($config) {
     return new FileLogger($config['application']['loggingDir'] . date('d_m_y') . '-api.log');
 });
 
+/**
+ * load rule store to support business rules
+ */
+// hold custom variables
+$di->set('ruleList', function () {
+    return new \PhalconRest\Rules\Registry();
+}, true);
+
 if (PHP_SAPI != 'cli') {
     /**
      * Return array of the Collections, which define a group of routes, from
@@ -168,7 +176,7 @@ $di->setShared('memory', function () {
 });
 
 $di->set('queryBuilder', [
-    'className' => '\\PhalconRest\\API\\QueryBuilder',
+    'className' => '\\PhalconRest\\Query\\QueryBuilder',
     'arguments' => [
         ['type' => 'parameter'],
         ['type' => 'parameter'],
@@ -206,12 +214,17 @@ $di->setShared('requestBody', function () {
 
 // hold custom variables
 $di->set('store', function () {
-    $myObject = new class {
+    $myObject = new class
+    {
         private $store = [];
-        public function update($key, $value){
+
+        public function update($key, $value)
+        {
             $this->store[$key] = $value;
         }
-        public function get($key){
+
+        public function get($key)
+        {
             if (array_key_exists($key, $this->store)) {
                 return $this->store[$key];
             }

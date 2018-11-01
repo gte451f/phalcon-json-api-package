@@ -54,8 +54,56 @@ class BaseController extends Controller
     {
         $di = DI::getDefault();
         $this->setDI($di);
-        // initialize entity and set to class property (doing the same to the model property)
-        $this->getEntity();
+
+        // enforce deny rules right out of the gate
+        // TODO what about rules like...edit your own records?
+
+        $router = $di->get('router');
+        $matchedRoute = $router->getMatchedRoute();
+        $method = $matchedRoute->getHttpMethods();
+
+
+        // if a valid model is detected, proceed to work with that model to 1) enforce security rules 2) load entity
+        $model = $this->getModel();
+        if (is_object($model)) {
+            // GET/POST/PUT/PATCH/DELETE
+            //load rules and apply to operation
+
+            switch ($method) {
+                case 'GET':
+                    $mode = READRULES;
+                    break;
+                case 'POST':
+                    $mode = CREATERULES;
+                    break;
+                case 'PUT':
+                case 'PATCH':
+                    $mode = UPDATERULES;
+                    break;
+                case 'DELETE':
+                    $mode = DELETERULES;
+                    break;
+                default:
+                    throw new HTTPException('Unsupported operation encountered', 404, [
+                        'dev' => 'Encountered operation: ' . $method,
+                        'code' => '8914681681681681'
+                    ]);
+
+                    break;
+            }
+
+            // expect valid ruleStore since this is run from a controller
+            $modelRuleStore = $di->get('ruleList')->get($model->getModelName());
+            foreach ($modelRuleStore->getRules($mode, 'DenyRule') as $rule) {
+                // if a deny rule is encountered, block access to this end point
+                throw new HTTPException('Not authorized to access this end point for this operation:' . $method, 403, [
+                    'dev' => 'You do not have access to the requested resource.',
+                    'code' => '89494186161681864'
+                ]);
+            }
+            // initialize entity and set to class property (doing the same to the model property)
+            $this->getEntity();
+        }
     }
 
     /**
@@ -67,11 +115,14 @@ class BaseController extends Controller
      *  - commit (all operations were successful)
      *  - rollback (a problem occurred)
      *
+     * @param mixed ...$args
+     * @return mixed
+     * @throws \Throwable
      */
     public function atomicMethod(...$args)
     {
         $di = $this->getDI();
-        $router =$di->get('router');
+        $router = $di->get('router');
         $matchedRoute = $router->getMatchedRoute();
         $handler = $matchedRoute->getName();
         $db = $di->get('db');
@@ -80,8 +131,9 @@ class BaseController extends Controller
         $store->update('transaction_is_atomic', true);
 
         try {
-            $this->{$handler}(...$args);
+            $result = $this->{$handler}(...$args);
             $store->update('rollback_transaction', false);
+            return $result;
         } catch (\Throwable $e) {
             $store->update('rollback_transaction', true);
             throw $e;
@@ -97,7 +149,21 @@ class BaseController extends Controller
      */
     public function getModel($modelNameString = false)
     {
-        if ($this->model == false) {
+        // Attempt to load a model using native Phalcon controller API.
+        if (!$this->model) {
+            $controllerClass = "\\PhalconRest\Controllers\\" . $this->getControllerName("singular");
+            if(class_exists($controllerClass)) {
+                $controller = new $controllerClass();
+                $model = $controller->getModel();
+        
+                if($model) {
+                    $this->model = $model;
+                }
+            }
+        }
+
+        // Backup model loading
+        if (!$this->model) {
             $config = $this->getDI()->get('config');
             // auto load model so we can inject it into the entity
             if (!$modelNameString) {
@@ -114,7 +180,7 @@ class BaseController extends Controller
      * Load an empty SearchHelper instance. Useful place to override its behavior.
      * @return SearchHelper
      */
-    public function getSearchHelper()
+    public function getSearchHelper(): SearchHelper
     {
         return new SearchHelper();
     }
@@ -148,13 +214,12 @@ class BaseController extends Controller
     }
 
     /**
-     * In order that the controller has access during the getSearchHelper
-     * to configure the entity, the controller needs to implement
-     * this method to override the functionality
-     * @param  \PhalconRest\API\Entity $entity
-     * @return \PhalconRest\API\Entity $entity
+     * Hook that allows child controller to manipulate entity early in request life cycle
+     *
+     * @param Entity $entity
+     * @return Entity $entity
      */
-    public function configureEntity($entity)
+    public function configureEntity(Entity $entity): Entity
     {
         return $entity;
     }
@@ -193,7 +258,8 @@ class BaseController extends Controller
     /**
      * catches incoming requests for groups of records
      *
-     * @return \PhalconRest\Result\Result
+     * @return mixed|\PhalconRest\Result\Result
+     * @throws HTTPException
      */
     public function get()
     {
@@ -236,7 +302,7 @@ class BaseController extends Controller
     {
         $request = $this->getDI()->get('request');
         // supply everything the request object could possibly need to fulfill the request
-        $post = $request->getJson($this->getControllerName('singular'), $this->model);
+        $post = $request->getJson($this->getControllerName('singular'), $this->getModel());
 
         if (!$post) {
             throw new HTTPException('There was an error adding new record.  Missing POST data.', 400, [
@@ -245,10 +311,12 @@ class BaseController extends Controller
             ]);
         }
 
-        // filter out any block columns from the posted data
-        $blockFields = $this->model->getBlockColumns();
-        foreach ($blockFields as $key => $value) {
-            unset($post->$value);
+        if(method_exists($this->model, "getBlockColumns")) {
+            // filter out any block columns from the posted data
+            $blockFields = $this->model->getBlockColumns();
+            foreach ($blockFields as $key => $value) {
+                unset($post->$value);
+            }
         }
 
         $post = $this->beforeSave($post);
@@ -274,7 +342,7 @@ class BaseController extends Controller
      * Pass through to entity so it can perform extra logic if needed most of the time...
      *
      * @param int $id
-     * @return mixed return valid Apache code, could be an error, maybe not
+     * @throws HTTPException
      */
     public function delete($id)
     {
@@ -303,10 +371,12 @@ class BaseController extends Controller
             ]);
         }
 
-        // filter out any block columns from the posted data
-        $blockFields = $this->model->getBlockColumns();
-        foreach ($blockFields as $key => $value) {
-            unset($put->$value);
+        if(method_exists($this->model, "getBlockColumns")) {
+            // filter out any block columns from the posted data
+            $blockFields = $this->model->getBlockColumns();
+            foreach ($blockFields as $key => $value) {
+                unset($put->$value);
+            }
         }
 
         $put = $this->beforeSave($put, $id);

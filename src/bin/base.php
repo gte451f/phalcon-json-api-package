@@ -5,6 +5,14 @@
  * TODO: Make these services or libraries in DI?
  */
 
+// record MODEs that define when rules should be applied
+// Rules system depends on these values
+CONST CREATERULES = 1;
+CONST READRULES = 2;
+CONST UPDATERULES = 4;
+CONST DELETERULES = 8;
+
+
 if (!function_exists('array_merge_recursive_replace')) {
     /**
      * logic used to auto load the correct config based on environment
@@ -18,8 +26,7 @@ if (!function_exists('array_merge_recursive_replace')) {
 
         foreach ($arrays as $array) {
             reset($base);
-            while (list ($key, $value) = @each($array)) {
-
+            foreach ($array as $key => $value) {
                 if (is_array($value) && isset($base[$key]) && @is_array($base[$key])) {
                     $base[$key] = array_merge_recursive_replace($base[$key], $value);
                 } else {

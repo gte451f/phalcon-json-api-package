@@ -64,7 +64,8 @@ class BaseModel extends \Phalcon\Mvc\Model
     private $modelNameSpace = null;
 
     /**
-     * list of relationships?
+     * store and provide access to all relationships defined for this model
+     * pulls relationships from Phalcon Model Manager
      *
      * @var array
      */
@@ -143,10 +144,49 @@ class BaseModel extends \Phalcon\Mvc\Model
      */
     public $throwOnNextSave = null;
 
+    /**
+     * default behavior for all models
+     * override this function at your peril as you'll have to perform these functions in your child class
+     */
+    /**
+     * @param bool $secure
+     */
     public function initialize()
     {
         $this->loadBlockColumns();
+        $this->configureRelationships();
+
+        // gather rule list and proceed to construct store for this model
+        $ruleRegistry = $this->getDI()->get('ruleList');
+        // skip if rule system is disabled
+        if ($ruleRegistry->isEnforcing()) {
+            // perform in such a way that the newly created store is run through registry logic one time
+            $newStore = $ruleRegistry->getNewStore($this);
+            // run through local configuration logic
+            $ruleRegistry->update($this->getModelName(), $this->configureRuleStore($newStore));
+        }
     }
+
+    /**
+     * hook where api can configure rules for end point
+     *
+     * @param \PhalconRest\Rules\Store $ruleStore
+     * @return \PhalconRest\Rules\Store
+     */
+    public function configureRuleStore(\PhalconRest\Rules\Store $ruleStore): \PhalconRest\Rules\Store
+    {
+        return $ruleStore;
+    }
+
+    /**
+     * hook to use when registering relationships for the model
+     * @return void
+     */
+    public function configureRelationships()
+    {
+
+    }
+
 
     /**
      * provided to lazy load the model's name
@@ -172,7 +212,7 @@ class BaseModel extends \Phalcon\Mvc\Model
 
         if ($type == 'singular') {
             if (!isset($this->singularName)) {
-                $this->singularName = substr($this->getPluralName(), 0, strlen($this->getPluralName()) - 1);
+                $this->singularName = substr($this->getModelName('plural'), 0, strlen($this->getModelName('plural')) - 1);
             }
             return $this->singularName;
         }

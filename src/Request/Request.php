@@ -58,12 +58,9 @@ abstract class Request extends \Phalcon\Http\Request
     /**
      * extend to hook up possible case conversion
      *
-     * @param string $name
-     * @param string $filters
-     * @param string $defaultValue
-     * @return object
+     * {@inheritdoc}
      */
-    public function getPost($name = null, $filters = null, $defaultValue = null)
+    public function getPost($name = null, $filters = null, $defaultValue = null, $notAllowEmpty = false, $noRecursive = false)
     {
         // perform parent function
         $request = parent::getPost($name, $filters, $defaultValue);
@@ -126,7 +123,6 @@ abstract class Request extends \Phalcon\Http\Request
      */
     public function getJsonProperty(string $name, $filter = 'string')
     {
-
         // manually filter since we are not going through getPost/Put
         $filterService = new Filter();
 
@@ -144,8 +140,6 @@ abstract class Request extends \Phalcon\Http\Request
                 'dev' => json_encode($json),
                 'code' => '894984616161681468764'
             ]);
-
         }
     }
-
 }

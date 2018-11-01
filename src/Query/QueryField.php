@@ -1,6 +1,6 @@
 <?php
 
-namespace PhalconRest\API;
+namespace PhalconRest\Query;
 
 use Phalcon\Di;
 use Phalcon\DI\Injectable;
@@ -45,11 +45,13 @@ class QueryField extends Injectable
      * @var null|BaseModel
      */
     private $model = null;
+
     /**
-     * supplied Entity for this query
-     * @var null|Entity
+     * supplied model for this query
+     * @var null|BaseModel
      */
     private $entity = null;
+
 
     /**
      * QueryField constructor.
@@ -59,7 +61,7 @@ class QueryField extends Injectable
      * @param BaseModel $model
      * @param Entity $entity
      */
-    function __construct(string $name, string $value, BaseModel $model, Entity $entity)
+    function __construct(string $name, string $value, \PhalconRest\API\BaseModel $model, \PhalconRest\API\Entity $entity)
     {
         $di = Di::getDefault();
         $this->setDI($di);
@@ -317,9 +319,10 @@ class QueryField extends Injectable
      * this is derived from the QueryFields internal state
      *
      * @param Builder $query
-     * @return Builder
+     * @return mixed|Builder
+     * @throws HTTPException
      */
-    public function addWhereClause(Builder $query)
+    public function addWhereClause(Builder $query): Builder
     {
 
         switch ($this->processSearchFieldQueryType()) {
@@ -340,18 +343,16 @@ class QueryField extends Injectable
      * this function expects to be called when BOTH the name and value properties are strings
      * otherwise, a bug will result!
      *
-     * @param $query
-     * @return mixed
+     * @param Builder $query
+     * @return Builder
      * @throws HTTPException
      */
-    private function parseAdd($query)
+    private function parseAdd(Builder $query): Builder
     {
 
         $operator = $this->determineWhereOperator($this->getValue());
         $name = $this->getName();
         $value = $this->getValue();
-
-        $foo = count($name);
 
         // validate
         if (is_array($value) OR count($name) > 1) {
@@ -389,10 +390,11 @@ class QueryField extends Injectable
     /**
      * compile the correct WHERE clause and add it to the supplied Query object
      *
-     * @param $query
-     * @return mixed
+     * @param Builder $query
+     * @return Builder
+     * @throws HTTPException
      */
-    private function parseOr($query)
+    private function parseOr(Builder $query): Builder
     {
 
         $nameArray = $this->getName();

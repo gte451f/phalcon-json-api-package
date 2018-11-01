@@ -8,16 +8,14 @@ use \PhalconRest\Exception\HTTPException;
  * Same base controller but checks for a valid token if security is enabled
  * otherwise it proceeds to the baseController
  *
- * IMPORTANT - This controller makes several assumptions about defined services in YOUR application!
- * It wants a security service to test whether the requesting users gets access to an end point
+ * IMPORTANT - This controller DOES NOT make assumptions about any security service in your client app
+ * Rather, this controller is intended to work with the Rules system instead
  */
-class SecureController extends BaseController
+class SimpleSecureController extends BaseController
 {
 
     /**
-     *
-     * this function will gather expected security data such as an auth token
-     * it also expects a defined security service to be registered with Phalcon's DI service
+     * this function will gather an auth token and proceed or fail
      *
      * @throws HTTPException
      */
@@ -37,10 +35,7 @@ class SecureController extends BaseController
 
                 // check for a valid session
                 if ($auth->isLoggedIn($token)) {
-                    // get the security service object
-                    $securityService = $this->getDI()->get('securityService');
-                    // run security check
-                    $this->securityCheck($securityService);
+                    // continue
                 } else {
                     throw new HTTPException('Unauthorized, please authenticate first.', 401, [
                         'dev' => 'Must be authenticated to access.',
@@ -54,8 +49,7 @@ class SecureController extends BaseController
                 // todo figure out a way to do this w/o this assumption
                 // notice the specific requirement to a client application
                 if ($auth->isLoggedIn('HACKYHACKERSON')) {
-                    // run security check..you did program one in your app right?
-                    $this->securityCheck($this->getDI()->get('securityService'));
+                    // continue
                 } else {
                     throw new HTTPException('Security False is not loading a valid user.', 401, [
                         'dev' => 'The authenticator isn\'t loading a valid user.',
@@ -71,7 +65,6 @@ class SecureController extends BaseController
 
         // continue after security is worked out
         parent::onConstruct();
-
     }
 
     /**
@@ -92,23 +85,11 @@ class SecureController extends BaseController
 
         $token = trim(str_ireplace('Token:', '', $token));
         if (strlen($token) < 30) {
-            throw new HTTPException('Bad token supplied', 401, [
+            throw new HTTPException('Unauthorized access blocked', 401, [
                 'dev' => 'Supplied Token: ' . $token,
-                'code' => '0273497957'
+                'code' => '98914681681864674'
             ]);
         }
-
         return $token;
-    }
-
-    /**
-     * This is a method that is to be defined in classes that extend \PhalconRest\API\SecureController
-     *
-     * @param object $securityService
-     * @return boolean
-     */
-    protected function securityCheck($securityService)
-    {
-        return true;
     }
 }
