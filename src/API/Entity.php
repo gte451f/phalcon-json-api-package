@@ -1313,6 +1313,7 @@ class Entity extends Injectable
     {
         // test that this record can be found in the API
         // if it isn't found, return a not found, not access denied
+        $modelRuleStore = $this->di->get('ruleList')->get($this->model->getModelName());
 
         // if we don't find a record, terminate with an empty result set
         if ($this->partialFindFirst($id) === false) {
@@ -1327,6 +1328,12 @@ class Entity extends Injectable
         $modelToDelete = $primaryModelName::findFirst($id);
 
         if ($modelToDelete != false) {
+            if ($modelRuleStore) {
+                foreach ($modelRuleStore->getRules(DELETERULES, 'ModelCallbackRule') as $rule) {
+                    $rule->evaluateCallback($modelToDelete, null);
+                }
+            }
+
             $this->beforeDelete($modelToDelete);
 
             // attempt delete run gold leader!
