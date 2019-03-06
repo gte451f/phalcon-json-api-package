@@ -104,3 +104,22 @@ if (!function_exists('array_flatten')) {
         }
     }
 }
+
+if (!function_exists('array_merge_if_not_null')) {
+    /**
+     * Merge two arrays that may have different keys. Keep the not null value of the same key
+     * @param array $arr1
+     * @param array $arr2
+     * @return array
+     */
+    function array_merge_if_not_null(array $arr1, array $arr2): array
+    {
+        foreach ($arr2 as $key => $val) {
+            $is_set_and_not_null = isset($arr1[$key]);
+            if ($val == NULL && $is_set_and_not_null) {
+                $arr2[$key] = $arr1[$key];
+            }
+        }
+        return array_merge($arr1, $arr2);
+    }
+}

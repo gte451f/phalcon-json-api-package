@@ -1145,7 +1145,8 @@ class Entity extends Injectable
                     }
                 }
                 // we don't ask for parent fields here because they are already included in the complex $result
-                $relatedRecArray = array_merge($this->loadAllowedColumns($rec, false, false), $relatedRecArray);
+                $currentRec = $this->loadAllowedColumns($rec, false, false);
+                $relatedRecArray = array_merge_if_not_null($currentRec, $relatedRecArray);
             }
         } else {
             // reset for each run
@@ -1159,6 +1160,8 @@ class Entity extends Injectable
         }
         return $relatedRecArray;
     }
+
+
 
 
     /**
