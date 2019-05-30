@@ -263,6 +263,15 @@ abstract class Result extends \Phalcon\DI\Injectable
     }
 
     /**
+     * get a copy of all loaded included data in the result object
+     * @return array
+     */
+    public function getIncluded()
+    {
+        return $this->included;
+    }
+
+    /**
      * provides access to the plain array
      *
      * @param bool $key
