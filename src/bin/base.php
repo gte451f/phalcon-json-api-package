@@ -116,7 +116,7 @@ if (!function_exists('array_merge_if_not_null')) {
     {
         foreach ($arr2 as $key => $val) {
             $is_set_and_not_null = isset($arr1[$key]);
-            if ($val == NULL && $is_set_and_not_null) {
+            if ($val == null && $is_set_and_not_null) {
                 $arr2[$key] = $arr1[$key];
             }
         }
