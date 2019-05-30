@@ -1080,7 +1080,9 @@ class Entity extends Injectable
                 continue;
             }
 
-            if ($relation->getType() == PhalconRelation::BELONGS_TO) {
+            if ($relation->getAlias()) {
+                $relationshipName = $relation->getAlias();
+            } else if ($relation->getType() == PhalconRelation::BELONGS_TO) {
                 $relationshipName = $relation->getTableName('singular');
             } else {
                 $relationshipName = $relation->getTableName('plural');
@@ -1239,6 +1241,8 @@ class Entity extends Injectable
                 foreach ($modelRelationships as $relation) {
                     $modelName = $relation->getModelName();
                     $aliasName = $relation->getAlias();
+
+                    $this->result->registerRelationshipDefinitions($relation);
 
                     // make sure the relationship is approved either as the table name, model name or ALL
                     // table names because end point resources = table names
